@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-15",
+  "version": "0.5.10",
+  "result": "PASS",
+  "checks": {
+    "typecheck": "PASS",
+    "frontend": {
+      "files": 7,
+      "passed": 102
+    },
+    "build": "corepack pnpm tauri build --no-bundle",
+    "nativeDesktop": "desktop-verification.json"
+  },
+  "delivery": {
+    "path": "app/Inky Paper.exe",
+    "bytes": 67661824,
+    "sha256": "8A29C86456DABF1AD90366557B5D0218A50E39AB64557C48C56CF11C9DA78DFE",
+    "matchesRelease": true,
+    "desktopShortcutMatches": true
+  },
+  "limits": [
+    "Only focus transparency CSS changed; no backend behavior changes. Rust suite was not repeated.",
+    "Native interaction used an isolated debug database. Production process was not interrupted.",
+    "Three alternative designs are previews pending user selection; they are not implemented in 0.5.10."
+  ]
+}

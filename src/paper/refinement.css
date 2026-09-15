@@ -677,10 +677,21 @@ label span,
   pointer-events: none;
 }
 .focus-quiet .timer {
-  color: #74816a;
-  -webkit-text-stroke: 0.5px #faf8f280;
+  color: #40513b;
+  -webkit-text-stroke: 1.5px #faf8f2;
   paint-order: stroke fill;
-  text-shadow: none;
+  text-shadow: 0 1px 3px #faf8f280;
+}
+/* Outline the visible marks, never their containers: the desktop must remain
+   visible between navigation, digits and pencil in quiet mode. */
+.focus-quiet .focus-navigation button {
+  color: #30332f;
+  -webkit-text-stroke: 2px #faf8f2;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px #faf8f280;
+}
+.focus-quiet .focus-navigation svg {
+  filter: drop-shadow(0 0 1px #faf8f2);
 }
 .pencil-progress {
   height: 24px;
@@ -743,17 +754,17 @@ label span,
   border-bottom: 0;
 }
 .focus-quiet .pencil-progress {
-  filter: drop-shadow(0 0 0.4px #faf8f280);
+  filter: drop-shadow(0 0 1px #faf8f2);
 }
 .focus-quiet .pencil-ink {
-  stroke: #78866c;
+  stroke: #40513b;
 }
 .focus-quiet .pencil-body {
   opacity: 0.95;
 }
 .focus-quiet .pencil-track {
-  stroke: #939a8a;
-  stroke-opacity: 0.75;
+  stroke: #646b60;
+  stroke-opacity: 1;
 }
 @keyframes pencil-writing {
   0%,

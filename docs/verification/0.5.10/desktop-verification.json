@@ -1,0 +1,72 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Native 320x196 focus window fades all paper surfaces; timer/progress stay in place and keep advancing, navigation remains available",
+    "Captured transparent rendering on light, dark and mixed backgrounds without changing desktop settings",
+    "Pointer restores paper and controls; pause/resume and note editing remain usable with the draft visible",
+    "Keyboard wakes the sheet and keeps focused controls visible; reduced motion stops decorative pencil movement",
+    "Return-to-list preserves the active timer; ending and saving still records time without completing the parent task"
+  ],
+  "normal": {
+    "width": 320,
+    "height": 196,
+    "timer": {
+      "x": 106,
+      "y": 74,
+      "width": 108,
+      "height": 44
+    },
+    "progress": {
+      "x": 58,
+      "y": 118,
+      "width": 204,
+      "height": 24
+    },
+    "sheetOpacity": "1",
+    "sheetBackground": "rgba(0, 0, 0, 0)",
+    "navBackground": "rgba(0, 0, 0, 0)",
+    "clockBackground": "rgba(0, 0, 0, 0)",
+    "clockShadow": "none",
+    "title": "visible",
+    "controls": "visible",
+    "nav": "visible",
+    "timerStroke": "0px",
+    "overflow": false
+  },
+  "transparent": {
+    "width": 320,
+    "height": 196,
+    "timer": {
+      "x": 106,
+      "y": 74,
+      "width": 108,
+      "height": 44
+    },
+    "progress": {
+      "x": 58,
+      "y": 118,
+      "width": 204,
+      "height": 24
+    },
+    "sheetOpacity": "0",
+    "sheetBackground": "rgba(0, 0, 0, 0)",
+    "navBackground": "rgba(0, 0, 0, 0)",
+    "clockBackground": "rgba(0, 0, 0, 0)",
+    "clockShadow": "none",
+    "title": "hidden",
+    "controls": "hidden",
+    "nav": "visible",
+    "timerStroke": "1.5px",
+    "overflow": false
+  },
+  "errors": [],
+  "isolatedData": true,
+  "screenshotAlpha": {
+    "size": [
+      480,
+      294
+    ],
+    "fullyTransparentPixelRatio": 0.8992,
+    "formerContainerBlankPixelsTransparent": true
+  }
+}

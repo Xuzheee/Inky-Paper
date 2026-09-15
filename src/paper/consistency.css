@@ -82,10 +82,6 @@
   background: var(--paper-card);
   color: var(--paper-ink);
 }
-.paper.focus-quiet .focus-navigation {
-  background: rgba(250, 248, 242, 0.96);
-  border-radius: 6px;
-}
 .paper .feedback-outcome-help,
 .paper .session-browse-status {
   color: var(--paper-muted);
@@ -130,29 +126,10 @@
 .paper .rest-card .timer {
   margin-inline: auto;
 }
-.paper.focus-quiet .focus-clock {
-  background: rgba(250, 248, 242, 0.96);
-  border-radius: 12px;
-  box-shadow: 0 1px 5px #30332f20;
-}
-.paper.focus-quiet .timer {
-  color: var(--paper-accent);
-  -webkit-text-stroke: 0;
-}
-.focus-clock {
-  transition:
-    background-color 450ms,
-    box-shadow 450ms;
-}
 .paper .work-strip {
   width: 100%;
   border-radius: var(--paper-radius);
 }
 .paper .coach-panel .coach-choice button {
   font-size: 12px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .focus-clock {
-    transition: none;
-  }
 }

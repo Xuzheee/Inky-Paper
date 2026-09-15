@@ -28,3 +28,13 @@ node scripts/desktop/verify-notice-window.mjs
 ```
 
 需要 Python 和项目中的 Playwright 依赖。使用端口 9251，隔离数据在 `output/notice-window-20260915/`，截图在 `output/playwright/notice-window-20260915/`。同样要求新的空测试目录；操作前核对桥接路径。脚本检查真实 Win32 可见性、焦点、保存和休息后的提醒、各关闭入口、连续提醒的过期保护、重载与业务数据不变。它只生成测试任务，不调用 Hermes 模型。完成后核对 PID 路径并退出隔离 debug 进程。
+
+## 番茄钟透明态验收
+
+```powershell
+corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-test.json
+./scripts/desktop/launch-focus-acceptance.ps1
+node scripts/desktop/verify-focus-transparency.mjs
+```
+
+端口 9252，独立空数据目录 `output/focus-transparency-acceptance/`，截图在 `output/playwright/focus-transparency/`。脚本等待真实 10 秒淡出，核对背景透明、计时坐标和进度，再检查深浅背景、恢复、暂停 / 继续、随手记、键盘、导航与保存。背景变化仅应用于测试 WebView 的 body，不修改系统桌面；检查后立即恢复。结束后核对 PID 路径并退出隔离进程。

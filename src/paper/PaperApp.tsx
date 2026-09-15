@@ -366,7 +366,7 @@ export default function PaperApp() {
           : "focus"
       : view === "focus" && session?.kind === "rest"
         ? "rest"
-        : view === "feedback" && !expanded && !work
+        : view === "feedback"
           ? "focus-complete"
           : view === "celebration" ||
               (view === "receipt" &&

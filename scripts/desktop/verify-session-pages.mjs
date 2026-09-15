@@ -3,13 +3,21 @@ import {verifyPaperEnding} from './verify-ending-interaction.mjs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
-// Run only after launch-acceptance.ps1 starts a fresh isolated debug build.
-const out=path.resolve('output/desktop-acceptance');
+// Optional RunName uses launch-focus-acceptance.ps1 and this worktree's execution identity.
+const runName=process.argv[2];
+if(runName&&!/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(runName))throw new Error('Invalid RunName');
+const out=path.resolve('output',runName||'desktop-acceptance');
+const dataDir=path.join(out,runName?'paper-test':'paper-test-final');
 const shots=path.join(out,'screenshots');
 await mkdir(shots,{recursive:true});
-const browser=await chromium.connectOverCDP('http://127.0.0.1:9247');
+let browser;
+for(let attempt=0;attempt<12;attempt++) {
+  try { browser=await chromium.connectOverCDP(`http://127.0.0.1:${runName?9252:9247}`); break; }
+  catch(error) { if(attempt===11)throw error; await new Promise(resolve=>setTimeout(resolve,1000)); }
+}
 const page=browser.contexts()[0].pages().find(p=>!p.url().includes('coachPrompt')&&!p.url().includes('paperNotice'));
 page.setDefaultTimeout(12000);
+await page.locator('main.paper').waitFor();
 const button=name=>page.getByRole('button',{name,exact:true});
 const radio=name=>page.getByRole('radio',{name,exact:true});
 const invoke=(action,input={})=>page.evaluate(({action,input})=>window.__TAURI_INTERNALS__.invoke('paper_execute',{action,input}),{action,input});
@@ -21,17 +29,18 @@ const pass=message=>{checks.push(message);console.log('PASS',message);};
 const geometry=async()=>page.evaluate(()=>{
   const box=selector=>{const node=document.querySelector(selector);if(!node)return null;const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,width:r.width};};
   const main=document.querySelector('main');
-  return {width:innerWidth,height:innerHeight,scrollHeight:main.scrollHeight,clientHeight:main.clientHeight,task:box('.end-task'),taskText:box('.end-task > span'),notes:box('.end-records'),legend:box('.end-outcome legend'),options:box('.end-outcome > div'),save:box('.end-save'),footer:box('footer')};
+  return {width:innerWidth,height:innerHeight,scrollHeight:main.scrollHeight,clientHeight:main.clientHeight,gutter:main.offsetWidth-main.clientWidth,task:box('.end-task'),taskText:box('.end-task > span'),taskFont:document.querySelector('.end-task > span')?getComputedStyle(document.querySelector('.end-task > span')).fontSize:null,notes:box('.end-records'),legend:box('.end-outcome legend'),options:box('.end-outcome > div'),save:box('.end-save'),footer:box('footer')};
 });
 const assertFits=async()=>{const g=await geometry();assert(g.scrollHeight<=g.clientHeight+1,JSON.stringify(g));assert(g.footer.bottom<=g.height,JSON.stringify(g));return g;};
 const end=async()=>{await button('结束番茄钟').click();await button('保存并结束').waitFor();};
 try{
   const bridge=await page.evaluate(()=>window.__TAURI_INTERNALS__.invoke('get_paper_bridge_status'));
-  assert.equal(path.resolve(bridge.connectionFile),path.join(out,'paper-test-final/paper-agent-bridge.json'));
+  assert.equal(path.resolve(bridge.connectionFile),path.join(dataDir,'paper-agent-bridge.json'));
   assert.equal((await state()).tasks.length,0,'Fresh isolated fixture required');
-  const taskId=crypto.randomUUID(),longTaskId=crypto.randomUUID(),batchId=crypto.randomUUID();
+  const taskId=crypto.randomUUID(),longTaskId=crypto.randomUUID(),extremeTaskId=crypto.randomUUID(),batchId=crypto.randomUUID();
   const longText='整理今天学习的产品概念，并把验证方法和下一步行动补充到项目记录中';
-  const cards=[{id:crypto.randomUUID(),taskId,taskTitle:'复习',text:'复习',plannedSeconds:1500},{id:crypto.randomUUID(),taskId:longTaskId,taskTitle:'改进 Inky',text:longText,plannedSeconds:1500}];
+  const extremeText=('整理 Inky Paper 产品笔记，review research findings，并写下下一步。\n').repeat(10).slice(0,300);
+  const cards=[{id:crypto.randomUUID(),taskId,taskTitle:'复习',text:'复习',plannedSeconds:1500},{id:crypto.randomUUID(),taskId:longTaskId,taskTitle:'改进 Inky',text:longText,plannedSeconds:1500},{id:crypto.randomUUID(),taskId:extremeTaskId,taskTitle:'完整任务验收',text:extremeText,plannedSeconds:1500}];
   const today=new Date(), date=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const batch=await invoke('propose_plan_batch',{requestId:crypto.randomUUID(),batchId,cards});
   await invoke('adopt_plan_cards',{requestId:crypto.randomUUID(),batchId,expectedRevision:batch.batch.revision,date,cardIds:cards.map(c=>c.id)});
@@ -45,7 +54,7 @@ try{
   await cdp.send('DOM.enable');await cdp.send('CSS.enable');
   const {root}=await cdp.send('DOM.getDocument');
   const renderedFonts=[];
-  for(const [selector,expected,size] of [['.end-task > span','Xiaolai','42px'],['.end-outcome label span','Yozai','18px']]) {
+  for(const [selector,expected,size] of [['.end-task-letters','Xiaolai','42px'],['.end-outcome label span','Yozai','18px']]) {
     const {nodeId}=await cdp.send('DOM.querySelector',{nodeId:root.nodeId,selector});
     const {fonts}=await cdp.send('CSS.getPlatformFontsForNode',{nodeId});
     assert(fonts.some(f=>f.isCustomFont&&f.postScriptName.includes(expected)),JSON.stringify(fonts));
@@ -58,19 +67,26 @@ try{
   assert.equal(await page.locator('.paper-motto').textContent(),motto);
   await verifyPaperEnding(page,shots,pass);
   const endGeometry=await assertFits();
-  assert(endGeometry.taskText.top-endGeometry.task.top>=28,'Task has top breathing space');
-  assert(endGeometry.task.bottom-endGeometry.taskText.bottom>=22,'Task has bottom breathing space');
+  assert.equal(endGeometry.gutter,0,'Collapsed end page needs no scrollbar');
+  assert.equal(endGeometry.task.height,126,'Handwriting area stays fixed');
+  assert(endGeometry.taskText.top-endGeometry.task.top>=22,'Task has top breathing space');
+  assert(endGeometry.task.bottom-endGeometry.taskText.bottom>=24,'Task has bottom breathing space');
+  assert(endGeometry.height-endGeometry.footer.bottom<=12,'Small footer bottom margin');
   assert(endGeometry.options.top-endGeometry.legend.bottom>=14,'Legend separated from options');
   assert(endGeometry.save.top-endGeometry.options.bottom>=20,'Save separated from choices');
   await shot('end-default');
   const paused=await current();assert.equal(paused.status,'paused');
   await radio('已完成').locator('..').click();
+  assert.match(await page.locator('#end-outcome-hint').textContent(),/保存后划掉这一步/);
   assert.equal((await current()).revision,paused.revision);
   assert.equal((await state()).planning.steps[0].completed,false);
   await button('补充记录（可选）').click();
   await page.getByLabel('产出',{exact:true}).fill('完成今日复习记录');
   await page.getByLabel('卡点',{exact:true}).fill('待核对一个概念');
   await page.getByLabel('下次起点',{exact:true}).fill('继续练习');
+  const expandedGeometry=await geometry();assert(expandedGeometry.gutter<=4,JSON.stringify(expandedGeometry));
+  assert.equal(expandedGeometry.height,endGeometry.height,'Expanding notes keeps the native window height');
+  assert.equal(expandedGeometry.task.height,endGeometry.task.height);
   await shot('end-expanded');
   await button('返回任务列表').click();await button('返回番茄钟').click();await end();
   assert(await radio('已完成').isChecked());
@@ -87,12 +103,16 @@ try{
   pass('Radio choice is draft-only; notes and outcome survive browsing/reload, only save commits, unfinished remains pending and success clears drafts');
   await button('start').click();await end();assert(await radio('还没完成').isChecked());
   await radio('已完成').locator('..').click();await button('保存并结束').click();await button('回到任务页').waitFor();
+  assert.match(await page.locator('.completion-moment').textContent(),/整个任务请在列表中单独完成/);
+  assert.equal(await current(),undefined,'Completion receipt never starts a timer automatically');
+  await shot('step-completed');
   assert.equal((await state()).planning.steps.find(s=>s.text==='复习').completed,true);
   assert.equal((await state()).tasks.find(t=>t.id===taskId).completed,false);
   await button('休息 5 分钟').click();await button('结束休息').waitFor();
   const rest=await current();assert.equal(rest.kind,'rest');
   const restMotto=await page.locator('.paper-motto').textContent();
   const restGeometry=await assertFits();assert(restGeometry.height<520);
+  assert(restGeometry.height-restGeometry.footer.bottom<=10,'Rest footer has no excess bottom space');
   assert.match(await page.locator('main').evaluate(el=>getComputedStyle(el).backgroundImage),/imgPaper.svg/);
   await page.waitForFunction(()=>document.querySelector('[role="timer"]')?.textContent==='04:54');
   await shot('rest-running');
@@ -108,15 +128,32 @@ try{
   const row=page.locator('.sheet-task').filter({has:page.locator('.sheet-task-name',{hasText:'改进 Inky'})});
   await row.locator('.sheet-task-toggle').click();await button(`Do this：${longText}`).click();await button('start').click();await end();
   assert.equal(await page.locator('.end-task').textContent(),longText);
+  const longGeometry=await assertFits();
+  assert.equal(longGeometry.task.height,endGeometry.task.height);
+  assert(parseFloat(longGeometry.taskFont)<42&&parseFloat(longGeometry.taskFont)>=18,JSON.stringify(longGeometry));
+  assert(longGeometry.taskText.bottom<=longGeometry.task.bottom-22,JSON.stringify(longGeometry));
+  await shot('end-long-task');
   await button('补充记录（可选）').click();await page.getByLabel('产出',{exact:true}).fill('长标题验收');
   await button('保存并结束').scrollIntoViewIfNeeded();await shot('long-task-scroll');await button('保存并结束').click();
   await page.getByRole('heading',{name:'就从这一步开始'}).waitFor();
+  const extremeRow=page.locator('.sheet-task').filter({has:page.locator('.sheet-task-name',{hasText:'完整任务验收'})});
+  await extremeRow.locator('.sheet-task-toggle').click();await extremeRow.getByRole('button',{name:/Do this/}).click();await button('start').click();await end();
+  await button('查看全文').waitFor();
+  const extremeGeometry=await assertFits();assert.equal(extremeGeometry.task.height,126);assert.equal(extremeGeometry.taskFont,'18px');
+  await shot('end-extreme-task');
+  await button('查看全文').click();const dialog=page.getByRole('dialog',{name:'本轮完整任务'});
+  assert.equal(await dialog.locator('p').textContent(),extremeText);
+  await dialog.locator('p').evaluate(el=>el.scrollTop=el.scrollHeight);
+  assert(await dialog.locator('p').evaluate(el=>el.scrollTop>0));await shot('end-full-task');
+  await page.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
+  await button('保存并结束').click();await page.getByRole('heading',{name:'就从这一步开始'}).waitFor();
+  pass('Short, long Chinese, and 300-character mixed/multiline tasks share one fixed area; readable 18px floor exposes complete text with Escape dismissal');
   const record=await invoke('get_daily_record',{date,utcOffsetMinutes:480});
-  const markdown=await readFile(path.join(out,'paper-test-final/工作记录/每日',`${date}.md`),'utf8');
+  const markdown=await readFile(path.join(dataDir,'工作记录/每日',`${date}.md`),'utf8');
   assert(markdown.includes('完成今日复习记录')&&markdown.includes('长标题验收'));
   assert(record.sessions.some(s=>s.feedback?.output==='长标题验收'));
   assert.deepEqual(errors,[]);
   pass('Long titles and expanded notes remain readable with reachable save; native daily data and Markdown contain saved outcomes');
-  await writeFile(path.join(out,'desktop-verification.json'),JSON.stringify({result:'PASS',checks,endGeometry,restGeometry,errors},null,2));
+  await writeFile(path.join(out,'desktop-verification.json'),JSON.stringify({result:'PASS',checks,endGeometry,expandedGeometry,longGeometry,extremeGeometry,restGeometry,errors},null,2));
 }catch(error){await shot('failure').catch(()=>{});console.error(error);process.exitCode=1;}
 finally{process.exit(process.exitCode||0);}

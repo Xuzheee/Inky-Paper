@@ -1,6 +1,7 @@
 /* A3: a centered sage note on the same sheet as the task list. */
 .paper.home {
   overflow: hidden;
+  padding-bottom: 8px;
 }
 .paper.home .home-body {
   flex: 1 1 0;
@@ -10,8 +11,6 @@
   flex-direction: column;
   gap: 10px;
   padding-bottom: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: #dddfd4 transparent;
   overscroll-behavior: contain;
 }
 .home-body > * {

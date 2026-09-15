@@ -156,13 +156,3 @@
     transition: none;
   }
 }
-
-.paper.home > .notice {
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: nowrap;
-  font-size: 12px;
-}
-.paper.home > .notice button {
-  margin-left: auto;
-}

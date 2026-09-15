@@ -972,9 +972,11 @@ describe("Paper current flows", () => {
     await act(async () => fireEvent.click(button("start")));
     expect(state.coach.blocks[0].taskId).toBe("B");
     expect(state.sessions).toHaveLength(0);
-    expect(screen.getByRole("status").textContent).toContain(
-      "工作目标已切换，本轮尚未开始",
-    );
+    expect(native.invoke).toHaveBeenCalledWith("paper_show_notice", {
+      id: expect.any(String),
+      message: "工作目标已切换，本轮尚未开始。看过错误提示后可重试 start。",
+    });
+    expect(screen.queryByText(/工作目标已切换，本轮尚未开始/)).toBeNull();
     expect(screen.queryByRole("timer")).toBeNull();
   });
 

@@ -16,6 +16,7 @@ import { TaskSheet } from "./TaskSheet";
 import { PAPER_MOTTOS } from "./mottos";
 import { PaperFooter } from "./PaperFooter";
 import { SessionEnd } from "./SessionEnd";
+import { usePaperNotice } from "./PaperNotice";
 import { usePaperNavigation } from "./usePaperNavigation";
 import { useWindowDrag } from "./useWindowDrag";
 import { persistDraft, taskDraft } from "./taskDraft";
@@ -111,7 +112,11 @@ export default function PaperApp() {
   } | null>(null);
   const [workMenu, setWorkMenu] = useState(false);
   const [undoTask, setUndoTask] = useState<Task | null>(null);
-  const [notice, setNotice] = useState("");
+  const {
+    showNotice,
+    clearNotice,
+    fallback: noticeFallback,
+  } = usePaperNotice();
   const paperRef = useRef<HTMLElement | null>(null);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
   const [preparedItem, setPreparedItem] = useState<DayItem | null>(null);
@@ -279,7 +284,8 @@ export default function PaperApp() {
       sessionRef.current = session.id;
       setOutcomeDraft({
         sessionId: session.id,
-        completed: getStored<boolean>(`paper-outcome-${session.id}`, false) === true,
+        completed:
+          getStored<boolean>(`paper-outcome-${session.id}`, false) === true,
       });
       setCue(getStored(`paper-cue-${session.id}`, session.resumeCue || ""));
       setFeedback(
@@ -327,11 +333,6 @@ export default function PaperApp() {
     const timer = setTimeout(() => setUndoTask(null), 8000);
     return () => clearTimeout(timer);
   }, [undoTask, view]);
-  useEffect(() => {
-    if (!notice || view !== "home") return;
-    const timer = setTimeout(() => setNotice(""), 8000);
-    return () => clearTimeout(timer);
-  }, [notice, view]);
   const back = () =>
     goBack(
       session
@@ -514,7 +515,9 @@ export default function PaperApp() {
       }
       const started = await start("focus", task);
       if (!started && switched)
-        setNotice("工作目标已切换，本轮尚未开始。看过错误提示后可重试 start。");
+        showNotice(
+          "工作目标已切换，本轮尚未开始。看过错误提示后可重试 start。",
+        );
     } finally {
       starting.current = false;
     }
@@ -534,7 +537,7 @@ export default function PaperApp() {
       setSelected(target.id);
       setDuration(Math.max(1, Math.round(step.plannedSeconds / 60)));
       resetView("home");
-      setNotice("");
+      clearNotice();
       requestAnimationFrame(() => {
         if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
       });
@@ -598,7 +601,7 @@ export default function PaperApp() {
       sessionRef.current = null;
       resetView(outcome === "step_completed" ? "receipt" : "home");
       if (outcome !== "step_completed")
-        setNotice(
+        showNotice(
           outcome === "rest_ended"
             ? "休息结束，下一步由你决定。"
             : "番茄钟已结束，计时已保存，待办保持未完成。",
@@ -618,7 +621,7 @@ export default function PaperApp() {
             await start("focus", target);
           } else {
             setSelected(previous?.taskId || "");
-            setNotice("这一轮已保存。下一步有变化，请看过后再开始。");
+            showNotice("这一轮已保存。下一步有变化，请看过后再开始。");
             setView("home");
           }
         } catch (e) {
@@ -664,8 +667,7 @@ export default function PaperApp() {
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const endDragProps = useWindowDrag({
     enabled: native && view === "feedback",
-    moveBy: (deltaX, deltaY) =>
-      invoke("move_window_by", { deltaX, deltaY }),
+    moveBy: (deltaX, deltaY) => invoke("move_window_by", { deltaX, deltaY }),
     onError: (error) => setError(String(error)),
   });
   const dragProps = {
@@ -779,12 +781,7 @@ export default function PaperApp() {
           {journal.error || "Markdown 待同步，应用中的记录已保存。"}
         </p>
       )}
-      {notice && view === "home" && (
-        <div className="notice" role="status">
-          {notice}
-          <button onClick={() => setNotice("")}>知道了</button>
-        </div>
-      )}
+      {noticeFallback}
       {!loaded ? (
         <div className="empty">正在打开纸页…</div>
       ) : view === "day-plan" ? (

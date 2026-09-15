@@ -8,7 +8,7 @@ const out=path.resolve('output/desktop-acceptance');
 const shots=path.join(out,'screenshots');
 await mkdir(shots,{recursive:true});
 const browser=await chromium.connectOverCDP('http://127.0.0.1:9247');
-const page=browser.contexts()[0].pages().find(p=>!p.url().includes('coachPrompt'));
+const page=browser.contexts()[0].pages().find(p=>!p.url().includes('coachPrompt')&&!p.url().includes('paperNotice'));
 page.setDefaultTimeout(12000);
 const button=name=>page.getByRole('button',{name,exact:true});
 const radio=name=>page.getByRole('radio',{name,exact:true});

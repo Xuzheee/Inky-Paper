@@ -2,6 +2,7 @@
 
 mod coach;
 mod coach_runtime;
+mod notice_window;
 mod paper;
 mod paper_bridge;
 mod paper_planning;
@@ -196,6 +197,7 @@ fn main() {
                 });
             app.manage(bridge_status);
             coach_runtime::start(handle.clone(), &app_data_dir).map_err(std::io::Error::other)?;
+            notice_window::start(handle.clone()).map_err(std::io::Error::other)?;
 
             let show_hide =
                 MenuItem::with_id(&handle, "show_hide", "显示/隐藏", true, None::<&str>)?;
@@ -240,6 +242,9 @@ fn main() {
             coach_runtime::request_coaching,
             coach_runtime::coach_show_main,
             coach_runtime::coach_hide_prompt,
+            notice_window::paper_show_notice,
+            notice_window::paper_current_notice,
+            notice_window::paper_dismiss_notice,
         ])
         .run(tauri::generate_context!())
         .expect("error while running focusflow");

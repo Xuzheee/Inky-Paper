@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-15",
+  "version": "0.5.9",
+  "result": "PASS",
+  "checks": {
+    "typecheck": "PASS",
+    "frontend": {
+      "files": 7,
+      "passed": 102
+    },
+    "rust": {
+      "ignored": 1,
+      "passed": 65,
+      "failed": 0
+    },
+    "build": "corepack pnpm tauri build --no-bundle",
+    "nativeDesktop": "desktop-verification.json"
+  },
+  "delivery": {
+    "path": "app/Inky Paper.exe",
+    "fileVersion": "0.5.9",
+    "bytes": 67661312,
+    "sha256": "B7328C5A5D5EEDA301CA5703FAE49EB28563A45146DF50CA3D68822C8B452AB8",
+    "matchesRelease": true,
+    "desktopShortcutMatches": true,
+    "previousVersionBackup": "app/backups/Inky Paper-0.5.8.exe"
+  },
+  "limits": [
+    "Desktop interaction used isolated debug data, not the production database.",
+    "Existing production process was left running; restart from tray to load 0.5.9.",
+    "Hermes and complete session-page visual checks were not repeated for this notice-only change."
+  ]
+}

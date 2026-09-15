@@ -1,6 +1,6 @@
 [package]
 name = "inky-paper"
-version = "0.5.8"
+version = "0.5.9"
 description = "Inky desktop focus assistant"
 authors = ["Inky"]
 edition = "2021"

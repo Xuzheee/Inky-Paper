@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Saving unfinished work opens a separate 300x156 native notice; task layout and saved facts are unchanged by acknowledgement",
+    "Ending a real rest session produces the same native notice; Escape works in the main window that retained keyboard focus",
+    "Showing does not steal foreground focus; X closes the actual native window",
+    "Escape dismisses the notice without exiting Paper",
+    "Notices reuse one window; stale dismiss/expiry preserve the latest message, which automatically closes after eight seconds",
+    "A webview reload restores the pending message; all notice interactions leave tasks and timing untouched"
+  ],
+  "geometry": {
+    "width": 300,
+    "height": 156,
+    "scrollHeight": 156,
+    "cardHeight": 156,
+    "messageScrollHeight": 60,
+    "messageClientHeight": 60
+  },
+  "errors": [],
+  "isolatedData": true
+}

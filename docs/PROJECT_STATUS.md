@@ -49,7 +49,9 @@ Coach 不因记录更新或到点自动介入，卡片采用和时钟控制保�
 
 本轮检查记录见 [整理验证](verification/cleanup-20260915/verification.json)。共将 38 个目标、33,880 个文件（约 24.19 GiB）移入 `.cleanup-quarantine/20260915/`，包括旧源码、旧程序副本、测试产物和构建缓存；[完整清单](verification/cleanup-20260915/quarantined-files.json) 与 [统计](verification/cleanup-20260915/cleanup-summary.json) 已保存。当前程序与一个 0.5.7 回退副本保留在 `app/`。隔离目录永久删除仍未完成。
 
-Git 已初始化，源码将提交到 `main`。GitHub 计划使用 `Xuzheee/Inky-Paper` 私有仓库，实际推送结果在完成后补记。
+Git 已建立并推送至 [Xuzheee/Inky-Paper](https://github.com/Xuzheee/Inky-Paper)，可见性为 **PRIVATE**，默认分支 `main`，本地跟踪 `origin/main`。首次源码基线提交为 `2c76c15`；后续提交可在仓库历史中查看。源码约 89.78 MiB，最大单文件小于 GitHub 的单文件限制；入库检查未发现所检查格式的凭据或禁止上传的运行产物。
+
+`.gitignore` 排除正式数据库、工作记录、本机连接、依赖、构建输出、exe 和隔离目录。当前记录并不会因 Git 提交而自动同步到 GitHub。
 
 ## 仍需检查与后续范围
 

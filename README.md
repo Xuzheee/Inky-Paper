@@ -4,6 +4,8 @@ Inky Paper 是一个独立的 Windows 专注与工作记录应用。Hermes 在�
 
 当前应用版本 **0.5.8**，Inky Coach 插件版本 **0.1.3**。当前进度、验证范围和待检查项见 [项目进度](docs/PROJECT_STATUS.md)。
 
+源码已接入私有仓库 [Xuzheee/Inky-Paper](https://github.com/Xuzheee/Inky-Paper)，默认分支 `main`。Git 管理代码与项目文档，个人工作记录继续保存在本机。
+
 ## 打开与使用
 
 本机交付版双击 `启动 Inky Paper.cmd`，或打开 `app/Inky Paper.exe`。更新文件后，需要从托盘退出旧进程再打开，才能加载新版本。设置中可确认版本。源码仓库不包含可执行文件，首次克隆后按下方步骤构建。

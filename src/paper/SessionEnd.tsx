@@ -1,0 +1,119 @@
+import type { ReactNode } from "react";
+import { ArrowLeft, Minus, Plus } from "lucide-react";
+import type { Session } from "./paperTypes";
+import { PencilShading } from "./PencilShading";
+
+type Feedback = { output: string; blocker: string; nextCue: string };
+
+export function SessionEnd({
+  session,
+  busy,
+  completed,
+  chooseCompleted,
+  expanded,
+  setExpanded,
+  feedback,
+  setFeedback,
+  returnToTasks,
+  returnToTimer,
+  save,
+  workControls,
+  footer,
+}: {
+  session: Session;
+  busy: boolean;
+  completed: boolean;
+  chooseCompleted: (completed: boolean) => void;
+  expanded: boolean;
+  setExpanded: (expanded: boolean) => void;
+  feedback: Feedback;
+  setFeedback: (feedback: Feedback) => void;
+  returnToTasks: () => void;
+  returnToTimer: () => void;
+  save: () => void;
+  workControls?: ReactNode;
+  footer: ReactNode;
+}) {
+  return (
+    <>
+      <nav className="focus-navigation" aria-label="结束页导航">
+        <button aria-label="返回任务列表" onClick={returnToTasks}>
+          <ArrowLeft size={13} />
+          任务列表
+        </button>
+        {session.status === "paused" && (
+          <button aria-label="返回番茄钟" onClick={returnToTimer}>
+            返回计时
+          </button>
+        )}
+      </nav>
+      <div className="feedback-heading">
+        <div>
+          <h1>结束番茄钟</h1>
+          <p className="muted">
+            {session.status === "waiting" ? "已到时" : "已暂停"} ·{" "}
+            {Math.floor(session.elapsedSeconds / 60)} 分{" "}
+            {session.elapsedSeconds % 60} 秒
+          </p>
+        </div>
+      </div>
+      <div className="end-task">
+        <span>{session.action?.text || session.taskTitle}</span>
+      </div>
+      <section className="end-records" aria-label="本轮补充记录">
+        <button
+          className="end-record-toggle"
+          aria-label={expanded ? "收起记录" : "补充记录（可选）"}
+          aria-expanded={expanded}
+          aria-controls="session-end-fields"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <Minus size={16} /> : <Plus size={16} />}
+          {expanded ? "收起记录" : "补充记录"}
+          <small>可选</small>
+        </button>
+        {expanded && (
+          <div className="feedback-fields" id="session-end-fields">
+            {(["output", "blocker", "nextCue"] as const).map((key, index) => (
+              <label key={key}>
+                {["留下了什么？", "卡在哪里？", "下次从哪里开始？"][index]}
+                <textarea
+                  rows={1}
+                  maxLength={key === "nextCue" ? 500 : 2000}
+                  aria-label={["产出", "卡点", "下次起点"][index]}
+                  value={feedback[key]}
+                  onChange={(event) =>
+                    setFeedback({ ...feedback, [key]: event.target.value })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </section>
+      <fieldset className="end-outcome" disabled={busy}>
+        <legend>这一步完成了吗？</legend>
+        <div>
+          {([false, true] as const).map((value) => (
+            <label key={String(value)} data-selected={completed === value}>
+              <input
+                type="radio"
+                name="session-outcome"
+                value={String(value)}
+                checked={completed === value}
+                onChange={() => chooseCompleted(value)}
+              />
+              <PencilShading />
+              <span>{value ? "已完成" : "还没完成"}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <button className="primary end-save" disabled={busy} onClick={save}>
+        保存并结束
+      </button>
+      {workControls}
+      {footer}
+    </>
+  );
+}

@@ -1,0 +1,21 @@
+{
+  "version": "0.5.8",
+  "executable": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\Inky Paper.exe",
+  "sha256": "11CD6EF20CF6CE7E9D6F235AB66B207EFEBF62EC8FD52B0B66D91E976F9C25DA",
+  "previousSha256": "74B1A07F399CC3A26E083FC11F19FD5AB46F6D12DD185775EBB71BA688DBECD1",
+  "previousExecutable": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\font-delivery-20260914\\before\\Inky Paper-0.5.7.exe",
+  "shortcut": "C:\\Users\\31009\\Desktop\\Inky Paper.lnk",
+  "shortcutTarget": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\Inky Paper.exe",
+  "typecheck": "PASS",
+  "frontendTestsRerun": false,
+  "frontendBaseline": "0.5.7: 128 passed; behavior unchanged",
+  "rustTestsRerun": false,
+  "rustBaseline": "0.5.6: 61 passed; Rust implementation unchanged",
+  "ignoredRustBenchmarks": 1,
+  "isolatedDesktop": "PASS",
+  "bundledFonts": "C/Xiaolai 42px task, B/Yozai 18px choices; native platform font verified",
+  "fontLicenses": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\licenses",
+  "applicationExit": "unchanged; not retested in 0.5.8",
+  "productionProcessRestarted": false,
+  "productionDataModifiedByVerification": false
+}

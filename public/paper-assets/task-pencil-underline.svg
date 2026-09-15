@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="14" viewBox="0 0 180 14" fill="none">
+  <defs>
+    <pattern id="grain" width="7" height="5" patternUnits="userSpaceOnUse">
+      <rect width="7" height="5" fill="white"/>
+      <path d="m1 1 1 .2m3 2 1 -.3m-4 2 .7 -.4" stroke="black" stroke-width=".6" opacity=".55"/>
+    </pattern>
+    <mask id="paper"><rect width="180" height="14" fill="url(#grain)"/></mask>
+  </defs>
+  <g mask="url(#paper)" stroke="#55594f" stroke-linecap="round">
+    <path d="M5 10.8 18 9.3 29 9.1 42 7.6 54 7.3 68 5.9 82 5.5 96 4.8 111 4.2 127 3.7 143 3.1 156 2.8" stroke-width="1.5" opacity=".62"/>
+    <path d="M8 11.3 23 10.1 37 8.9 52 8.1 67 7 83 6.2 99 5.8 116 5.1 134 4.3 150 3.7 166 3.1" stroke-width=".65" opacity=".34"/>
+    <path d="M148 3.2 159 2.8 168 2.6 176 2.5" stroke-width=".65" opacity=".28"/>
+  </g>
+</svg>

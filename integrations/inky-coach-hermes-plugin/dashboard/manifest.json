@@ -1,0 +1,7 @@
+{
+  "name": "inky-coach",
+  "label": "Inky Coach",
+  "description": "在 Hermes 对话中选择计划卡片，加入 Inky Paper。",
+  "version": "0.1.3",
+  "api": "plugin_api.py"
+}

@@ -1,0 +1,414 @@
+/* A3: a centered sage note on the same sheet as the task list. */
+.paper.home {
+  overflow: hidden;
+}
+.paper.home .home-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #dddfd4 transparent;
+  overscroll-behavior: contain;
+}
+.home-body > * {
+  flex-shrink: 0;
+}
+.paper.home footer {
+  margin: 0;
+  flex: 0 0 auto;
+  min-height: 48px;
+  border-top: 1px solid #d5d9cd60;
+  padding-top: 6px;
+}
+.paper.home .paper-motto {
+  font-family: Caveat, "Segoe Print", cursive;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.paper.home .next-card {
+  width: 90%;
+  margin: 13px auto 7px;
+  min-height: 128px;
+  background: #e7eedf;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 150 150' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.035' filter='url(%23n)'/%3E%3C/svg%3E");
+  border: 1px solid #dce4d480;
+  border-radius: 2px 4px 8px 3px / 3px 3px 3px 6px;
+  padding: 21px 14px 14px;
+  text-align: center;
+  box-shadow:
+    0 3px 3px #414c3020,
+    0 8px 13px -8px #414c3035;
+}
+.paper.home .next-card .tape {
+  width: 54px;
+  height: 16px;
+  left: calc(50% - 27px);
+  top: -9px;
+  filter: saturate(0.35);
+  opacity: 0.85;
+  transform: rotate(-1deg);
+}
+.paper.home .next-card::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  height: 7px;
+  background: linear-gradient(135deg, transparent 48%, #d9e3ce60 50%, #f2f5e9);
+  pointer-events: none;
+}
+.paper.home .next-card h2 {
+  margin: 8px 0 12px;
+  background: none;
+  font-size: 17px;
+  line-height: 1.55;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.next-card-top {
+  padding: 0 15px;
+}
+.next-card-top .sheet-edit {
+  position: absolute;
+  top: 8px;
+  right: 7px;
+}
+.paper .next-card-top .eyebrow {
+  font-size: 11px;
+  line-height: 1.65;
+}
+.sheet-edit {
+  color: #7b7b69;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 5px;
+  flex-shrink: 0;
+}
+.sheet-edit:hover {
+  color: #343d30;
+  background: #33383008;
+  border-radius: 4px;
+}
+.paper.home .next-card .resume-hint {
+  margin-bottom: 10px;
+}
+.next-start-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  margin-top: 14px;
+}
+.next-start-row select {
+  flex: 0 1 76px;
+  min-width: 0;
+  min-height: 28px;
+  font-size: 11px;
+  padding: 0 2px;
+  color: #3f4d3b;
+}
+.paper .next-start-row .primary {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 62px;
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 18px;
+  font-weight: 400;
+  background-color: #64806a;
+  font-family: Caveat, "Segoe Print", cursive;
+  letter-spacing: 0.4px;
+  border-radius: 4px 6px 4px 5px;
+}
+.paper.home .next-card[data-single-content="true"] h2 {
+  margin-top: 13px;
+  margin-bottom: 18px;
+}
+.paper .next-start-row .primary:hover {
+  background-color: #536f59;
+}
+.paper .next-start-row .return-to-round {
+  font-family: inherit;
+  font-size: 12px;
+}
+.paper.home .today-plan-link {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-height: 26px;
+  font-size: 11px;
+  color: var(--paper-muted);
+}
+.paper.home .today-plan-link:hover {
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.paper.home .work-strip {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed #d7d7ca;
+  border-radius: 0;
+  padding: 6px 0;
+  font-size: 11px;
+}
+.task-sheet {
+  margin-top: 3px;
+}
+.sheet-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #a3a493;
+}
+.paper .sheet-heading h2 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+.sheet-heading > span,
+.sheet-hint {
+  font-size: 10px;
+  color: #777c70;
+}
+.sheet-hint {
+  margin: 7px 0 5px;
+  line-height: 1.7;
+}
+.sheet-task {
+  border-bottom: 1px dashed #c5c7b9;
+  padding: 3px 0;
+}
+.sheet-task-heading {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.sheet-task-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  text-align: left;
+  padding: 7px 0;
+}
+.sheet-number {
+  color: #8b8979;
+  font-family: Caveat, "Segoe Print", cursive;
+  font-size: 16px;
+  flex: 0 0 18px;
+}
+.sheet-task-name {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.pencil-strike {
+  display: inline-block;
+  position: relative;
+  max-width: 100%;
+  user-select: none;
+}
+[data-strike-enabled="true"] {
+  user-select: none;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 19l1-5L17 3l4 4L10 18z' fill='%23eee9db' stroke='%23626c59' stroke-width='1.4'/%3E%3Cpath d='M5 19l5-1-4-4z' fill='%23626c59'/%3E%3C/svg%3E")
+      5 19,
+    crosshair;
+}
+[data-strike-ignore] {
+  cursor: pointer;
+}
+.sheet-live-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.sheet-live-ink path {
+  fill: none;
+  stroke: #626759;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sheet-count {
+  color: #858879;
+  font-size: 10px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.sheet-task-toggle svg {
+  color: #8b8e7f;
+  flex-shrink: 0;
+  transition: transform 0.18s;
+}
+.sheet-task-toggle svg.turned {
+  transform: rotate(180deg);
+}
+.sheet-task-toggle:active:not(:disabled) {
+  transform: none;
+}
+.sheet-task[data-current="true"] .sheet-number {
+  color: #53644d;
+}
+.sheet-steps {
+  margin: 0 0 7px 7px;
+  padding: 0 0 0 13px;
+  border-left: 1px solid #b6bdab70;
+}
+.sheet-step {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 9px;
+  padding: 7px 3px;
+  text-align: left;
+  border-radius: 2px 5px 3px 4px;
+}
+.sheet-step[data-current="true"]:not(.is-done) {
+  background: #e7eadd50;
+}
+.sheet-mark {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-self: flex-start;
+  margin-top: 5px;
+  border: 1px solid #888c7c;
+  border-radius: 1px 2px 1px 3px;
+  transform: rotate(-3deg);
+  display: grid;
+  place-items: center;
+  color: #585f50;
+  padding: 0;
+  box-shadow: 0 0 0 4px transparent;
+}
+.sheet-mark:hover:not(:disabled) {
+  background: #e1e7d8;
+  box-shadow: 0 0 0 4px #e1e7d870;
+}
+.sheet-step-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.sheet-step-meta {
+  display: block;
+  color: #878a7c;
+  font-size: 10px;
+  line-height: 1.6;
+  margin-top: 2px;
+}
+.pencil-line {
+  overflow-wrap: anywhere;
+}
+.sheet-step.is-done {
+  opacity: 1;
+  color: #85877a;
+}
+.sheet-step.is-done .sheet-mark {
+  background: #62694f18;
+  border-color: #7a816c;
+}
+.sheet-step.is-done .pencil-line,
+.sheet-simple-detail.is-done .pencil-line,
+.sheet-task[data-completed="true"] .sheet-task-name .pencil-line {
+  text-decoration: line-through;
+  text-decoration-color: #6f7167;
+  text-decoration-thickness: 1.3px;
+  text-decoration-skip-ink: none;
+  background-image: linear-gradient(
+    178deg,
+    transparent 46%,
+    #85877950 48%,
+    #85877950 50%,
+    transparent 53%
+  );
+}
+.sheet-task[data-completed="true"] .sheet-task-name {
+  color: #7e8275;
+}
+.sheet-use {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  min-width: 50px;
+  min-height: 25px;
+  border: 1px solid #939c8990;
+  border-radius: 3px 4px 2px 3px;
+  font-family: Caveat, "Segoe Print", cursive;
+  font-size: 15px;
+  color: #4f5b49;
+}
+.sheet-use:hover:not(:disabled) {
+  background: #e4eadd;
+}
+.sheet-use:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sheet-undo {
+  font-size: 11px;
+  min-height: 28px;
+  padding: 4px 7px;
+  color: #5c6854;
+}
+.sheet-simple-detail {
+  color: #767f6b;
+  font-size: 11px;
+  line-height: 1.8;
+  padding: 3px 5px;
+  overflow-wrap: anywhere;
+}
+.sheet-finish-task {
+  color: #777d6d;
+  font-size: 10px;
+  min-height: 29px;
+  padding: 5px;
+  margin-top: 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: #c2c5b6;
+}
+.sheet-session-hint {
+  color: #888b7f;
+  font-size: 10px;
+  padding: 3px 5px;
+}
+.paper.home .add {
+  border: 0;
+  border-bottom: 1px dashed #c5c7b9;
+  border-radius: 0;
+  font-size: 12px;
+  text-align: left;
+  justify-content: flex-start;
+  padding: 8px 0;
+}
+.paper.home .complete-parent {
+  display: none;
+}
+.paper.home .work-start-link {
+  font-size: 10px;
+  min-height: 26px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-task-toggle svg {
+    transition: none;
+  }
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "family": "Yozai",
+    "source": "output\\handwriting-options-20260914\\fonts\\Yozai-Regular.ttf",
+    "sourceSha256": "25071998a0fe6a72f54c235e714986d259633e5ff670b1a2b5e264387f3316ac",
+    "file": "public\\fonts\\yozai-regular.ttf",
+    "bytes": 15605374,
+    "sha256": "25071998a0fe6a72f54c235e714986d259633e5ff670b1a2b5e264387f3316ac",
+    "codepoints": 26006,
+    "identicalToSource": true
+  },
+  {
+    "family": "Xiaolai",
+    "source": "output\\handwriting-options-20260914\\fonts\\Xiaolai-Regular.ttf",
+    "sourceSha256": "e2f68daf0e72777a8cf58bc83de1b98634b251e537ddbfca24b0ae50d1802da2",
+    "file": "public\\fonts\\xiaolai-regular.ttf",
+    "bytes": 22220806,
+    "sha256": "e2f68daf0e72777a8cf58bc83de1b98634b251e537ddbfca24b0ae50d1802da2",
+    "codepoints": 44871,
+    "identicalToSource": true
+  }
+]

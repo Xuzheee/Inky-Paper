@@ -1,0 +1,193 @@
+{
+  "pass": true,
+  "environment": "isolated Hermes desktop and Paper test database",
+  "sessionId": "30000000-0000-4000-8000-000000000001",
+  "batchId": "30000000-0000-4000-8000-000000000002",
+  "checks": [
+    "six compact cards",
+    "pencil editor",
+    "draft edit",
+    "selected chips",
+    "chip deselection",
+    "reorder",
+    "no write before explicit adoption",
+    "only two selected adopted",
+    "edited action and duration stored",
+    "selected order stored"
+  ],
+  "after": {
+    "batch": {
+      "cards": [
+        {
+          "adoptedStepId": "939e613a-757b-4568-a4bd-dc622b90bc30",
+          "expectedResult": "一个具体改进点和清楚的验收标准",
+          "expectedStepRevision": 1,
+          "expectedTaskRevision": 2,
+          "id": "30000000-0000-4000-8000-000000000011",
+          "plannedSeconds": 1800,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000020",
+          "taskTitle": "改进 Inky",
+          "text": "选一个最高价值改进点"
+        },
+        {
+          "adoptedStepId": null,
+          "expectedResult": "一条完整可用的路径和验收记录",
+          "expectedStepRevision": null,
+          "expectedTaskRevision": null,
+          "id": "30000000-0000-4000-8000-000000000012",
+          "plannedSeconds": 7200,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000020",
+          "taskTitle": "改进 Inky",
+          "text": "完成最小实现并走通核心路径"
+        },
+        {
+          "adoptedStepId": null,
+          "expectedResult": "一份补齐行动、结果与证据的简历",
+          "expectedStepRevision": null,
+          "expectedTaskRevision": null,
+          "id": "30000000-0000-4000-8000-000000000013",
+          "plannedSeconds": 3600,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000021",
+          "taskTitle": "完善简历并投递",
+          "text": "针对目标岗位修改简历"
+        },
+        {
+          "adoptedStepId": null,
+          "expectedResult": "至少一条正式投递记录",
+          "expectedStepRevision": null,
+          "expectedTaskRevision": null,
+          "id": "30000000-0000-4000-8000-000000000014",
+          "plannedSeconds": 1800,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000021",
+          "taskTitle": "完善简历并投递",
+          "text": "筛选岗位并完成一次投递"
+        },
+        {
+          "adoptedStepId": null,
+          "expectedResult": "五个关键概念和自己的解释",
+          "expectedStepRevision": null,
+          "expectedTaskRevision": null,
+          "id": "30000000-0000-4000-8000-000000000015",
+          "plannedSeconds": 2700,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000022",
+          "taskTitle": "学习产品知识",
+          "text": "学习一个当前最需要的主题"
+        },
+        {
+          "adoptedStepId": "a0bf0a5e-44ca-4003-8691-3143a35cb3eb",
+          "expectedResult": "三条有依据的产品判断",
+          "expectedStepRevision": 1,
+          "expectedTaskRevision": 2,
+          "id": "30000000-0000-4000-8000-000000000016",
+          "plannedSeconds": 900,
+          "stepId": null,
+          "taskId": "30000000-0000-4000-8000-000000000022",
+          "taskTitle": "学习产品知识",
+          "text": "写出三条有证据的产品判断"
+        }
+      ],
+      "createdAt": 1789358682585,
+      "id": "30000000-0000-4000-8000-000000000002",
+      "revision": 2
+    },
+    "dayItems": [
+      {
+        "date": "2026-09-14",
+        "id": "8f443a0a-b01f-4fa2-a3c2-d04abd454cca",
+        "order": 0,
+        "removedAt": null,
+        "revision": 1,
+        "stepId": "a0bf0a5e-44ca-4003-8691-3143a35cb3eb",
+        "taskId": "30000000-0000-4000-8000-000000000022"
+      },
+      {
+        "date": "2026-09-14",
+        "id": "8d3fc2a1-3afe-4283-8b98-008bf6f9d917",
+        "order": 1,
+        "removedAt": null,
+        "revision": 1,
+        "stepId": "939e613a-757b-4568-a4bd-dc622b90bc30",
+        "taskId": "30000000-0000-4000-8000-000000000020"
+      }
+    ],
+    "journal": {
+      "available": true,
+      "directory": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\card-fix-20260914\\paper-test\\工作记录",
+      "notesHash": "14ed269c2ac62fd304470c557d8e332c246587ac3445b117b9b073132b205b04",
+      "preservedEdits": [],
+      "synced": true,
+      "syncedAt": 1789359486485
+    },
+    "steps": [
+      {
+        "completed": false,
+        "createdAt": 1789359486476,
+        "expectedResult": "三条有依据的产品判断",
+        "id": "a0bf0a5e-44ca-4003-8691-3143a35cb3eb",
+        "plannedSeconds": 900,
+        "revision": 1,
+        "source": "hermes",
+        "taskId": "30000000-0000-4000-8000-000000000022",
+        "text": "写出三条有证据的产品判断",
+        "updatedAt": 1789359486476
+      },
+      {
+        "completed": false,
+        "createdAt": 1789359486476,
+        "expectedResult": "一个具体改进点和清楚的验收标准",
+        "id": "939e613a-757b-4568-a4bd-dc622b90bc30",
+        "plannedSeconds": 1800,
+        "revision": 1,
+        "source": "hermes",
+        "taskId": "30000000-0000-4000-8000-000000000020",
+        "text": "选一个最高价值改进点",
+        "updatedAt": 1789359486476
+      }
+    ],
+    "tasks": [
+      {
+        "category": "work",
+        "completed": false,
+        "completedAt": null,
+        "createdAt": 1789359486476,
+        "due": null,
+        "id": "30000000-0000-4000-8000-000000000022",
+        "nextAction": {
+          "completed": false,
+          "id": "a0bf0a5e-44ca-4003-8691-3143a35cb3eb",
+          "source": "hermes",
+          "text": "写出三条有证据的产品判断"
+        },
+        "priority": "medium",
+        "revision": 2,
+        "source": "hermes",
+        "title": "学习产品知识",
+        "updatedAt": 1789359486476
+      },
+      {
+        "category": "work",
+        "completed": false,
+        "completedAt": null,
+        "createdAt": 1789359486476,
+        "due": null,
+        "id": "30000000-0000-4000-8000-000000000020",
+        "nextAction": {
+          "completed": false,
+          "id": "939e613a-757b-4568-a4bd-dc622b90bc30",
+          "source": "hermes",
+          "text": "选一个最高价值改进点"
+        },
+        "priority": "medium",
+        "revision": 2,
+        "source": "hermes",
+        "title": "改进 Inky",
+        "updatedAt": 1789359486476
+      }
+    ]
+  }
+}

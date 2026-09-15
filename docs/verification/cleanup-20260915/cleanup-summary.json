@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-15",
+  "disposition": "quarantined; permanent deletion blocked by automatic approval",
+  "relativeDirectory": ".cleanup-quarantine/20260915",
+  "targets": 38,
+  "files": 33880.0,
+  "bytes": 25969599842.0,
+  "GiB": 24.19,
+  "diskSpaceFreedByQuarantine": 0,
+  "excludedFromGit": true
+}

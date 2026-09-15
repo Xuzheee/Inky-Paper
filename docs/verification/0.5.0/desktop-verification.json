@@ -1,0 +1,239 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Pause excludes elapsed time; completing the step preserves the pending parent task",
+    "Second card retains blocker and pending status; both rounds automatically appear in Markdown; no Coach summary or proposal starts"
+  ],
+  "taskId": "20000000-0000-4000-8000-000000000020",
+  "sessionIds": [
+    "c488cebd-acb0-4eb8-a60b-32ea33a92a55",
+    "9ef51dd3-256e-41df-81af-86854c6641f7"
+  ],
+  "record": {
+    "basis": "Clock intervals are recorded time, not verified attention. Pauses are excluded. New sessions split at the requested local midnight. Legacy sessions without intervals are assigned to their start date; exact legacy daily allocation is unavailable. Missing output and unrecorded time remain unknown.",
+    "dataVersion": "77679c4646e948047dfe45e6fc1c97ebae168014ba14aa9fee22e092240183f3",
+    "date": "2026-09-13",
+    "journal": {
+      "available": true,
+      "directory": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\implementation-20260913\\paper-test\\工作记录",
+      "notesHash": "fc366e8e24e0cec98153f39e7960e53cbe58d405aefafceba38368c74463d048",
+      "preservedEdits": [],
+      "synced": true,
+      "syncedAt": 1789305444056
+    },
+    "notes": [],
+    "notesVersion": "f3ad63b3b78b7acfaaf32281299f1dc78612ca3506fb5736c109ba103ba5e408",
+    "personalNotes": "\n## 个人笔记.md\n\n\n## 2026-09-13.个人笔记.md\n\n",
+    "planItems": [
+      {
+        "date": "2026-09-13",
+        "id": "8fd13883-95cd-464f-8e3c-800d600e9a8b",
+        "order": 0,
+        "removedAt": null,
+        "revision": 1,
+        "step": {
+          "completed": true,
+          "createdAt": 1789305095071,
+          "expectedResult": "关键数字及其来源",
+          "id": "834d73f2-70bd-43dc-9870-8e4b0094ae51",
+          "plannedSeconds": 1200,
+          "revision": 2,
+          "source": "hermes",
+          "taskId": "20000000-0000-4000-8000-000000000020",
+          "text": "核对周报的关键数字",
+          "updatedAt": 1789305389069
+        },
+        "stepId": "834d73f2-70bd-43dc-9870-8e4b0094ae51",
+        "task": {
+          "category": "work",
+          "completed": false,
+          "completedAt": null,
+          "createdAt": 1789305095071,
+          "due": null,
+          "id": "20000000-0000-4000-8000-000000000020",
+          "nextAction": {
+            "completed": false,
+            "id": "84570aa8-867a-4e51-826d-8529e38ede67",
+            "source": "hermes",
+            "text": "列出本周三个结论"
+          },
+          "priority": "medium",
+          "revision": 4,
+          "source": "hermes",
+          "title": "验收｜项目周报",
+          "updatedAt": 1789305389191
+        },
+        "taskId": "20000000-0000-4000-8000-000000000020"
+      },
+      {
+        "date": "2026-09-13",
+        "id": "90837df0-4896-464d-8e44-af12db2708b0",
+        "order": 1,
+        "removedAt": null,
+        "revision": 1,
+        "step": {
+          "completed": false,
+          "createdAt": 1789305095071,
+          "expectedResult": "三条结论和对应证据线索",
+          "id": "84570aa8-867a-4e51-826d-8529e38ede67",
+          "plannedSeconds": 1500,
+          "revision": 1,
+          "source": "hermes",
+          "taskId": "20000000-0000-4000-8000-000000000020",
+          "text": "列出本周三个结论",
+          "updatedAt": 1789305095071
+        },
+        "stepId": "84570aa8-867a-4e51-826d-8529e38ede67",
+        "task": {
+          "category": "work",
+          "completed": false,
+          "completedAt": null,
+          "createdAt": 1789305095071,
+          "due": null,
+          "id": "20000000-0000-4000-8000-000000000020",
+          "nextAction": {
+            "completed": false,
+            "id": "84570aa8-867a-4e51-826d-8529e38ede67",
+            "source": "hermes",
+            "text": "列出本周三个结论"
+          },
+          "priority": "medium",
+          "revision": 4,
+          "source": "hermes",
+          "title": "验收｜项目周报",
+          "updatedAt": 1789305389191
+        },
+        "taskId": "20000000-0000-4000-8000-000000000020"
+      }
+    ],
+    "sampledAt": 1789305444743,
+    "sessions": [
+      {
+        "action": {
+          "completed": false,
+          "id": "834d73f2-70bd-43dc-9870-8e4b0094ae51",
+          "source": "hermes",
+          "text": "核对周报的关键数字"
+        },
+        "dailyMilliseconds": 3000,
+        "dailySeconds": 3,
+        "dayItemId": "8fd13883-95cd-464f-8e3c-800d600e9a8b",
+        "elapsedSeconds": 3,
+        "endedAt": 1789305389069,
+        "feedback": {
+          "blocker": null,
+          "nextCue": null,
+          "outcome": "step_completed",
+          "output": "已核对三项关键数字并附上来源（验收样例）"
+        },
+        "id": "c488cebd-acb0-4eb8-a60b-32ea33a92a55",
+        "kind": "focus",
+        "lastResumedAt": null,
+        "pauseCount": 1,
+        "planDate": "2026-09-13",
+        "plannedSeconds": 1200,
+        "resumeCue": "核对来源后继续",
+        "revision": 4,
+        "startedAt": 1789305383889,
+        "status": "finished",
+        "taskId": "20000000-0000-4000-8000-000000000020",
+        "taskRevision": 2,
+        "taskTitle": "验收｜项目周报",
+        "timePrecision": "recorded_intervals"
+      },
+      {
+        "action": {
+          "completed": false,
+          "id": "84570aa8-867a-4e51-826d-8529e38ede67",
+          "source": "hermes",
+          "text": "列出本周三个结论"
+        },
+        "dailyMilliseconds": 2000,
+        "dailySeconds": 2,
+        "dayItemId": "90837df0-4896-464d-8e44-af12db2708b0",
+        "elapsedSeconds": 2,
+        "endedAt": 1789305444048,
+        "feedback": {
+          "blocker": "缺少第三条结论的证据（验收样例）",
+          "nextCue": "先补齐第三条证据，再继续写结论",
+          "outcome": "stopped",
+          "output": null
+        },
+        "id": "9ef51dd3-256e-41df-81af-86854c6641f7",
+        "kind": "focus",
+        "lastResumedAt": null,
+        "pauseCount": 1,
+        "planDate": "2026-09-13",
+        "plannedSeconds": 1500,
+        "resumeCue": null,
+        "revision": 3,
+        "startedAt": 1789305441685,
+        "status": "finished",
+        "taskId": "20000000-0000-4000-8000-000000000020",
+        "taskRevision": 4,
+        "taskTitle": "验收｜项目周报",
+        "timePrecision": "recorded_intervals"
+      }
+    ],
+    "summaries": [],
+    "utcOffsetMinutes": 480,
+    "workBlocks": [
+      {
+        "action": {
+          "completed": false,
+          "id": "834d73f2-70bd-43dc-9870-8e4b0094ae51",
+          "source": "hermes",
+          "text": "核对周报的关键数字"
+        },
+        "blocker": null,
+        "endNoticeShown": false,
+        "endedAt": null,
+        "energy": null,
+        "energyAt": null,
+        "focus": null,
+        "goal": "核对周报的关键数字",
+        "id": "12d6f143-67f0-4ff8-a075-160dc6442552",
+        "labels": [],
+        "mode": "working",
+        "output": null,
+        "phases": [
+          {
+            "at": 1789305383889,
+            "mode": "working"
+          },
+          {
+            "at": 1789305387143,
+            "mode": "paused"
+          },
+          {
+            "at": 1789305389069,
+            "mode": "working"
+          },
+          {
+            "at": 1789305443943,
+            "mode": "paused"
+          },
+          {
+            "at": 1789305444048,
+            "mode": "working"
+          }
+        ],
+        "plannedEndAt": 1789308983791,
+        "progress": null,
+        "resumeCue": "先补齐第三条证据，再继续写结论",
+        "revision": 6,
+        "sessionIds": [
+          "c488cebd-acb0-4eb8-a60b-32ea33a92a55",
+          "9ef51dd3-256e-41df-81af-86854c6641f7"
+        ],
+        "startedAt": 1789305383889,
+        "status": "active",
+        "suppressed": [],
+        "taskId": "20000000-0000-4000-8000-000000000020",
+        "taskRevision": 2,
+        "taskTitle": "验收｜项目周报"
+      }
+    ]
+  },
+  "pageErrors": []
+}

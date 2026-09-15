@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-15",
+  "version": "0.5.8",
+  "executable": "app/Inky Paper.exe",
+  "bytes": 67342336,
+  "sha256": "8B16D4946B193F53A83112195F7D6B645882D52D99650484E0FFE8109E88F577",
+  "matchesBuild": true,
+  "productVersion": "0.5.8",
+  "fileVersion": "0.5.8",
+  "runtimeFrontend": [
+    {
+      "file": "dist/assets/index-BnnHvkzW.css",
+      "identicalToPrevious": true
+    },
+    {
+      "file": "dist/assets/index-utivuX4Z.js",
+      "identicalToPrevious": true
+    }
+  ],
+  "typecheck": "PASS",
+  "frontendTests": 98,
+  "rustTests": 61,
+  "ignoredRustBenchmarks": 1,
+  "pluginFrontendTests": 6,
+  "pythonBridgeTests": 7,
+  "mcpTools": 12,
+  "releaseBuild": "PASS",
+  "nativeDesktopRerun": false,
+  "productionDataTouched": false,
+  "cleanupDisposition": "quarantine; permanent deletion blocked by automatic approval"
+}

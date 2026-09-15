@@ -1,0 +1,168 @@
+/* Shared reading hierarchy across task, work, settings and prompt surfaces. */
+:root {
+  --paper-ink: #30332f;
+  --paper-muted: #646b60;
+  --paper-accent: #52634f;
+  --paper-border: #d5d9cd;
+  --paper-card: #e7ecdd;
+  --paper-radius: 6px;
+  --paper-heading: 20px;
+  --paper-subheading: 16px;
+  --paper-caption: 12px;
+}
+.paper h1,
+.coach-panel h1,
+.paper.coach-prompt h1 {
+  font-size: var(--paper-heading);
+  line-height: 1.4;
+}
+.paper h2,
+.coach-panel h2 {
+  font-size: var(--paper-subheading);
+  line-height: 1.5;
+}
+.paper .primary,
+.paper .outline,
+.paper .coach-choice button {
+  border-radius: var(--paper-radius);
+}
+.paper .primary {
+  background-color: var(--paper-accent);
+}
+.paper .outline {
+  border-color: var(--paper-border);
+}
+.next-card,
+.coach-goal,
+.coach-proposal {
+  border-radius: var(--paper-radius);
+  background-color: var(--paper-card);
+}
+.paper .muted,
+.paper .eyebrow,
+.paper .caption,
+.paper .coach-small {
+  color: var(--paper-muted);
+  font-size: var(--paper-caption);
+  line-height: 1.6;
+}
+.paper.home .task-list,
+.paper.home .completed-section .task-list {
+  flex-shrink: 0;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+.paper header {
+  position: static;
+  padding: 4px 0;
+}
+.focus-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  flex-shrink: 0;
+}
+.focus-navigation button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 4px 2px;
+  color: var(--paper-muted);
+  font-size: 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.focus-navigation button:hover,
+.focus-navigation button:focus-visible {
+  background: var(--paper-card);
+  color: var(--paper-ink);
+}
+.paper.focus-quiet .focus-navigation {
+  background: rgba(250, 248, 242, 0.96);
+  border-radius: 6px;
+}
+.paper .feedback-outcome-help,
+.paper .session-browse-status {
+  color: var(--paper-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.paper .feedback-outcome-help {
+  text-align: center;
+}
+.paper.home .next-card {
+  padding-top: 12px;
+}
+.paper.home .task-badges {
+  color: var(--paper-muted);
+  font-size: 11px;
+  line-height: 16px;
+  display: block;
+  margin: 2px 0 0;
+}
+.paper.home footer {
+  margin-top: auto;
+}
+.paper-motto {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.paper .notice {
+  flex-wrap: wrap;
+}
+.paper .pet-settings > summary {
+  min-height: 36px;
+  line-height: 36px;
+  font-size: 14px;
+}
+.paper .pet-settings .pet-options {
+  margin-top: 10px;
+}
+.paper .rest-card {
+  text-align: center;
+}
+.paper .rest-card .timer {
+  margin-inline: auto;
+}
+.paper.focus-quiet .focus-clock {
+  background: rgba(250, 248, 242, 0.96);
+  border-radius: 12px;
+  box-shadow: 0 1px 5px #30332f20;
+}
+.paper.focus-quiet .timer {
+  color: var(--paper-accent);
+  -webkit-text-stroke: 0;
+}
+.focus-clock {
+  transition:
+    background-color 450ms,
+    box-shadow 450ms;
+}
+.paper .work-strip {
+  width: 100%;
+  border-radius: var(--paper-radius);
+}
+.paper .coach-panel .coach-choice button {
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-clock {
+    transition: none;
+  }
+}
+
+.paper.home > .notice {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  font-size: 12px;
+}
+.paper.home > .notice button {
+  margin-left: auto;
+}

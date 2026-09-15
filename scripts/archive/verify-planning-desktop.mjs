@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { chromium } from 'playwright';
+
+const root = process.cwd();
+const out = path.join(root, 'output/implementation-20260913');
+const shots = path.join(root, 'output/playwright/implementation-20260913');
+const fixture = JSON.parse(await readFile(path.join(out, 'hermes-card-fixture.json'), 'utf8'));
+const browser = await chromium.connectOverCDP('http://127.0.0.1:9237');
+const page = browser.contexts()[0].pages().find(p => !p.url().includes('coachPrompt'));
+page.setDefaultTimeout(12000);
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+const button = name => page.getByRole('button', { name, exact: true });
+const invoke = (action, input = {}) => page.evaluate(({action,input}) => window.__TAURI_INTERNALS__.invoke('paper_execute',{action,input}), {action,input});
+const state = async () => (await invoke('get_state')).state;
+const checks = [];
+const pass = text => { checks.push(text); console.log('PASS', text); };
+
+try {
+  const bridge = await page.evaluate(() => window.__TAURI_INTERNALS__.invoke('get_paper_bridge_status'));
+  assert.equal(path.resolve(bridge.connectionFile), path.join(out, 'paper-test/paper-agent-bridge.json'));
+  let data = await state();
+  assert.equal(data.planning.dayItems.filter(x => !x.removedAt).length, 2);
+  assert.equal(data.tasks.filter(x => x.id === fixture.taskId).length, 1);
+  let first = data.sessions.find(s => s.action?.id === fixture.mappings[0].stepId && s.status === 'finished');
+  if (!first) {
+  assert.equal(data.sessions.length, 0);
+  pass('Hermes adopted two of three cards into one task, in requested order, without a clock');
+  if (!(await page.getByRole('heading',{name:'一天的安排'}).count())) await page.getByRole('button',{name:/今日计划与记录/}).click();
+  await button('准备这一轮').first().click();
+  await button('开始工作').click();
+  assert.equal(await page.getByLabel('本轮计时',{exact:true}).inputValue(), '1200');
+  await page.screenshot({path:path.join(shots,'paper-start-20min.png')});
+  await button('开始工作并计时').click();
+  await page.getByRole('timer').waitFor();
+  await page.waitForTimeout(3200);
+  data = await state();
+  first = data.sessions.find(s => s.status === 'running');
+  assert.equal(first.plannedSeconds, 1200);
+  assert.equal(first.action.id, fixture.mappings[0].stepId);
+  assert.equal(data.planning.sessionLinks.find(l => l.sessionId === first.id).dayItemId, fixture.mappings[0].planItemId);
+  pass('Real WorkStart preserves 20-minute suggestion and selected daily step identity');
+  await button('暂停').click();
+  const paused = (await state()).sessions.find(s => s.id === first.id);
+  await page.waitForTimeout(1500);
+  assert.equal((await state()).sessions.find(s => s.id === first.id).elapsedSeconds, paused.elapsedSeconds);
+  await page.getByLabel('回来先做什么',{exact:true}).fill('核对来源后继续');
+  await button('收好这一轮').click();
+  await button('补一句').click();
+  await page.getByLabel('产出',{exact:true}).fill('已核对三项关键数字并附上来源（验收样例）');
+  await button('这一步完成了').click();
+  await button('回到任务页').click();
+  }
+  data = await state();
+  assert.equal(data.planning.steps.find(s => s.id === fixture.mappings[0].stepId).completed, true);
+  assert.equal(data.tasks.find(t => t.id === fixture.taskId).completed, false);
+  pass('Pause excludes elapsed time; completing the step preserves the pending parent task');
+  await page.getByRole('button',{name:/今日计划与记录/}).click();
+  await button('准备这一轮').click();
+  await button('继续本段工作').click();
+  await button('开始一轮计时').click();
+  await page.getByRole('timer').waitFor();
+  await page.waitForTimeout(2200);
+  await button('暂停').click();
+  await button('收好这一轮').click();
+  await button('补一句').click();
+  await page.getByLabel('卡点',{exact:true}).fill('缺少第三条结论的证据（验收样例）');
+  await page.getByLabel('下次起点',{exact:true}).fill('先补齐第三条证据，再继续写结论');
+  await button('这一轮先到这里').click();
+  data = await state();
+  const second = data.sessions.find(s => s.action?.id === fixture.mappings[1].stepId);
+  assert.equal(second.feedback.outcome, 'stopped');
+  assert.equal(data.planning.steps.find(s => s.id === fixture.mappings[1].stepId).completed, false);
+  assert.equal(data.planning.sessionLinks.find(l => l.sessionId === second.id).dayItemId, fixture.mappings[1].planItemId);
+  await page.getByRole('button',{name:/今日计划与记录/}).click();
+  await page.getByRole('heading',{name:'一天的安排'}).waitFor();
+  await page.waitForTimeout(600);
+  await page.screenshot({path:path.join(shots,'paper-execution-progress.png')});
+  const record = await invoke('get_daily_record',{date:fixture.date,utcOffsetMinutes:480});
+  assert.equal(record.sessions.length,2);
+  assert(record.sessions.some(s => s.feedback.output?.includes('三项关键数字')));
+  assert(record.sessions.some(s => s.feedback.blocker?.includes('第三条结论')));
+  assert.equal(record.summaries.length,0);
+  assert.equal(data.coach.proposals.length,0);
+  assert.equal(data.coach.settings.hermes,false);
+  const markdown = await readFile(path.join(out,'paper-test/工作记录/每日',`${fixture.date}.md`),'utf8');
+  assert(markdown.includes('三项关键数字'));
+  assert(markdown.includes('第三条结论'));
+  assert.deepEqual(errors,[]);
+  pass('Second card retains blocker and pending status; both rounds automatically appear in Markdown; no Coach summary or proposal starts');
+  await writeFile(path.join(out,'desktop-verification.json'),JSON.stringify({result:'PASS',checks,taskId:fixture.taskId,sessionIds:[first.id,second.id],record,pageErrors:errors},null,2));
+} catch(error) {
+  await page.screenshot({path:path.join(shots,'paper-failure.png')}).catch(()=>{});
+  console.error(error);
+  process.exitCode=1;
+} finally {
+  // Disconnect the test driver without sending Browser.close to the native WebView.
+  process.exit(process.exitCode || 0);
+}

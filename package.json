@@ -1,0 +1,35 @@
+{
+  "name": "inky-paper",
+  "private": true,
+  "version": "0.5.8",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1422",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test:frontend": "vitest run --dir src",
+    "test:hermes-plugin": "vitest run --config integrations/inky-coach-hermes-plugin/tests/vitest.config.js",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "lucide-react": "^1.42.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^30.0.1",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.10"
+  }
+}

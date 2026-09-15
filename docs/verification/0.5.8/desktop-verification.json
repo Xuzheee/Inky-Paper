@@ -1,0 +1,78 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Bundled C/Xiaolai is actually used for the 42px task; B/Yozai is used for 18px choices",
+    "Native title, handwritten task and blank area move the real window: [{\"selector\":\".feedback-heading h1\",\"deltaX\":60,\"scale\":1.5},{\"selector\":\".end-task > span\",\"deltaX\":60,\"scale\":1.5},{\"selector\":\".end-task\",\"deltaX\":60,\"scale\":1.5}]",
+    "Handwritten radios support mouse and arrow keys; pencil shading draws, reduced-motion skips it, controls and notes never move the window, expanded page scrolls",
+    "Radio choice is draft-only; notes and outcome survive browsing/reload, only save commits, unfinished remains pending and success clears drafts",
+    "Fresh session defaults to unfinished; completing a step preserves parent; rest has compact layout and shared English motto while running/waiting",
+    "Long titles and expanded notes remain readable with reachable save; native daily data and Markdown contain saved outcomes"
+  ],
+  "endGeometry": {
+    "width": 320,
+    "height": 482,
+    "scrollHeight": 482,
+    "clientHeight": 482,
+    "task": {
+      "top": 108.33333587646484,
+      "bottom": 215.2916717529297,
+      "height": 106.95833587646484,
+      "width": 288
+    },
+    "taskText": {
+      "top": 136.33334350585938,
+      "bottom": 192.6250114440918,
+      "height": 56.29166793823242,
+      "width": 128
+    },
+    "notes": {
+      "top": 215.2916717529297,
+      "bottom": 265.2916717529297,
+      "height": 50,
+      "width": 288
+    },
+    "legend": {
+      "top": 265.29168701171875,
+      "bottom": 285.29168701171875,
+      "height": 20,
+      "width": 112
+    },
+    "options": {
+      "top": 299.29168701171875,
+      "bottom": 339.29168701171875,
+      "height": 40,
+      "width": 288
+    },
+    "save": {
+      "top": 359.29168701171875,
+      "bottom": 395.29168701171875,
+      "height": 36,
+      "width": 288
+    },
+    "footer": {
+      "top": 411.29168701171875,
+      "bottom": 463.54168701171875,
+      "height": 52.25,
+      "width": 288
+    }
+  },
+  "restGeometry": {
+    "width": 320,
+    "height": 442,
+    "scrollHeight": 442,
+    "clientHeight": 442,
+    "task": null,
+    "taskText": null,
+    "notes": null,
+    "legend": null,
+    "options": null,
+    "save": null,
+    "footer": {
+      "top": 369,
+      "bottom": 417.6666679382324,
+      "height": 48.66666793823242,
+      "width": 288
+    }
+  },
+  "errors": []
+}

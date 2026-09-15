@@ -1,0 +1,194 @@
+[
+  {
+    "path": "src/App.module.css",
+    "fileCount": 1,
+    "bytes": 1365
+  },
+  {
+    "path": "src/components",
+    "fileCount": 7,
+    "bytes": 187426
+  },
+  {
+    "path": "src/types",
+    "fileCount": 1,
+    "bytes": 1865
+  },
+  {
+    "path": "src/utils",
+    "fileCount": 15,
+    "bytes": 56914
+  },
+  {
+    "path": "src-tauri/src/agent_bridge.rs",
+    "fileCount": 1,
+    "bytes": 14244
+  },
+  {
+    "path": "src-tauri/src/claude.rs",
+    "fileCount": 1,
+    "bytes": 34341
+  },
+  {
+    "path": "src-tauri/src/persistence.rs",
+    "fileCount": 1,
+    "bytes": 75172
+  },
+  {
+    "path": "src-tauri/src/pet_packs.rs",
+    "fileCount": 1,
+    "bytes": 6257
+  },
+  {
+    "path": "src-tauri/src/state_merge.rs",
+    "fileCount": 1,
+    "bytes": 5768
+  },
+  {
+    "path": "integrations/inky-mcp-server",
+    "fileCount": 8,
+    "bytes": 44561
+  },
+  {
+    "path": "scripts/verify-agent-desktop.cjs",
+    "fileCount": 1,
+    "bytes": 8659
+  },
+  {
+    "path": "scripts/verify-prompt-temp.mjs",
+    "fileCount": 1,
+    "bytes": 786
+  },
+  {
+    "path": "scripts/recover-knowledge-task.py",
+    "fileCount": 1,
+    "bytes": 2131
+  },
+  {
+    "path": "scripts/diagnose-hermes-plan-render.py",
+    "fileCount": 1,
+    "bytes": 1974
+  },
+  {
+    "path": "public/completion-assets",
+    "fileCount": 1,
+    "bytes": 1220197
+  },
+  {
+    "path": "public/pet-assets",
+    "fileCount": 35,
+    "bytes": 2786832
+  },
+  {
+    "path": "design-qa.md",
+    "fileCount": 1,
+    "bytes": 9798
+  },
+  {
+    "path": "output",
+    "fileCount": 5748,
+    "bytes": 980016303
+  },
+  {
+    "path": "dist",
+    "fileCount": 79,
+    "bytes": 73961605
+  },
+  {
+    "path": "src-tauri/gen",
+    "fileCount": 4,
+    "bytes": 300020
+  },
+  {
+    "path": "app/Caveat-OFL.txt",
+    "fileCount": 1,
+    "bytes": 4385
+  },
+  {
+    "path": "app/Inky Paper 0.2.previous.exe",
+    "fileCount": 1,
+    "bytes": 18080256
+  },
+  {
+    "path": "app/Inky Paper 0.3.1.previous.exe",
+    "fileCount": 1,
+    "bytes": 26541056
+  },
+  {
+    "path": "app/Inky Paper 0.3.2.previous.exe",
+    "fileCount": 1,
+    "bytes": 26542080
+  },
+  {
+    "path": "app/Inky Paper 0.3.3.previous.exe",
+    "fileCount": 1,
+    "bytes": 26542592
+  },
+  {
+    "path": "app/Inky Paper 0.3.4.previous.exe",
+    "fileCount": 1,
+    "bytes": 26542592
+  },
+  {
+    "path": "app/Inky Paper 0.3.5.previous.exe",
+    "fileCount": 1,
+    "bytes": 26543104
+  },
+  {
+    "path": "app/Inky Paper 0.3.previous.exe",
+    "fileCount": 1,
+    "bytes": 26539008
+  },
+  {
+    "path": "app/Inky Paper 0.4.0.before-motto.exe",
+    "fileCount": 1,
+    "bytes": 27398144
+  },
+  {
+    "path": "app/Inky Paper.before-0.4.1.exe",
+    "fileCount": 1,
+    "bytes": 48212480
+  },
+  {
+    "path": "app/Inky Paper.before-heading.exe",
+    "fileCount": 1,
+    "bytes": 47829504
+  },
+  {
+    "path": "app/Inky Paper.before-pets-20260910.exe",
+    "fileCount": 1,
+    "bytes": 47829504
+  },
+  {
+    "path": "app/Inky Paper.before-prompt-fix.exe",
+    "fileCount": 1,
+    "bytes": 48150528
+  },
+  {
+    "path": "app/Inky Paper.running-before-motto.exe",
+    "fileCount": 1,
+    "bytes": 27398144
+  },
+  {
+    "path": "docs/design/inky-paper/inky-paper-focus-preview.html",
+    "fileCount": 1,
+    "bytes": 14921136
+  },
+  {
+    "path": "docs/design/inky-paper/inky-paper-focus-overview.svg",
+    "fileCount": 1,
+    "bytes": 7458865
+  },
+  {
+    "path": "src-tauri/target",
+    "fileCount": 27912,
+    "bytes": 24394375670,
+    "phase": "after-verification"
+  },
+  {
+    "path": "dist",
+    "fileCount": 43,
+    "bytes": 69954576,
+    "phase": "after-verification"
+  }
+]

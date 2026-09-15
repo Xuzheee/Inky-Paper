@@ -1,0 +1,58 @@
+# Local agent settings and worktrees
+.worktrees/
+.claude/
+.superpowers/
+.codex/
+.playwright-mcp/
+.cleanup-quarantine/
+
+# Dependencies and reproducible build/test output (all package levels)
+node_modules/
+dist/
+output/
+target/
+src-tauri/gen/
+coverage/
+test-results/
+playwright-report/
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+.venv/
+
+# Delivered executables and local rollback copies
+app/*.exe
+app/backups/
+*.zip
+*.pdb
+*.msi
+*.msix
+
+# User data and credentials never belong in source control
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.sqlite-*
+*.db
+*.db-*
+paper-agent-bridge.json
+agent-bridge.json
+ai-config.json
+config.local.*
+*.local.json
+*.pem
+*.key
+工作记录/
+
+# Temporary OS/editor output
+*.log
+.DS_Store
+Thumbs.db
+*.pid
+*.tmp
+*.bak
+*~
+focusflow-*.png

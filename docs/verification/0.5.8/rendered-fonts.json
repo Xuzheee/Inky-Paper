@@ -1,0 +1,26 @@
+[
+  {
+    "selector": ".end-task > span",
+    "size": "42px",
+    "fonts": [
+      {
+        "familyName": "小賴字體",
+        "postScriptName": "Xiaolai",
+        "isCustomFont": true,
+        "glyphCount": 2
+      }
+    ]
+  },
+  {
+    "selector": ".end-outcome label span",
+    "size": "18px",
+    "fonts": [
+      {
+        "familyName": "Yozai",
+        "postScriptName": "Yozai-Regular",
+        "isCustomFont": true,
+        "glyphCount": 4
+      }
+    ]
+  }
+]

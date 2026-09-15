@@ -2,7 +2,7 @@
 
 Inky Paper 是一个独立的 Windows 专注与工作记录应用。Hermes 在用户询问时帮助安排、拆分和复盘；Paper 用纸面任务清单和番茄钟承接执行，SQLite 保存共同状态，Markdown 方便阅读和写个人笔记。
 
-当前应用版本 **0.6.1**，Inky Coach 插件版本 **0.1.3**。独立的 [Inky 工作台](docs/工作台使用说明.md) 已接入三日任务、日程编辑与 Hermes ACP 对话，点击任务首页底部「随手记 · 足迹 · 工作台」中的「工作台」、托盘「打开工作台」或 `启动 Inky 工作台.cmd` 打开。当前进度、验证范围和待检查项见 [项目进度](docs/PROJECT_STATUS.md)。
+当前应用版本 **0.6.2**，Inky Coach 插件版本 **0.1.3**。独立的 [Inky 工作台](docs/工作台使用说明.md) 已接入三日任务、日程、每日完成与执行记录、原始 Markdown 页面和 Hermes ACP 对话。点击任务首页底部「随手记 · 足迹 · 工作台」中的「工作台」、托盘「打开工作台」或 `启动 Inky 工作台.cmd` 打开。当前进度、验证范围和待检查项见 [项目进度](docs/PROJECT_STATUS.md)。
 
 源码已接入私有仓库 [Xuzheee/Inky-Paper](https://github.com/Xuzheee/Inky-Paper)，默认分支 `main`。Git 管理代码与项目文档，个人工作记录继续保存在本机。
 

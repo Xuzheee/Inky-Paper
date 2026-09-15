@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import type { State } from "../paper/paperTypes";
 import CoachChat from "./CoachChat";
+import DailyJournal from "./DailyJournal";
+import MarkdownJournal from "./MarkdownJournal";
+import { dailyStats, datesWithRecords, durationLabel } from "./dailyRecord";
+import { useDailyRecords } from "./useDailyRecords";
 import {
   categories,
   calendarLanes,
@@ -39,6 +43,7 @@ import {
   shiftDay,
 } from "./model";
 import "./workbench.css";
+import "./journal.css";
 
 function Dialog({
   title,
@@ -312,7 +317,11 @@ export default function Workbench() {
   const [state, setState] = useState<State>();
   const [day, setDay] = useState(dateKey);
   const [month, setMonth] = useState(() => dateKey().slice(0, 7));
-  const [view, setView] = useState<"tasks" | "calendar">("tasks");
+  const [view, setView] = useState<
+    "tasks" | "calendar" | "record" | "markdown"
+  >("tasks");
+  const [documentKind, setDocumentKind] = useState("day");
+  const [recordsRevision, setRecordsRevision] = useState(0);
   const [nav, setNav] = useState<"week" | "inbox">("week");
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -333,7 +342,10 @@ export default function Workbench() {
     const id = ++generation.current;
     try {
       const r = await paper<{ state: State }>("get_state");
-      if (id === generation.current) setState(r.state);
+      if (id === generation.current) {
+        setState(r.state);
+        setRecordsRevision((value) => value + 1);
+      }
     } catch (e) {
       setError(getError(e));
     }
@@ -352,6 +364,14 @@ export default function Workbench() {
       timeline.current.scrollTop = 8 * 68;
   }, [view]);
   const days = [day, shiftDay(day, 1), shiftDay(day, 2)];
+  const records = useDailyRecords(days, recordsRevision);
+  const recordedDates = datesWithRecords(state);
+  const singleDay = view === "record" || view === "markdown";
+  const openRecord = (date: string) => {
+    goDay(date);
+    setFilter("");
+    setView("record");
+  };
   const rows: Row[] = (state?.planning?.dayItems || [])
     .filter((i) => !i.removedAt)
     .map((item) => ({
@@ -627,7 +647,8 @@ export default function Workbench() {
                 onClick={() => goDay(s)}
               >
                 {Number(s.slice(-2))}
-                {rows.some((r) => r.item?.date === s) && <i />}
+                {(rows.some((r) => r.item?.date === s) ||
+                  recordedDates.has(s)) && <i />}
               </button>
             ))}
           </div>
@@ -670,7 +691,10 @@ export default function Workbench() {
               <button
                 key={k}
                 className={filter === k ? "active" : ""}
-                onClick={() => setFilter(filter === k ? "" : k)}
+                onClick={() => {
+                  setFilter(filter === k ? "" : k);
+                  if (singleDay) setView("tasks");
+                }}
               >
                 <i className={k} />
                 {v}
@@ -695,7 +719,7 @@ export default function Workbench() {
       <section className="wk-main">
         <header className="wk-topbar">
           <h1>工作台</h1>
-          <span>计划 · 对话</span>
+          <span>计划 · 记录 · 对话</span>
           <button
             title="刷新工作记录"
             aria-label="刷新"
@@ -709,19 +733,21 @@ export default function Workbench() {
             <h2>
               {nav === "inbox"
                 ? "先放在这里，慢慢理清。"
-                : "这一周，慢慢推进。"}
+                : singleDay
+                  ? "这一天，留下足迹。"
+                  : "这一周，慢慢推进。"}
             </h2>
             <div className="wk-date-controls">
               <button
-                aria-label="前面三天"
-                onClick={() => goDay(shiftDay(day, -3))}
+                aria-label={singleDay ? "前一天" : "前面三天"}
+                onClick={() => goDay(shiftDay(day, singleDay ? -1 : -3))}
               >
                 <ChevronLeft size={20} />
               </button>
               <button onClick={() => goDay(dateKey())}>今天</button>
               <button
-                aria-label="后面三天"
-                onClick={() => goDay(shiftDay(day, 3))}
+                aria-label={singleDay ? "后一天" : "后面三天"}
+                onClick={() => goDay(shiftDay(day, singleDay ? 1 : 3))}
               >
                 <ChevronRight size={20} />
               </button>
@@ -729,10 +755,16 @@ export default function Workbench() {
           </div>
           <div>
             <p>
-              {filter ? `${categories[filter]} · ` : ""}
-              {Number(monday.slice(5, 7))}月{Number(monday.slice(8))}日 —{" "}
-              {Number(shiftDay(monday, 6).slice(5, 7))}月
-              {Number(shiftDay(monday, 6).slice(8))}日
+              {filter && !singleDay ? `${categories[filter]} · ` : ""}
+              {singleDay ? (
+                day
+              ) : (
+                <>
+                  {Number(monday.slice(5, 7))}月{Number(monday.slice(8))}日 —{" "}
+                  {Number(shiftDay(monday, 6).slice(5, 7))}月
+                  {Number(shiftDay(monday, 6).slice(8))}日
+                </>
+              )}
             </p>
             {nav === "week" && (
               <div className="wk-tabs" role="tablist" aria-label="计划视图">
@@ -749,6 +781,26 @@ export default function Workbench() {
                   onClick={() => setView("calendar")}
                 >
                   日程
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === "record"}
+                  onClick={() => {
+                    setView("record");
+                    setFilter("");
+                  }}
+                >
+                  每日记录
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={view === "markdown"}
+                  onClick={() => {
+                    setView("markdown");
+                    setFilter("");
+                  }}
+                >
+                  Markdown
                 </button>
               </div>
             )}
@@ -794,6 +846,22 @@ export default function Workbench() {
               </div>
             )}
           </div>
+        ) : view === "record" ? (
+          <DailyJournal
+            date={day}
+            entry={records[day]}
+            openMarkdown={(kind = "day") => {
+              setDocumentKind(kind);
+              setView("markdown");
+            }}
+          />
+        ) : view === "markdown" ? (
+          <MarkdownJournal
+            date={day}
+            kind={documentKind}
+            setKind={setDocumentKind}
+            refreshKey={records[day]?.record?.sampledAt || recordsRevision}
+          />
         ) : (
           <>
             <div
@@ -801,21 +869,42 @@ export default function Workbench() {
             >
               {days.map((d) => (
                 <div key={d}>
-                  <strong>{Number(d.slice(-2))}</strong>
-                  <div>
-                    <span>
-                      周
-                      {
-                        ["日", "一", "二", "三", "四", "五", "六"][
-                          parseDate(d).getDay()
-                        ]
-                      }{" "}
-                      {d === dateKey() && <b>今天</b>}
-                    </span>
-                    <p>
-                      {Number(d.slice(5, 7))}月{Number(d.slice(8))}日
-                    </p>
+                  <div className="wk-day-date">
+                    <strong>{Number(d.slice(-2))}</strong>
+                    <div>
+                      <span>
+                        周
+                        {
+                          ["日", "一", "二", "三", "四", "五", "六"][
+                            parseDate(d).getDay()
+                          ]
+                        }{" "}
+                        {d === dateKey() && <b>今天</b>}
+                      </span>
+                      <p>
+                        {Number(d.slice(5, 7))}月{Number(d.slice(8))}日
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    className="wk-day-summary"
+                    aria-label={`查看 ${d} 每日记录`}
+                    onClick={() => openRecord(d)}
+                  >
+                    {records[d]?.record
+                      ? (() => {
+                          const stats = dailyStats(records[d].record!);
+                          return (
+                            <>
+                              当日完成 {stats.completed} 步<br />
+                              工作计时 {durationLabel(stats.workSeconds)}
+                            </>
+                          );
+                        })()
+                      : records[d]?.error
+                        ? "记录读取失败 · 查看"
+                        : "正在同步记录…"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -867,9 +956,11 @@ export default function Workbench() {
                       ).map((r) => (
                         <button
                           key={key(r)}
+                          className={r.step?.completed ? "done" : ""}
                           {...dragProps(r)}
                           onClick={() => setEditor({ row: r, date: d })}
                         >
+                          {r.step?.completed && "✓ "}
                           {r.step?.text || r.task.title}
                         </button>
                       ))}
@@ -955,7 +1046,10 @@ export default function Workbench() {
                               }}
                               title={`${r.step?.text || r.task.title} ${clock(start)}–${clock(start + duration)}`}
                             >
-                              <strong>{r.step?.text || r.task.title}</strong>
+                              <strong>
+                                {r.step?.completed && "✓ "}
+                                {r.step?.text || r.task.title}
+                              </strong>
                               <span>
                                 {clock(start)}–{clock(start + duration)}
                               </span>

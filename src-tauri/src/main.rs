@@ -9,6 +9,7 @@ mod paper_markdown;
 mod paper_planning;
 mod workbench;
 mod workbench_plan;
+mod workbench_journal;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -253,6 +254,8 @@ fn main() {
             workbench::workbench_send,
             workbench::workbench_cancel,
             workbench::workbench_permission,
+            workbench_journal::workbench_read_documents,
+            workbench_journal::workbench_open_document,
             paper_bridge::get_paper_bridge_status,
             paper_markdown::open_work_journal,
             get_system_idle_ms,

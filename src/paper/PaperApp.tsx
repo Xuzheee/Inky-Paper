@@ -1766,7 +1766,7 @@ export default function PaperApp() {
             </button>
           </section>
           <p className="caption">
-            Inky Paper 0.6.1 · 独立数据空间
+            Inky Paper 0.6.2 · 独立数据空间
             <br />
             计时不等于有效专注；空白时段不推断为休息。
           </p>

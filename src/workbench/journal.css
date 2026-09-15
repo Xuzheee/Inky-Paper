@@ -1,0 +1,291 @@
+.wk-hero > div:last-child {
+  flex-wrap: wrap;
+}
+.wk-tabs {
+  flex-shrink: 0;
+}
+.wk-tabs button {
+  padding: 10px 12px 8px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.wk-days-heading > div {
+  display: block;
+  padding-bottom: 9px;
+}
+.wk-day-date {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.wk-app .wk-day-summary {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 5px 7px;
+  color: #63755b;
+  background: #eff2e980;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.wk-journal,
+.wk-markdown {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 28px 32px;
+  font-size: 14px;
+}
+.wk-journal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 18px;
+}
+.wk-journal-heading h3,
+.wk-document-info h3 {
+  font-size: 18px;
+}
+.wk-journal-heading p,
+.wk-document-info p {
+  font-size: 12px;
+  color: #7a8175;
+}
+.wk-app .wk-journal-heading button {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #526a49;
+}
+.wk-record-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding-bottom: 8px;
+}
+.wk-record-stats > div {
+  padding: 15px 12px;
+  background: #eff2e9;
+  border-radius: 8px;
+  min-width: 0;
+}
+.wk-record-stats strong {
+  display: block;
+  font:
+    500 24px/1.5 "DM Sans",
+    "Noto Sans SC",
+    sans-serif;
+  color: #4b6243;
+}
+.wk-record-stats strong small {
+  font-size: 13px;
+  font-weight: 400;
+}
+.wk-record-stats > div:last-child strong {
+  font-size: 19px;
+  padding: 4px 0;
+}
+.wk-record-stats span {
+  font-size: 11px;
+  color: #6f786a;
+}
+.wk-record-section {
+  padding: 23px 0 3px;
+}
+.wk-record-section > h3 {
+  font-size: 16px;
+  padding-bottom: 9px;
+  border-bottom: 1px dashed var(--wk-line);
+}
+.wk-record-section h4 {
+  margin: 0;
+  font-weight: 500;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.wk-journal p,
+.wk-record-item p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-app .wk-record-help,
+.wk-app .wk-record-time {
+  font-size: 11px;
+  color: #808879;
+  margin: 7px 0;
+}
+.wk-app .wk-record-empty {
+  color: #7d8577;
+  padding: 15px 0;
+  font-size: 13px;
+}
+.wk-record-plan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e8ebe3;
+}
+.wk-record-plan > div {
+  flex: 1;
+  min-width: 0;
+}
+.wk-record-plan > div > p {
+  color: #7a8175;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.wk-record-plan > span:last-child {
+  font-size: 11px;
+  color: #687c60;
+  flex-shrink: 0;
+}
+.wk-record-check {
+  border: 1px solid #97a38d;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.wk-record-check.complete {
+  background: #7d8e79;
+  color: white;
+  border-color: #7d8e79;
+}
+.wk-record-item {
+  padding: 13px 0;
+  border-bottom: 1px solid #e8ebe3;
+}
+.wk-record-item summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+.wk-record-item summary span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wk-record-item summary b {
+  font-size: 12px;
+  color: #6b7b62;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.wk-record-item > p {
+  margin-top: 6px;
+}
+.wk-record-manual {
+  display: flex;
+  gap: 11px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e8ebe3;
+}
+.wk-record-manual > svg {
+  flex-shrink: 0;
+  color: #687c60;
+  margin-top: 3px;
+}
+.wk-record-manual p {
+  font-size: 12px;
+  color: #7a8175;
+  margin-top: 4px;
+}
+.wk-app .wk-record-personal {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #526a49;
+}
+.wk-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wk-document-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.wk-document-tools label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  flex: 1;
+  min-width: 180px;
+  font-size: 12px;
+  color: #6b7665;
+}
+.wk-document-tools select {
+  padding: 7px 12px;
+  border: 1px solid var(--wk-line);
+  border-radius: 6px;
+  background: var(--wk-paper);
+  font: inherit;
+  color: var(--wk-ink);
+}
+.wk-app .wk-document-tools button {
+  font-size: 12px;
+}
+.wk-document-info {
+  user-select: text;
+}
+.wk-document-info p {
+  margin-top: 5px;
+}
+.wk-app .wk-document-path {
+  font:
+    11px/1.7 Consolas,
+    monospace;
+  overflow-wrap: anywhere;
+  color: #8a9085;
+}
+.wk-markdown-source {
+  flex: 1;
+  min-height: 180px;
+  margin: 0;
+  padding: 20px;
+  background: #f4f5ee;
+  border: 1px solid var(--wk-line);
+  border-radius: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.wk-markdown-source code {
+  font:
+    13px/1.9 Consolas,
+    "Noto Sans SC",
+    monospace;
+}
+@media (max-width: 1300px) {
+  .wk-journal,
+  .wk-markdown {
+    padding: 8px 20px 28px;
+  }
+  .wk-record-stats {
+    gap: 6px;
+  }
+  .wk-record-stats > div {
+    padding: 12px 9px;
+  }
+  .wk-record-stats strong {
+    font-size: 22px;
+  }
+  .wk-record-stats > div:last-child strong {
+    font-size: 16px;
+  }
+  .wk-day-date {
+    gap: 8px;
+  }
+  .wk-app .wk-day-summary {
+    padding: 4px;
+    font-size: 10px;
+  }
+}

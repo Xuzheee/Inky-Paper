@@ -76,6 +76,16 @@ export type DayItem = {
 export type PlanningState = {
   steps: PlanStep[];
   dayItems: DayItem[];
+  manualStepChanges?: ManualStepChange[];
+};
+export type ManualStepChange = {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  stepId: string;
+  stepText: string;
+  completed: boolean;
+  recordedAt: number;
 };
 export type Draft = {
   originNoteId?: string;

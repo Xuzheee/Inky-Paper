@@ -31,6 +31,17 @@ fn valid_date(date: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+pub(crate) fn document_path(c: &Connection, date: &str, kind: &str) -> Result<PathBuf, String> {
+    valid_date(date)?;
+    let dir = root(c).ok_or("记录目录不可用")?;
+    match kind {
+        "day" => Ok(dir.join("每日").join(format!("{date}.md"))),
+        "personal" => Ok(dir.join("每日").join(format!("{date}.个人笔记.md"))),
+        "tasks" => Ok(dir.join("任务.md")),
+        _ => Err("INVALID_INPUT: document kind".into()),
+    }
+}
 fn text(v: &Value, field: &str) -> String {
     v[field].as_str().unwrap_or("").to_string()
 }

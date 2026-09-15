@@ -1,0 +1,11 @@
+{
+  "branch": "codex/markdown-coach",
+  "source": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\src-tauri\\target\\release\\inky-paper.exe",
+  "delivered": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\Inky Paper.exe",
+  "version": "0.6.1",
+  "bytes": 69386240,
+  "sha256": "9CDF921E156FF0EF1D649C160DED9870E0A1AD8DA951E8B3D6063CFFDF0084FD",
+  "hashesMatch": true,
+  "officialDesktopUpdated": false,
+  "note": "Current worktree only; integrate both branches before updating the official desktop executable."
+}

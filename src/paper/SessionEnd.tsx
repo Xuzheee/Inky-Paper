@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft, Minus, Plus } from "lucide-react";
 import type { Session } from "./paperTypes";
 import { PencilShading } from "./PencilShading";
+import { EndTask } from "./EndTask";
 
 type Feedback = { output: string; blocker: string; nextCue: string };
 
@@ -43,7 +44,7 @@ export function SessionEnd({
         </button>
         {session.status === "paused" && (
           <button aria-label="返回番茄钟" onClick={returnToTimer}>
-            返回计时
+            返回番茄钟
           </button>
         )}
       </nav>
@@ -57,9 +58,7 @@ export function SessionEnd({
           </p>
         </div>
       </div>
-      <div className="end-task">
-        <span>{session.action?.text || session.taskTitle}</span>
-      </div>
+      <EndTask text={session.action?.text || session.taskTitle} />
       <section className="end-records" aria-label="本轮补充记录">
         <button
           className="end-record-toggle"
@@ -91,7 +90,11 @@ export function SessionEnd({
           </div>
         )}
       </section>
-      <fieldset className="end-outcome" disabled={busy}>
+      <fieldset
+        className="end-outcome"
+        disabled={busy}
+        aria-describedby="end-outcome-hint"
+      >
         <legend>这一步完成了吗？</legend>
         <div>
           {([false, true] as const).map((value) => (
@@ -109,6 +112,11 @@ export function SessionEnd({
           ))}
         </div>
       </fieldset>
+      <p className="end-outcome-hint" id="end-outcome-hint" aria-live="polite">
+        {completed
+          ? "保存后划掉这一步，再选择回到列表或休息。"
+          : "保存后回到任务列表，这一步留待下次继续。"}
+      </p>
       <button className="primary end-save" disabled={busy} onClick={save}>
         保存并结束
       </button>

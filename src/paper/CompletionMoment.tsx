@@ -41,7 +41,7 @@ export function CompletionMoment({
       <p className="muted">
         {wholeTask
           ? "给自己一点掌声。Inky 也为你开心。"
-          : "这一步已完成，整个任务仍待办。"}
+          : "这一步已划掉。整个任务请在列表中单独完成。"}
       </p>
     </section>
   );

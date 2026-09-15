@@ -28,8 +28,10 @@
 .paper.feedback,
 .paper.focus.rest-view {
   padding: 16px;
+  padding-bottom: 8px;
   gap: 0;
 }
+.paper.feedback { overflow-x: hidden; padding-bottom: 6px; }
 .paper.feedback .focus-navigation {
   margin-bottom: 16px;
   min-height: 24px;
@@ -46,7 +48,12 @@
   line-height: 18px;
 }
 .end-task {
-  padding: 28px 6px 22px;
+  position: relative;
+  height: 126px;
+  padding: 22px 6px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-bottom: 1px dashed #b9bfb280;
   text-align: center;
 }
@@ -54,15 +61,52 @@
   display: inline-block;
   min-width: 128px;
   max-width: 100%;
-  padding: 0 8px 8px;
+  padding: 0 8px 10px;
   font-family: "Xiaolai", var(--paper-handwriting);
   font-size: 42px;
   font-weight: 400;
   line-height: 1.15;
   overflow-wrap: anywhere;
+  white-space: pre-line;
   background: url("/paper-assets/task-pencil-underline.svg") center bottom /
     min(100%, 148px) 12px no-repeat;
 }
+.end-task-letters {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.end-task-more {
+  position: absolute;
+  right: 6px;
+  bottom: 2px;
+  padding: 2px 0;
+  font-size: 11px;
+  color: var(--paper-muted);
+}
+.end-task-dialog {
+  width: calc(100% - 32px);
+  max-width: 360px;
+  max-height: calc(100% - 48px);
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #b9bfb280;
+  border-radius: 4px;
+  color: var(--paper-ink);
+  background: #faf8f2 url("/paper-assets/imgPaper.svg") center / cover;
+}
+.end-task-dialog::backdrop { background: #343d3140; }
+.end-task-dialog p {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: "Xiaolai", var(--paper-handwriting);
+  font-size: 20px;
+  line-height: 1.6;
+  user-select: text;
+}
+.end-task-dialog .text-button { display: block; margin: 16px auto 0; }
 .end-records {
   padding: 8px 0 18px;
 }
@@ -172,10 +216,17 @@
   outline-offset: 3px;
 }
 .paper.feedback .end-save {
-  margin-top: 20px;
+  margin-top: 18px;
   min-height: 36px;
   font-size: 14px;
   font-weight: 400;
+}
+.end-outcome-hint {
+  margin-top: 8px;
+  min-height: 32px;
+  color: var(--paper-muted);
+  font-size: 11px;
+  line-height: 16px;
 }
 .paper .end-work-status {
   margin-top: 12px;
@@ -192,7 +243,7 @@
   padding-top: 10px;
   border-top: 1px dashed #b9bfb280;
   gap: 10px;
-  min-height: 46px;
+  min-height: 53px;
 }
 .paper.feedback .paper-footer .pet-button,
 .paper.rest-view .paper-footer .pet-button { display: flex; }

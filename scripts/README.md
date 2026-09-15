@@ -17,7 +17,15 @@ node scripts/desktop/verify-session-pages.mjs
 
 输出在 `output/desktop-acceptance/`。脚本在写入前核对连接文件属于该隔离目录，并要求任务为空；不接受正式连接。新一轮验收前，先关闭上一次验收进程，再归档或清理这个目录。完成后从测试窗口托盘退出；也可核对 PID 的可执行路径后停止对应 debug 进程。不要结束正式 Paper 或 Hermes。
 
-页面脚本验证字体实际加载、拖动、选项动画与键盘、草稿、保存、长内容滚动、休息和 Markdown。它不代表对全部页面或真实模型的完整验收。迁移脚本后的本次整理未重新执行此原生流程；历史证据见 [验证归档](../docs/verification/README.md)。
+页面脚本验证字体实际加载、拖动、选项动画与键盘、草稿、保存、长文本自适应与全文阅读、细滚动条、页脚留白、休息和 Markdown。它不代表对全部页面或真实模型的完整验收；证据见 [验证归档](../docs/verification/README.md)。
+
+并行开发中的纸面分支改用自己的标识及 9252 端口，并传入一个全新的目录名：
+
+```powershell
+corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-execution-dev.json
+./scripts/desktop/launch-focus-acceptance.ps1 -RunName end-pages-check
+node scripts/desktop/verify-session-pages.mjs end-pages-check
+```
 
 ## 独立操作提醒验收
 

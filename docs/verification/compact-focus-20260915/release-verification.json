@@ -1,0 +1,11 @@
+{
+  "branch": "codex/markdown-coach",
+  "source": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\src-tauri\\target\\release\\inky-paper.exe",
+  "delivered": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\Inky Paper.exe",
+  "version": "0.6.1",
+  "bytes": 69386240,
+  "sha256": "5CE5D117A488EE0C9595E9E8605F8B2ACA8A506B31220EBF9C25A002BC3DF11D",
+  "hashesMatch": true,
+  "backup": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\backups\\Inky Paper-0.6.1-before-compact-focus-20260915.exe",
+  "officialDesktopUpdated": false
+}

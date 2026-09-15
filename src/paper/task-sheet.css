@@ -64,9 +64,10 @@
 .paper.home .next-card h2 {
   margin: 8px 0 12px;
   background: none;
-  font-size: 17px;
-  line-height: 1.55;
-  font-weight: 500;
+  font-family: "Xiaolai", "KaiTi", cursive;
+  font-size: 20px;
+  line-height: 1.35;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 .next-card-top {

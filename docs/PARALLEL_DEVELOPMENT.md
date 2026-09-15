@@ -45,4 +45,8 @@ corepack pnpm tauri dev --config scripts/desktop/tauri-workbench-dev.json
 
 两边都提交并检查通过后，由一次集成任务创建 `codex/inky-integration` 分支，合并 `codex/markdown-coach` 和 `codex/inky-workbench`。检查共享文件的冲突，运行相关检查与桌面流程，再统一更新 `main` 和正式 `app/Inky Paper.exe`。不能通过复制某一分支的可执行文件代表两个分支已经集成。
 
-本轮只配置本机并行工作环境，未推送到远程仓库。
+## 首次集成：0.6.2
+
+2026-09-15 在原项目目录创建 `codex/inky-integration`，把工作台每日记录提交 `36251ed` 与纸面结束页提交 `982d9f0` 合并为 `61c639d`。共享文件自动合并，保留两边修改。合并版本通过自动检查和隔离桌面验证后统一交付；`main` 和 `codex/inky-workbench` 快进到集成结果，原项目目录回到工作台分支。纸面 worktree 保持自己的分支，开始下一轮时可在干净状态下将 `main` 合并进来。
+
+本机分支没有推送到远程仓库。证据见 [0.6.2 验收](verification/0.6.2/README.md)。

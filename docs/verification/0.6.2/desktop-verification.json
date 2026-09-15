@@ -1,16 +1,16 @@
 {
   "version": "0.6.2",
-  "testData": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\workbench-records-062\\paper-test",
+  "testData": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\workbench-records-integrated-062\\paper-test",
   "checks": [
     "Historical plan shows current completion, while actual completion stays on its operation date",
     "Paper-window manual completion and undo update the open workbench without reloading",
     "Unscheduled focus work, completion, feedback and notes appear in the day's actual record",
+    "Work-block progress uses the saved Coach progress values without creating a timer",
     "Markdown page contains the exact saved daily file, including completion and feedback",
     "Externally edited personal Markdown refreshes automatically and remains literal, unmodified text",
     "Date selection handles empty history, while all-tasks Markdown explicitly shows current global state",
     "1060px records and Markdown views remain usable with the Coach pane visible",
-    "Final build restart retains records; saved advanced work-block progress displays correctly without a new timer",
-    "Selecting a project from a record page returns to the filtered task view"
+    "Integrated 320x528 Paper ending saves step-only completion and output into daily records and exact Markdown without reloading or starting another timer"
   ],
   "narrow": {
     "width": 1060,
@@ -18,6 +18,5 @@
     "scroll": 1060,
     "main": 520
   },
-  "pageErrors": [],
-  "finalBuildChecked": true
+  "pageErrors": []
 }

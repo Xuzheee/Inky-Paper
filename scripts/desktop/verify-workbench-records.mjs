@@ -18,6 +18,7 @@ page.setDefaultTimeout(15000);
 const errors = [],
   checks = [];
 page.on("pageerror", (e) => errors.push(e.message));
+main.on("pageerror", (e) => errors.push(e.message));
 const invoke = (command, args = {}) =>
   page.evaluate(
     ({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args),
@@ -281,6 +282,48 @@ assert.deepEqual(errors, []);
 pass(
   "1060px records and Markdown views remain usable with the Coach pane visible",
 );
+
+// Exercise the integrated Paper ending page and observe the same saved result
+// in both workbench views, without reloading the workbench.
+const integratedTask = (
+  await api("create_task", {
+    taskId: randomUUID(),
+    title: "核对同步结果",
+    nextAction: "保存这次验收",
+  })
+).task;
+await main.reload();
+const integratedRow = main.locator(".sheet-task").filter({
+  has: main.locator(".sheet-task-name", { hasText: "核对同步结果" }),
+});
+await integratedRow.locator(".sheet-task-toggle").click();
+await main.getByRole("button", { name: "Do this：保存这次验收", exact: true }).click();
+await main.getByRole("button", { name: "start", exact: true }).click();
+await main.getByRole("button", { name: "结束番茄钟", exact: true }).click();
+await main.getByRole("button", { name: "保存并结束", exact: true }).waitFor();
+await main.waitForFunction(() => innerHeight === 528);
+assert(await main.getByRole("radio", { name: "还没完成", exact: true }).isChecked());
+await main.getByRole("radio", { name: "已完成", exact: true }).locator("..").click();
+await main.getByRole("button", { name: "补充记录（可选）", exact: true }).click();
+await main.getByLabel("产出", { exact: true }).fill("结束页保存的结果已经同步到工作台");
+assert.equal(await main.evaluate(() => innerHeight), 528);
+assert.equal((await state()).tasks.find((task) => task.id === integratedTask.id).completed, false);
+await main.screenshot({ path: path.join(out, "integrated-end-page.png") });
+await main.getByRole("button", { name: "保存并结束", exact: true }).click();
+await main.getByRole("button", { name: "回到任务页", exact: true }).waitFor();
+s = await state();
+assert.equal(s.tasks.find((task) => task.id === integratedTask.id).completed, false);
+assert(s.planning.steps.some((step) => step.taskId === integratedTask.id && step.completed));
+assert(!s.sessions.some((item) => item.status !== "finished"));
+await page.getByRole("tab", { name: "每日记录", exact: true }).click();
+await page.getByText("结束页保存的结果已经同步到工作台", { exact: false }).waitFor();
+await page.getByRole("tab", { name: "Markdown", exact: true }).click();
+await page.getByRole("combobox", { name: "文件", exact: true }).selectOption("day");
+await page.waitForFunction(() =>
+  document.querySelector(".wk-markdown-source code")?.textContent.includes("结束页保存的结果已经同步到工作台"),
+);
+assert.deepEqual(errors, []);
+pass("Integrated 320x528 Paper ending saves step-only completion and output into daily records and exact Markdown without reloading or starting another timer");
 await writeFile(
   path.join(out, "desktop-verification.json"),
   JSON.stringify(

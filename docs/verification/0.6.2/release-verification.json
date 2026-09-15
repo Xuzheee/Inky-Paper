@@ -1,0 +1,24 @@
+{
+  "version": "0.6.2",
+  "source": "C:\\Users\\31009\\clauddd\\Inky-Paper\\src-tauri\\target\\release\\inky-paper.exe",
+  "delivered": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\Inky Paper.exe",
+  "bytes": 69371392,
+  "sha256": "CC9AC5CFDC455525690ADCD01FDE389C8061EF7261368DEAD6BADB73E59CC682",
+  "hashesMatch": true,
+  "sourceCommit": "61c639d7a19d4d38b54555c2b0437e2f26528b91",
+  "integratedBranches": [
+    "codex/inky-workbench",
+    "codex/markdown-coach"
+  ],
+  "workbenchCommit": "36251ed",
+  "paperCommit": "982d9f0",
+  "previousBackup": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\backups\\Inky Paper-0.6.1-before-daily-records-20260915-214854.exe",
+  "previousSha256": "D67CEB1E17D21D48C2990B762B8AB2FD4ADF04117AC1A0ED07CC657D6A747A87",
+  "typecheck": "PASS",
+  "frontendTestsPassed": 107,
+  "rustTestsPassed": 68,
+  "rustTestsIgnored": 1,
+  "desktopVerification": "desktop-verification.json",
+  "officialProcessRestarted": false,
+  "deliveredAt": "2026-09-15T21:48:54.7234988+08:00"
+}

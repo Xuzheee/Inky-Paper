@@ -1,0 +1,33 @@
+{
+  "date": "2026-09-15",
+  "version": "0.5.11",
+  "result": "PASS",
+  "selectedDesign": "docs/design/focus-options-20260915/01-horizontal.png",
+  "checks": {
+    "typecheck": "PASS",
+    "frontend": {
+      "files": 7,
+      "passed": 102
+    },
+    "rust": {
+      "ignored": 1,
+      "passed": 65
+    },
+    "build": "corepack pnpm tauri build --no-bundle",
+    "nativeDesktop": "desktop-verification.json",
+    "visualComparison": "comparison.png"
+  },
+  "delivery": {
+    "path": "app/Inky Paper.exe",
+    "bytes": 67663872,
+    "sha256": "55F7182DB43006BE4B9BBA5A39B6C20DA7E51A561AD43940F76EED49B2A1D17B",
+    "matchesRelease": true,
+    "desktopShortcutMatches": true
+  },
+  "limits": [
+    "Native checks used isolated debug data; production process was not interrupted.",
+    "Transparent timer stays at its normal right-side coordinates to avoid reflow.",
+    "The application uses bundled Xiaolai and original paper/fish assets, not a raster copy of generated lettering.",
+    "Hermes model calls and unrelated page visuals were not repeated."
+  ]
+}

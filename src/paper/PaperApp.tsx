@@ -43,6 +43,7 @@ import {
 import "./consistency.css";
 import "./task-sheet.css";
 import "./session-pages.css";
+import "./focus-strip.css";
 
 const blank: State = { tasks: [], sessions: [], notes: [], coach: emptyCoach };
 const native = !!(window as unknown as { __TAURI_INTERNALS__?: unknown })
@@ -665,8 +666,10 @@ export default function PaperApp() {
   const changeDraft = (key: keyof Draft, value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const endDragProps = useWindowDrag({
-    enabled: native && view === "feedback",
+  const paperDragEnabled =
+    view === "feedback" || (view === "focus" && session?.kind === "focus");
+  const paperDragProps = useWindowDrag({
+    enabled: native && !mini && paperDragEnabled,
     moveBy: (deltaX, deltaY) => invoke("move_window_by", { deltaX, deltaY }),
     onError: (error) => setError(String(error)),
   });
@@ -766,8 +769,8 @@ export default function PaperApp() {
   return (
     <main
       ref={paperRef}
-      className={`paper ${layout} ${view}${focusQuiet ? " focus-quiet" : ""}${view === "focus" && session?.kind === "rest" ? " rest-view" : ""}`}
-      {...(view === "feedback" ? endDragProps : {})}
+      className={`paper ${layout} ${view}${focusQuiet ? " focus-quiet" : ""}${view === "focus" ? (session?.kind === "rest" ? " rest-view" : " focus-strip") : ""}`}
+      {...(paperDragEnabled ? paperDragProps : {})}
     >
       {view !== "home" &&
         view !== "focus" &&
@@ -1227,25 +1230,39 @@ export default function PaperApp() {
                   结束番茄钟
                 </button>
               </nav>
-              <div className="focus-heading" {...dragProps}>
-                <div>
-                  <h2 title={session.action?.text || session.taskTitle}>
-                    {session.action?.text || session.taskTitle}
-                  </h2>
+              <div className="focus-main">
+                <div className="focus-heading">
+                  <div>
+                    <h2 title={session.action?.text || session.taskTitle}>
+                      {session.action?.text || session.taskTitle}
+                    </h2>
+                    <p className="focus-state">
+                      {session.status === "paused"
+                        ? work?.mode === "waiting_ai"
+                          ? "等待 AI"
+                          : "已暂停"
+                        : session.status === "waiting"
+                          ? "本轮结束"
+                          : "正在专注"}
+                    </p>
+                  </div>
+                </div>
+                <div className="focus-clock">
+                  <div className="timer-row">
+                    <span
+                      className={`timer${clock(remaining).length > 5 ? " timer-wide" : ""}`}
+                      role="timer"
+                    >
+                      {clock(remaining)}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="focus-clock">
-                <div className="timer-row">
-                  <span className="timer" role="timer" {...dragProps}>
-                    {clock(remaining)}
-                  </span>
-                </div>
-                <PencilProgress
-                  elapsed={session.plannedSeconds - remaining}
-                  total={session.plannedSeconds}
-                  running={session.status === "running"}
-                />
-              </div>
+              <PencilProgress
+                elapsed={session.plannedSeconds - remaining}
+                total={session.plannedSeconds}
+                running={session.status === "running"}
+              />
               <div className="focus-bottom">
                 <div className="focus-action-group">
                   <button

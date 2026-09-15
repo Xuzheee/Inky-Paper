@@ -1,8 +1,10 @@
+param([string]$RunName = 'focus-strip-acceptance')
 $ErrorActionPreference = 'Stop'
+if ($RunName -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$') { throw 'RunName must be a simple directory name.' }
 $projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
-$acceptanceRoot = Join-Path $projectRoot 'output/focus-transparency-acceptance'
+$acceptanceRoot = Join-Path $projectRoot "output/$RunName"
 if (Test-Path -LiteralPath $acceptanceRoot) {
-    throw 'Use a fresh directory: archive output/focus-transparency-acceptance before running again.'
+    throw 'Use a fresh directory: choose a new RunName and pass the same name to the verification script.'
 }
 $testExe = Join-Path $projectRoot 'src-tauri/target/debug/inky-paper.exe'
 if (-not (Test-Path -LiteralPath $testExe)) {

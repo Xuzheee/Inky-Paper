@@ -1,0 +1,127 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Dragging paper space moves the actual native focus window",
+    "Native 400x210 horizontal strip uses handwritten task left and time right; transparent mode keeps coordinates, timer progression and navigation",
+    "Captured transparent rendering on light, dark and mixed backgrounds without changing desktop settings",
+    "Pointer restores paper and controls; pause/resume and note editing remain usable with the draft visible",
+    "Keyboard wakes the sheet and keeps focused controls visible; reduced motion stops decorative pencil movement",
+    "Return-to-list preserves the active timer; ending and saving still records time without completing the parent task",
+    "Two-line long task and three-digit minutes stay separate; mini pet returns to the horizontal timer without stopping it",
+    "Work menu fits 400x398; waiting AI pauses and resumes correctly, typing a resume cue does not drag the window"
+  ],
+  "normal": {
+    "width": 400,
+    "height": 210,
+    "timer": {
+      "x": 228,
+      "y": 53,
+      "width": 140,
+      "height": 60
+    },
+    "progress": {
+      "x": 48,
+      "y": 118,
+      "width": 304,
+      "height": 24
+    },
+    "titleBounds": {
+      "x": 32,
+      "y": 61,
+      "width": 180,
+      "height": 44
+    },
+    "taskFont": "Xiaolai, KaiTi, cursive",
+    "taskSize": "24px",
+    "clockSize": "52px",
+    "sheetOpacity": "1",
+    "sheetBackground": "rgba(0, 0, 0, 0)",
+    "navBackground": "rgba(0, 0, 0, 0)",
+    "clockBackground": "rgba(0, 0, 0, 0)",
+    "clockShadow": "none",
+    "title": "visible",
+    "controls": "visible",
+    "nav": "visible",
+    "timerStroke": "0px",
+    "overflow": false
+  },
+  "transparent": {
+    "width": 400,
+    "height": 210,
+    "timer": {
+      "x": 228,
+      "y": 53,
+      "width": 140,
+      "height": 60
+    },
+    "progress": {
+      "x": 48,
+      "y": 118,
+      "width": 304,
+      "height": 24
+    },
+    "titleBounds": {
+      "x": 32,
+      "y": 61,
+      "width": 180,
+      "height": 44
+    },
+    "taskFont": "Xiaolai, KaiTi, cursive",
+    "taskSize": "24px",
+    "clockSize": "52px",
+    "sheetOpacity": "0",
+    "sheetBackground": "rgba(0, 0, 0, 0)",
+    "navBackground": "rgba(0, 0, 0, 0)",
+    "clockBackground": "rgba(0, 0, 0, 0)",
+    "clockShadow": "none",
+    "title": "hidden",
+    "controls": "hidden",
+    "nav": "visible",
+    "timerStroke": "1px",
+    "overflow": false
+  },
+  "long": {
+    "width": 400,
+    "height": 210,
+    "timer": {
+      "x": 228,
+      "y": 53,
+      "width": 140,
+      "height": 60
+    },
+    "progress": {
+      "x": 48,
+      "y": 118,
+      "width": 304,
+      "height": 24
+    },
+    "titleBounds": {
+      "x": 32,
+      "y": 48,
+      "width": 180,
+      "height": 70
+    },
+    "taskFont": "Xiaolai, KaiTi, cursive",
+    "taskSize": "24px",
+    "clockSize": "42px",
+    "sheetOpacity": "1",
+    "sheetBackground": "rgba(0, 0, 0, 0)",
+    "navBackground": "rgba(0, 0, 0, 0)",
+    "clockBackground": "rgba(0, 0, 0, 0)",
+    "clockShadow": "none",
+    "title": "visible",
+    "controls": "visible",
+    "nav": "visible",
+    "timerStroke": "0px",
+    "overflow": false
+  },
+  "errors": [],
+  "isolatedData": true,
+  "workMenu": {
+    "width": 400,
+    "height": 398,
+    "bottom": 326.6666717529297,
+    "scroll": 398,
+    "client": 398
+  }
+}

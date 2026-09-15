@@ -37,4 +37,8 @@ corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-tes
 node scripts/desktop/verify-focus-transparency.mjs
 ```
 
-端口 9252，独立空数据目录 `output/focus-transparency-acceptance/`，截图在 `output/playwright/focus-transparency/`。脚本等待真实 10 秒淡出，核对背景透明、计时坐标和进度，再检查深浅背景、恢复、暂停 / 继续、随手记、键盘、导航与保存。背景变化仅应用于测试 WebView 的 body，不修改系统桌面；检查后立即恢复。结束后核对 PID 路径并退出隔离进程。
+端口 9252，默认独立空数据目录 `output/focus-strip-acceptance/`，截图在 `output/playwright/focus-strip/`。脚本检查 400×210 横向纸条、原生拖动、10 秒淡出、坐标稳定、深浅背景、暂停 / 记录、键盘、导航、保存、长标题和迷你宠物。测试背景仅应用于 WebView 的 body，检查后恢复，不修改系统桌面。结束后核对 PID 路径并退出隔离进程。
+
+重跑时可用新目录名：先 `./scripts/desktop/launch-focus-acceptance.ps1 -RunName focus-check-2`，再 `node scripts/desktop/verify-focus-transparency.mjs focus-check-2`，两处名字需相同。
+
+`node scripts/desktop/compare-focus-design.mjs` 使用已安装的 Edge 无头渲染原型与截图的比较页，保留原图文件，输出 `comparison.png` / `comparison.html`。组合图不能代替真实 Tauri 交互验收。

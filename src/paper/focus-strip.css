@@ -1,0 +1,145 @@
+/* Approved horizontal paper strip. The clock keeps its grid slot when quiet. */
+.paper.focus-strip {
+  padding: 16px;
+  gap: 0;
+  border-radius: 6px;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+.focus-strip .focus-navigation,
+.focus-strip .focus-navigation button {
+  min-height: 24px;
+}
+.focus-strip .focus-navigation button {
+  padding: 2px 0;
+  font-size: 13px;
+  line-height: 20px;
+}
+.focus-strip .focus-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  align-items: center;
+  gap: 16px;
+  height: 70px;
+  margin-top: 8px;
+  padding: 0 16px;
+}
+.focus-strip .focus-heading {
+  min-width: 0;
+  text-align: left;
+}
+.paper.focus-strip .focus-heading h2 {
+  margin: 0;
+  font-family: "Xiaolai", "KaiTi", cursive;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 26px;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+}
+.focus-strip .focus-state {
+  margin-top: 2px;
+  color: #747b6e;
+  font-size: 12px;
+  line-height: 16px;
+}
+.focus-strip .focus-clock {
+  min-width: 0;
+  align-self: center;
+}
+.focus-strip .timer-row {
+  min-height: 60px;
+}
+.focus-strip .focus-clock .timer {
+  width: 140px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 52px;
+  line-height: 60px;
+  font-weight: 400;
+  letter-spacing: -1.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.focus-strip .focus-clock .timer-wide {
+  font-size: 42px;
+  letter-spacing: -1px;
+}
+.focus-strip > .pencil-progress {
+  width: calc(100% - 64px);
+  height: 24px;
+  align-self: center;
+}
+.focus-strip .focus-bottom {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) 100px;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  margin-top: 12px;
+}
+.focus-strip .focus-action-group {
+  width: 100px;
+  gap: 4px;
+}
+.paper.focus-strip .focus-action-group .focus-toggle {
+  width: 66px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 5px;
+  color: #52634f;
+  background: #e7ecdd;
+}
+.paper.focus-strip.paused .focus-toggle {
+  color: #faf8f2;
+  background: #52634f;
+}
+.focus-strip .focus-bottom .focus-note-button {
+  justify-self: end;
+  width: 94px;
+  min-height: 36px;
+  border: 1px solid #d5d9cd;
+  border-radius: 5px;
+  background: transparent;
+}
+.focus-strip .focus-pet img {
+  width: 40px;
+  height: 40px;
+}
+.focus-strip .work-menu,
+.focus-strip .quick-note,
+.focus-strip .cue {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #b9bfb280;
+}
+.focus-strip textarea,
+.focus-strip input {
+  cursor: text;
+  user-select: text;
+}
+.focus-strip .work-wait-label { margin-top: 12px; }
+.focus-strip.focus-quiet .focus-clock .timer {
+  color: #faf8f2;
+  -webkit-text-stroke: 1px #40513b;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px #202d2060;
+}
+.focus-strip.focus-quiet .focus-navigation button {
+  color: #faf8f2;
+  -webkit-text-stroke: 0.75px #30332f;
+  text-shadow: 0 1px 2px #202d2060;
+}
+.focus-strip.focus-quiet .focus-navigation svg {
+  filter: drop-shadow(0 0 1px #30332f);
+}
+.focus-strip.focus-quiet .pencil-progress {
+  filter: drop-shadow(0 0 1px #40513b);
+}
+.focus-strip.focus-quiet .pencil-ink,
+.focus-strip.focus-quiet .pencil-track {
+  stroke: #faf8f2;
+}
+.focus-strip.focus-quiet .pencil-track { stroke-opacity: 0.85; }

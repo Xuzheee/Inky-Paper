@@ -17,8 +17,8 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 const FULL_WIDTH: f64 = 320.0;
 const FULL_HEIGHT: f64 = 520.0;
-const FOCUS_WIDTH: f64 = 320.0;
-const FOCUS_HEIGHT: f64 = 196.0;
+const FOCUS_WIDTH: f64 = 400.0;
+const FOCUS_HEIGHT: f64 = 210.0;
 const FOCUS_COMPLETE_WIDTH: f64 = 320.0;
 const FOCUS_COMPLETE_HEIGHT: f64 = 482.0;
 const MINI_WIDTH: f64 = 160.0;
@@ -31,8 +31,8 @@ fn window_dimensions(layout: &str) -> Option<(f64, f64)> {
         "focus-complete" => Some((FOCUS_COMPLETE_WIDTH, FOCUS_COMPLETE_HEIGHT)),
         "rest" => Some((320.0, 442.0)),
         "mini" => Some((MINI_WIDTH, MINI_HEIGHT)),
-        "paused" => Some((320.0, 280.0)),
-        "focus-note" => Some((320.0, 354.0)),
+        "paused" => Some((FOCUS_WIDTH, 304.0)),
+        "focus-note" => Some((FOCUS_WIDTH, 398.0)),
         "receipt" => Some((320.0, 280.0)),
         "celebration" => Some((320.0, 420.0)),
         _ => None,

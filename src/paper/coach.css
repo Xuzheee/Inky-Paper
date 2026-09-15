@@ -164,7 +164,7 @@
   flex-shrink: 0;
 }
 .focus-bottom .focus-action-group .focus-toggle {
-  width: 55px !important;
+  width: 55px;
   min-width: 0;
   padding: 4px 0;
 }

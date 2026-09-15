@@ -70,6 +70,8 @@ export type DayItem = {
   order: number;
   revision: number;
   removedAt: number | null;
+  startMinute?: number | null;
+  durationMinutes?: number | null;
 };
 export type PlanningState = {
   steps: PlanStep[];

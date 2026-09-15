@@ -1,0 +1,88 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { DayItem, PlanStep, Task } from "../paper/paperTypes";
+export type Row = { task: Task; step?: PlanStep; item?: DayItem };
+export const categories: Record<string, string> = {
+  work: "工作",
+  study: "学习",
+  life: "个人事务",
+  idea: "想法",
+};
+export const dateKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+export const parseDate = (s: string) => new Date(`${s}T12:00:00`);
+export const shiftDay = (s: string, n: number) => {
+  const d = parseDate(s);
+  d.setDate(d.getDate() + n);
+  return dateKey(d);
+};
+export const clock = (n: number) =>
+  `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+export const minutes = (s: string) => {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+};
+export const paper = <T = Record<string, unknown>>(
+  action: string,
+  input: Record<string, unknown> = {},
+) => invoke<T>("paper_execute", { action, input });
+export const mutate = <T = Record<string, unknown>>(
+  action: string,
+  input: Record<string, unknown>,
+) => paper<T>(action, { requestId: crypto.randomUUID(), ...input });
+export type Message = {
+  id: string;
+  role: string;
+  text: string;
+  created: number;
+  status?: string;
+};
+export type Conversation = { id: string; title: string; updated: number };
+export type Candidate = {
+  id: string;
+  taskId: string;
+  taskTitle?: string;
+  text: string;
+  plannedSeconds: number;
+  expectedResult?: string;
+  stepId?: string;
+  adoptedStepId?: string;
+  expectedTaskRevision?: number;
+  expectedStepRevision?: number;
+};
+export type BatchData = {
+  batch: { id: string; revision: number; cards: Candidate[] };
+  tasks: Task[];
+  steps: PlanStep[];
+  dayItems: DayItem[];
+};
+export const getError = (e: unknown) => String(e).replace(/^Error:\s*/, "");
+
+export function calendarLanes(rows: Row[]) {
+  const result = new Map<string, { lane: number; count: number }>();
+  const sorted = [...rows].sort(
+    (a, b) => a.item!.startMinute! - b.item!.startMinute!,
+  );
+  let group: { id: string; lane: number }[] = [],
+    ends: number[] = [],
+    groupEnd = -1;
+  const flush = () => {
+    for (const item of group)
+      result.set(item.id, { lane: item.lane, count: ends.length });
+    group = [];
+    ends = [];
+  };
+  for (const row of sorted) {
+    const item = row.item!,
+      start = item.startMinute!;
+    if (start >= groupEnd) flush();
+    let lane = ends.findIndex((end) => end <= start);
+    if (lane < 0) lane = ends.length;
+    // A short event still needs enough room for a readable, clickable title.
+    const end = start + Math.max(item.durationMinutes || 25, (25 / 68) * 60);
+    ends[lane] = end;
+    groupEnd = Math.max(...ends);
+    group.push({ id: item.id, lane });
+  }
+  flush();
+  return result;
+}

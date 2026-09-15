@@ -1,0 +1,35 @@
+{
+  "checks": [
+    "UI create persists task/step/schedule with no timer",
+    "Workbench and Paper share the same task",
+    "Manual completion does not complete parent or create time",
+    "Drag across days saves a versioned move",
+    "Calendar displays persisted schedule",
+    "Selecting next step leaves clock user-controlled",
+    "Live Hermes reads Paper and returns an unadopted candidate",
+    "Explicit adoption saves the model candidate into the shared day plan",
+    "Reload restores conversation and adopted plan",
+    "No page errors or horizontal page overflow"
+  ],
+  "errors": [],
+  "geometry": {
+    "width": 1440,
+    "height": 900,
+    "overflow": false,
+    "columns": [
+      {
+        "width": 250,
+        "scrollWidth": 250
+      },
+      {
+        "width": 796,
+        "scrollWidth": 796
+      },
+      {
+        "width": 388,
+        "scrollWidth": 388
+      }
+    ]
+  },
+  "bridgeFile": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\workbench-acceptance-2\\paper-test\\paper-agent-bridge.json"
+}

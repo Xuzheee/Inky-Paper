@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "Application restart restores local conversation",
+    "ACP resumes the same session without duplicating replayed messages",
+    "Stop cancels the active response within 15 seconds",
+    "Clicking a calendar hour pre-fills the corresponding time",
+    "Concurrent edit preserves draft, visible review unlocks save, named save succeeds"
+  ],
+  "evidence": "verify-workbench-resume.mjs output plus targeted live conflict completion",
+  "note": "Checkbox click hid the reviewed conflict block; targeted continuation verified save result."
+}

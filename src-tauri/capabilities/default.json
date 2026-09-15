@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for the main Inky window",
-  "windows": ["main", "coach-prompt", "paper-notice"],
+  "windows": ["main", "coach-prompt", "paper-notice", "workbench"],
   "permissions": ["core:default", "core:window:allow-start-dragging"]
 }

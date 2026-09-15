@@ -107,6 +107,7 @@ export default function PaperApp() {
       connectionFile: string;
     } | null>(null);
   const [quickNote, setQuickNote] = useState(false);
+  const [openingWorkbench, setOpeningWorkbench] = useState(false);
   const [outcomeDraft, setOutcomeDraft] = useState<{
     sessionId: string;
     completed: boolean;
@@ -1043,6 +1044,20 @@ export default function PaperApp() {
               <button onClick={() => setView("notes")}>随手记</button>
               <span>·</span>
               <button onClick={() => setView("history")}>足迹</button>
+              <span>·</span>
+              <button
+                aria-label="打开工作台"
+                aria-busy={openingWorkbench}
+                disabled={openingWorkbench}
+                onClick={() => {
+                  setOpeningWorkbench(true);
+                  void invoke("open_workbench")
+                    .catch((e) => setError(`打开工作台失败：${String(e)}`))
+                    .finally(() => setOpeningWorkbench(false));
+                }}
+              >
+                工作台
+              </button>
             </div>
             {getStored<Draft | null>("paper-edit-draft", null) && (
               <button
@@ -1751,7 +1766,7 @@ export default function PaperApp() {
             </button>
           </section>
           <p className="caption">
-            Inky Paper 0.5.8 · 独立数据空间
+            Inky Paper 0.6.1 · 独立数据空间
             <br />
             计时不等于有效专注；空白时段不推断为休息。
           </p>

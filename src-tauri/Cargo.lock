@@ -1978,7 +1978,7 @@ dependencies = [
 
 [[package]]
 name = "inky-paper"
-version = "0.5.11"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "reqwest",

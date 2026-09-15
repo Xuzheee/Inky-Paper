@@ -66,6 +66,10 @@ pub struct DayItem {
     pub order: u64,
     pub revision: u64,
     pub removed_at: Option<i64>,
+    #[serde(default)]
+    pub start_minute: Option<u32>,
+    #[serde(default)]
+    pub duration_minutes: Option<u32>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1006,6 +1010,8 @@ fn adopt(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, S
                 order,
                 revision: 1,
                 removed_at: None,
+                start_minute: None,
+                duration_minutes: None,
             };
             order += 1;
             s.planning.day_items.push(item.clone());

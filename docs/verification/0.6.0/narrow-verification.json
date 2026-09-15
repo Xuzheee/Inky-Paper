@@ -1,0 +1,19 @@
+{
+  "width": 1060,
+  "height": 720,
+  "overflow": false,
+  "columns": [
+    {
+      "width": 205,
+      "scroll": 205
+    },
+    {
+      "width": 520,
+      "scroll": 520
+    },
+    {
+      "width": 329,
+      "scroll": 329
+    }
+  ]
+}

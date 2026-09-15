@@ -12,6 +12,7 @@ dist/
 output/
 target/
 src-tauri/gen/
+src-tauri/resources/paper-mcp.mjs
 coverage/
 test-results/
 playwright-report/

@@ -1,11 +1,11 @@
 {
   "name": "inky-paper",
   "private": true,
-  "version": "0.5.11",
+  "version": "0.6.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 1422",
-    "build": "tsc && vite build",
+    "dev": "node scripts/build-workbench-mcp.mjs && vite --host 127.0.0.1 --port 1422",
+    "build": "node scripts/build-workbench-mcp.mjs && tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test:frontend": "vitest run --dir src",
@@ -25,6 +25,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "0.25.12",
     "jsdom": "^30.0.1",
     "playwright": "^1.63.0",
     "prettier": "^3.9.6",

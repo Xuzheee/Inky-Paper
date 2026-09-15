@@ -5,8 +5,10 @@ mod coach_runtime;
 mod notice_window;
 mod paper;
 mod paper_bridge;
-mod paper_planning;
 mod paper_markdown;
+mod paper_planning;
+mod workbench;
+mod workbench_plan;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -160,7 +162,11 @@ fn main() {
     let toggle_shortcut = Shortcut::new(Some(Modifiers::ALT | Modifiers::SHIFT), Code::KeyF);
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if args.iter().any(|x| x == "--workbench") {
+                tauri::async_runtime::spawn(workbench::open_workbench(app.clone()));
+                return;
+            }
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
@@ -196,13 +202,16 @@ fn main() {
                     }
                 });
             app.manage(bridge_status);
+            workbench::setup(&handle, &app_data_dir).map_err(std::io::Error::other)?;
             coach_runtime::start(handle.clone(), &app_data_dir).map_err(std::io::Error::other)?;
             notice_window::start(handle.clone()).map_err(std::io::Error::other)?;
 
             let show_hide =
                 MenuItem::with_id(&handle, "show_hide", "显示/隐藏", true, None::<&str>)?;
             let quit = MenuItem::with_id(&handle, "quit", "退出 Inky Paper", true, None::<&str>)?;
-            let menu = Menu::with_items(&handle, &[&show_hide, &quit])?;
+            let workbench_menu =
+                MenuItem::with_id(&handle, "workbench", "打开工作台", true, None::<&str>)?;
+            let menu = Menu::with_items(&handle, &[&show_hide, &workbench_menu, &quit])?;
 
             let tray_result = TrayIconBuilder::with_id("inky-paper")
                 .tooltip("Inky Paper")
@@ -216,6 +225,9 @@ fn main() {
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "show_hide" => toggle_window_visibility(app),
+                    "workbench" => {
+                        tauri::async_runtime::spawn(workbench::open_workbench(app.clone()));
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -229,10 +241,18 @@ fn main() {
                 eprintln!("failed to register Alt+Shift+F: {error}");
             }
 
+            if std::env::args().any(|x| x == "--workbench") {
+                workbench::open_window(handle.clone()).map_err(std::io::Error::other)?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             paper::paper_execute,
+            workbench::open_workbench,
+            workbench::workbench_history,
+            workbench::workbench_send,
+            workbench::workbench_cancel,
+            workbench::workbench_permission,
             paper_bridge::get_paper_bridge_status,
             paper_markdown::open_work_journal,
             get_system_idle_ms,
@@ -246,6 +266,11 @@ fn main() {
             notice_window::paper_current_notice,
             notice_window::paper_dismiss_notice,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running focusflow");
+        .build(tauri::generate_context!())
+        .expect("error while building Inky")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                workbench::shutdown(app);
+            }
+        });
 }

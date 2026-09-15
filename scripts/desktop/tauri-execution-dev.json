@@ -1,0 +1,7 @@
+{
+  "identifier": "com.inky.paper.dev.execution",
+  "build": {
+    "devUrl": "http://127.0.0.1:1423",
+    "beforeDevCommand": "node scripts/build-workbench-mcp.mjs && corepack pnpm exec vite --host 127.0.0.1 --port 1423 --strictPort"
+  }
+}

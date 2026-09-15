@@ -27,3 +27,12 @@
 构建：`corepack pnpm tauri build --no-bundle`。测试：`cargo test --manifest-path src-tauri/Cargo.toml`，`corepack pnpm typecheck`。真实桌面只在独立测试数据上验收；调试变量 `INKY_PAPER_TEST_DATA_DIR`，正式版忽略此变量。
 
 交付时把最终 release 可执行文件同步到 `app/Inky Paper.exe` 并验证。不要覆盖原版可执行文件、原 MCP 连接或原数据库。
+
+## 并行开发
+
+两个 Codex 任务已使用独立分支和 worktree，映射与命令见 `docs/PARALLEL_DEVELOPMENT.md`。继续任务时先确认本轮 cwd、`git branch --show-current` 和 `git status --short`；历史消息中的绝对路径可能是迁移前目录，不能据此跨目录写入。
+
+- `codex/markdown-coach`：纸面任务、番茄钟、结束页、Markdown 记录与原 Coach 流程。
+- `codex/inky-workbench`：独立工作台、日程、ACP 对话和工作台入口。
+- 每项任务只修改、构建和交付自己 cwd 内的文件。共享文件按所需函数或样式局部修改，完成后通过 Git 合并；不要复制另一目录的整份文件覆盖。
+- 并行桌面开发使用文档中的各自端口、应用标识及测试数据目录；不得共享正式数据库或两个测试实例的连接。合并后再在集成目录统一验证与更新正式可执行文件。

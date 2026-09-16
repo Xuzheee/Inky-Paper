@@ -10,6 +10,13 @@ export const categories: Record<string, string> = {
 export const dateKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const parseDate = (s: string) => new Date(`${s}T12:00:00`);
+export const validDate = (s?: string | null): s is string =>
+  !!s &&
+  /^\d{4}-\d{2}-\d{2}$/.test(s) &&
+  !Number.isNaN(parseDate(s).getTime()) &&
+  dateKey(parseDate(s)) === s;
+export const dateLabel = (s: string) =>
+  `${Number(s.slice(5, 7))}月${Number(s.slice(8))}日`;
 export const shiftDay = (s: string, n: number) => {
   const d = parseDate(s);
   d.setDate(d.getDate() + n);
@@ -29,13 +36,34 @@ export const mutate = <T = Record<string, unknown>>(
   action: string,
   input: Record<string, unknown>,
 ) => paper<T>(action, { requestId: crypto.randomUUID(), ...input });
+export type DiscussionContext = {
+  date: string;
+  selectedTaskId: string | null;
+  selectedStepId: string | null;
+  taskTitle: string | null;
+  stepText: string | null;
+};
 export type Message = {
   id: string;
   role: string;
   text: string;
   created: number;
   status?: string;
+  context?: DiscussionContext | null;
 };
+export const planDirective =
+  /::inky-plan\{batchId="([0-9a-f-]{36})"(?: date="(\d{4}-\d{2}-\d{2})")?\}/gi;
+export const prepareStepInInky = (row: Row) =>
+  invoke("workbench_prepare_step", {
+    input: {
+      requestId: crypto.randomUUID(),
+      taskId: row.task.id,
+      stepId: row.step?.id,
+      expectedRevision: row.task.revision,
+      expectedStepRevision: row.step?.revision,
+    },
+    itemId: row.item?.id ?? null,
+  });
 export type Conversation = { id: string; title: string; updated: number };
 export type Candidate = {
   id: string;

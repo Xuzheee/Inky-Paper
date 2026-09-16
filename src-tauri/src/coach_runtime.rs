@@ -364,6 +364,7 @@ pub async fn coach_show_main(app: tauri::AppHandle, view: String) -> Result<(), 
         hide_prompt_window(&p)?;
     }
     if let Some(w) = app.get_webview_window("main") {
+        w.unminimize().map_err(|e| e.to_string())?;
         w.show().map_err(|e| e.to_string())?;
         w.set_focus().map_err(|e| e.to_string())?;
         w.emit("coach:navigate", view).map_err(|e| e.to_string())?;

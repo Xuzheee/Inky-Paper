@@ -48,8 +48,22 @@ fn err(e: impl std::fmt::Display) -> String {
 }
 fn history_db(rt: &Runtime) -> Result<Connection, String> {
     let c = Connection::open(rt.dir.join("conversations.sqlite3")).map_err(err)?;
-    c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY,title TEXT NOT NULL,updated INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,session TEXT NOT NULL,role TEXT NOT NULL,body TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL);").map_err(err)?;
+    init_history(&c)?;
     Ok(c)
+}
+fn init_history(c: &Connection) -> Result<(), String> {
+    c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY,title TEXT NOT NULL,updated INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,session TEXT NOT NULL,role TEXT NOT NULL,body TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL);").map_err(err)?;
+    // Additive migration: old conversations remain readable, without guessing their date.
+    c.execute_batch("CREATE TABLE IF NOT EXISTS message_context(message_id TEXT PRIMARY KEY,context TEXT NOT NULL);").map_err(err)?;
+    Ok(())
+}
+fn history_messages(c: &Connection, session: &str) -> Result<Vec<Value>, String> {
+    let mut q = c.prepare("SELECT m.id,m.role,m.body,m.created,m.status,x.context FROM messages m LEFT JOIN message_context x ON x.message_id=m.id WHERE m.session=?1 ORDER BY m.created,m.rowid").map_err(err)?;
+    let rows = q.query_map([session], |r| {
+        let context = r.get::<_, Option<String>>(5)?.and_then(|text| serde_json::from_str::<Value>(&text).ok());
+        Ok(json!({"id":r.get::<_,String>(0)?,"role":r.get::<_,String>(1)?,"text":r.get::<_,String>(2)?,"created":r.get::<_,i64>(3)?,"status":r.get::<_,String>(4)?,"context":context}))
+    }).map_err(err)?.collect::<Result<Vec<_>, _>>().map_err(err)?;
+    Ok(rows)
 }
 pub fn setup(app: &AppHandle, dir: &Path) -> Result<(), String> {
     let folder = dir.join("workbench");
@@ -85,6 +99,62 @@ pub fn setup(app: &AppHandle, dir: &Path) -> Result<(), String> {
 pub async fn open_workbench(app: AppHandle) -> Result<(), String> {
     // WebView2 creation must not block a synchronous IPC or window event handler.
     open_window(app)
+}
+
+fn prepare_step(c: &mut Connection, input: Value, item_id: Option<String>) -> Reply {
+    let (current, _) = crate::paper::execute(c, "get_state", json!({}), "user")?;
+    if current["state"]["sessions"]
+        .as_array()
+        .is_some_and(|sessions| {
+            sessions
+                .iter()
+                .any(|session| session["status"] != "finished")
+        })
+    {
+        return Err("本轮番茄钟还未结束，请先回到 Inky 保存本轮，再选择下一步。".into());
+    }
+    let item = if let Some(id) = item_id {
+        current["state"]["planning"]["dayItems"]
+            .as_array()
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item["id"] == id
+                        && item["taskId"] == input["taskId"]
+                        && item["stepId"] == input["stepId"]
+                        && item["removedAt"].is_null()
+                })
+            })
+            .cloned()
+            .ok_or("这条安排已变化，请刷新工作台后重试。")?
+    } else {
+        Value::Null
+    };
+    let (result, _) = crate::paper::execute(c, "select_step", input, "user")?;
+    Ok(
+        json!({"taskId":result["task"]["id"],"stepId":result["step"]["id"],"plannedSeconds":result["step"]["plannedSeconds"],"item":item}),
+    )
+}
+
+#[tauri::command]
+pub async fn workbench_prepare_step(
+    app: AppHandle,
+    input: Value,
+    item_id: Option<String>,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Inky 主窗口暂不可用，请重新打开应用。")?;
+    let selection = {
+        let db = app.state::<crate::paper::PaperDb>();
+        let mut c = db.0.lock().map_err(err)?;
+        prepare_step(&mut c, input, item_id)?
+    };
+    let _ = app.emit("paper:changed", ());
+    window.emit("workbench:select", selection).map_err(err)?;
+    window.unminimize().map_err(err)?;
+    window.show().map_err(err)?;
+    window.set_focus().map_err(err)?;
+    Ok(())
 }
 
 pub fn open_window(app: AppHandle) -> Result<(), String> {
@@ -124,8 +194,7 @@ pub fn workbench_history(app: AppHandle, session_id: Option<String>) -> Result<V
         .prepare("SELECT id,title,updated FROM conversations ORDER BY updated DESC")
         .map_err(err)?;
     let sessions=q.query_map([],|r|Ok(json!({"id":r.get::<_,String>(0)?,"title":r.get::<_,String>(1)?,"updated":r.get::<_,i64>(2)?}))).map_err(err)?.collect::<Result<Vec<_>,_>>().map_err(err)?;
-    let mut q=c.prepare("SELECT id,role,body,created,status FROM messages WHERE session=?1 ORDER BY created,rowid").map_err(err)?;
-    let mut messages=q.query_map([session_id.clone().unwrap_or_default()],|r|Ok(json!({"id":r.get::<_,String>(0)?,"role":r.get::<_,String>(1)?,"text":r.get::<_,String>(2)?,"created":r.get::<_,i64>(3)?,"status":r.get::<_,String>(4)?}))).map_err(err)?.collect::<Result<Vec<_>,_>>().map_err(err)?;
+    let mut messages = history_messages(&c, session_id.as_deref().unwrap_or_default())?;
     let process = rt.process.lock().map_err(err)?.as_ref().cloned();
     let mut active = Value::Null;
     if let Some(p) = process {
@@ -530,6 +599,11 @@ fn send(
         params![answer_id, session, now + 1],
     )
     .map_err(err)?;
+    c.execute(
+        "INSERT INTO message_context(message_id,context) VALUES(?1,?3),(?2,?3)",
+        params![request_id, answer_id, context.to_string()],
+    )
+    .map_err(err)?;
     *p.active.lock().map_err(err)? = Some(Turn {
         request: request_id.clone(),
         session: session.clone(),
@@ -547,7 +621,7 @@ fn send(
         String::new()
     };
     let prompt = format!(
-        "{intro}当前工作台日期与选择（仅供定位，需通过工具重读）：{context}\n用户消息：\n{message}"
+        "{intro}本次讨论范围（每次请求以此为准，不能沿用上一轮任务；事实需通过工具重读）：{context}\n除非用户明确指定另一日期，计划采用日期使用此处 date。生成候选时在 directive 中写明日期，例如 ::inky-plan{{batchId=\"返回的真实 UUID\" date=\"YYYY-MM-DD\"}}；日期使用确切日历日期。不要把今天等同于当前查看日期。\n用户消息：\n{message}"
     );
     let result = p.rpc(
         "session/prompt",
@@ -598,7 +672,7 @@ fn send(
     } else {
         result.err()
     };
-    let response = json!({"sessionId":session,"requestId":request_id,"message":{"id":answer_id,"role":"assistant","text":text,"status":status,"created":now+1},"error":error});
+    let response = json!({"sessionId":session,"requestId":request_id,"message":{"id":answer_id,"role":"assistant","text":text,"status":status,"created":now+1,"context":context},"error":error});
     let _ = app.emit("workbench:finished", response.clone());
     Ok(response)
 }
@@ -615,4 +689,71 @@ pub async fn workbench_send(
     })
     .await
     .map_err(err)?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn history_keeps_request_scope_after_reopen_without_guessing_legacy_dates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history.sqlite3");
+        let scope = json!({"date":"2030-03-04","selectedTaskId":"task","stepText":"核对日期"});
+        {
+            let c = Connection::open(&path).unwrap();
+            c.execute_batch("CREATE TABLE messages(id TEXT PRIMARY KEY,session TEXT NOT NULL,role TEXT NOT NULL,body TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL); INSERT INTO messages VALUES('old','session','assistant','legacy',1,'done');").unwrap();
+            init_history(&c).unwrap();
+            c.execute(
+                "INSERT INTO messages VALUES('new','session','assistant','suggestion',2,'done')",
+                [],
+            )
+            .unwrap();
+            c.execute(
+                "INSERT INTO message_context VALUES('new',?1)",
+                [scope.to_string()],
+            )
+            .unwrap();
+        }
+        let c = Connection::open(&path).unwrap();
+        init_history(&c).unwrap();
+        let messages = history_messages(&c, "session").unwrap();
+        assert_eq!(messages.len(), 2);
+        assert!(messages[0]["context"].is_null());
+        assert_eq!(messages[1]["context"], scope);
+    }
+
+    fn call(c: &mut Connection, action: &str, mut input: Value) -> Value {
+        if !action.starts_with("get_") {
+            input["requestId"] = json!(uuid::Uuid::new_v4().to_string());
+        }
+        crate::paper::execute(c, action, input, "user").unwrap().0
+    }
+
+    #[test]
+    fn choosing_next_step_does_not_start_a_clock_and_rejects_switching_during_a_session() {
+        let mut c = crate::paper::open(Path::new(":memory:")).unwrap();
+        let task = call(&mut c, "create_task", json!({"taskId":uuid::Uuid::new_v4().to_string(),"title":"工作台验证","nextAction":"核对日期"}))["task"].clone();
+        let current = call(&mut c, "get_state", json!({}));
+        let step = &current["state"]["planning"]["steps"][0];
+        let input = json!({"requestId":uuid::Uuid::new_v4().to_string(),"taskId":task["id"],"stepId":step["id"],"expectedRevision":task["revision"],"expectedStepRevision":step["revision"]});
+        let selected = prepare_step(&mut c, input.clone(), None).unwrap();
+        assert_eq!(selected["stepId"], step["id"]);
+        assert_eq!(
+            call(&mut c, "get_state", json!({}))["state"]["sessions"],
+            json!([])
+        );
+        call(
+            &mut c,
+            "start_session",
+            json!({"taskId":task["id"],"expectedRevision":task["revision"],"kind":"focus","plannedSeconds":900}),
+        );
+        let before = call(&mut c, "get_state", json!({}))["state"].clone();
+        assert!(prepare_step(&mut c, input, None)
+            .unwrap_err()
+            .contains("本轮番茄钟还未结束"));
+        let after = call(&mut c, "get_state", json!({}))["state"].clone();
+        assert_eq!(before["tasks"], after["tasks"]);
+        assert_eq!(before["sessions"], after["sessions"]);
+    }
 }

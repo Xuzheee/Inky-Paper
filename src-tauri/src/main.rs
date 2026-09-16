@@ -252,6 +252,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             paper::paper_execute,
             workbench::open_workbench,
+            workbench::workbench_prepare_step,
             workbench::workbench_history,
             workbench::workbench_send,
             workbench::workbench_cancel,

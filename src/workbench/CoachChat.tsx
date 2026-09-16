@@ -2,10 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Clock, Leaf, Plus, Send, Square, X } from "lucide-react";
-import { Conversation, dateKey, getError, Message, Row } from "./model";
+import {
+  Conversation,
+  dateKey,
+  dateLabel,
+  validDate,
+  planDirective,
+  DiscussionContext,
+  getError,
+  Message,
+  Row,
+} from "./model";
 import PlanCards from "./PlanCards";
 
-const directive = /::inky-plan\{batchId="([0-9a-f-]{36})"\}/gi;
+const directive = planDirective;
+const scopeLabel = (context: DiscussionContext) =>
+  `${context.date} · ${context.stepText || context.taskTitle || "当天计划与记录"}`;
 function RichText({ text }: { text: string }) {
   return (
     <div className="wk-message-text">
@@ -30,10 +42,12 @@ export default function CoachChat({
   selected,
   date,
   onSaved,
+  onClearSelection,
 }: {
   selected?: Row;
   date: string;
   onSaved: () => void;
+  onClearSelection: () => void;
 }) {
   const [session, setSession] = useState<string>();
   const [sessions, setSessions] = useState<Conversation[]>([]);
@@ -42,6 +56,17 @@ export default function CoachChat({
     () => localStorage.getItem("inky-wb-composer") || "",
   );
   const [busy, setBusy] = useState(false);
+  const [replyContext, setReplyContext] = useState<DiscussionContext>();
+  const currentContext: DiscussionContext = {
+    date: selected?.item?.date || date,
+    selectedTaskId: selected?.task.id ?? null,
+    selectedStepId: selected?.step?.id ?? null,
+    taskTitle: selected?.task.title ?? null,
+    stepText: selected?.step?.text ?? null,
+  };
+  const visibleContext = busy && replyContext ? replyContext : currentContext;
+  const dayName =
+    currentContext.date === dateKey() ? "今天" : dateLabel(currentContext.date);
   const [history, setHistory] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -73,6 +98,11 @@ export default function CoachChat({
       turn.current = r.active.requestId;
       sending.current = true;
       setBusy(true);
+      setReplyContext(
+        r.messages.find(
+          (message) => message.id === `${r.active!.requestId}-answer`,
+        )?.context || undefined,
+      );
       setStatus("正在回复…");
     }
   };
@@ -166,15 +196,18 @@ export default function CoachChat({
     const requestId = crypto.randomUUID();
     turn.current = requestId;
     const now = Date.now();
+    const context = { ...currentContext };
+    setReplyContext(context);
     setMessages((ms) => [
       ...ms,
-      { id: requestId, role: "user", text: value, created: now },
+      { id: requestId, role: "user", text: value, created: now, context },
       {
         id: `${requestId}-answer`,
         role: "assistant",
         text: "",
         created: now + 1,
         status: "sending",
+        context,
       },
     ]);
     setText("");
@@ -189,11 +222,9 @@ export default function CoachChat({
         sessionId: sessionRef.current ?? null,
         message: value,
         context: {
-          date,
+          ...context,
           today: dateKey(),
           utcOffsetMinutes: -new Date().getTimezoneOffset(),
-          selectedTaskId: selected?.task.id ?? null,
-          selectedStepId: selected?.step?.id ?? null,
         },
       });
       sessionRef.current = r.sessionId;
@@ -260,11 +291,33 @@ export default function CoachChat({
           <span>历史</span>
         </button>
       </header>
-      <div className="wk-chat-context">
-        {selected
-          ? `正在讨论 · ${selected.step?.text || selected.task.title}`
-          : "从一个想推进的目标开始"}
-        {selected && <span title="内容以最新工作记录为准">·</span>}
+      <div
+        className="wk-chat-context"
+        aria-label="Coach 讨论范围"
+        aria-live="polite"
+      >
+        <div>
+          <strong>
+            {busy ? "本次回复" : "讨论范围"} · {visibleContext.date}
+          </strong>
+          <p>
+            {visibleContext.stepText ||
+              visibleContext.taskTitle ||
+              "当天计划与记录"}
+          </p>
+          {busy &&
+            scopeLabel(visibleContext) !== scopeLabel(currentContext) && (
+              <small>下次发送：{scopeLabel(currentContext)}</small>
+            )}
+        </div>
+        {selected && (
+          <button
+            aria-label="取消任务选择，讨论当天记录"
+            onClick={onClearSelection}
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
       {history ? (
         <div className="wk-history">
@@ -305,19 +358,21 @@ export default function CoachChat({
               <h3>先说说，你想推进什么？</h3>
               <p>一起拆解目标、调整安排，或者想清楚卡住的那一步。</p>
               <div>
-                {["帮我安排今天", "这一步有点难开始", "回顾今天的工作"].map(
-                  (p) => (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        setText(p);
-                        localStorage.setItem("inky-wb-composer", p);
-                      }}
-                    >
-                      {p}
-                    </button>
-                  ),
-                )}
+                {[
+                  `帮我安排${dayName}`,
+                  selected ? "这一步有点难开始" : "帮我明确下一步",
+                  `回顾${dayName}的工作`,
+                ].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setText(p);
+                      localStorage.setItem("inky-wb-composer", p);
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -338,12 +393,18 @@ export default function CoachChat({
                 </div>
               )}
               <div className="wk-message-content">
+                {m.context && (
+                  <p className="wk-message-scope">{scopeLabel(m.context)}</p>
+                )}
                 <RichText text={m.text.replace(directive, "").trim()} />
                 {[...m.text.matchAll(directive)].map((match) => (
                   <PlanCards
                     key={match[1]}
                     id={match[1]}
                     streaming={m.status === "sending"}
+                    defaultDate={
+                      validDate(match[2]) ? match[2] : m.context?.date
+                    }
                     onSaved={onSaved}
                   />
                 ))}

@@ -591,19 +591,43 @@
   color: #62695f;
 }
 .wk-chat-context {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   background: #f0f3eb;
   border-top: 1px solid var(--wk-line);
   border-bottom: 1px solid var(--wk-line);
   padding: 10px 24px;
   font-size: 14px;
   color: #58704c;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   min-height: 44px;
 }
-.wk-chat-context span {
-  display: none;
+.wk-chat-context > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.wk-chat-context strong {
+  font-weight: 500;
+  font-size: 13px;
+}
+.wk-chat-context p {
+  font-size: 13px;
+}
+.wk-chat-context small {
+  display: block;
+  font-size: 12px;
+}
+.wk-chat-context > button {
+  flex: none;
+}
+.wk-app .wk-message-scope {
+  font-size: 11px;
+  color: #66735d;
+  margin-bottom: 8px;
 }
 .wk-chat-scroll {
   flex: 1;

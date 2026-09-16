@@ -247,11 +247,45 @@ export default function PaperApp() {
     void listen<string>("coach:navigate", (e) => {
       setMini(false);
       setWorkMenu(false);
-      setView(e.payload === "work-end" ? "work-end" : "work");
+      if (e.payload === "home") resetView("home");
+      else setView(e.payload === "work-end" ? "work-end" : "work");
       void refresh();
     }).then((f) => {
       if (cancelled) f();
       else off = f;
+    });
+    return () => {
+      cancelled = true;
+      off?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (!native) return;
+    let cancelled = false;
+    let off: (() => void) | undefined;
+    void listen<{
+      taskId: string;
+      stepId: string;
+      plannedSeconds: number;
+      item: DayItem | null;
+    }>("workbench:select", (e) => {
+      void refresh().then(() => {
+        if (cancelled) return;
+        setSelected(e.payload.taskId);
+        setPreparedItem(e.payload.item);
+        setDuration(Math.max(1, Math.round(e.payload.plannedSeconds / 60)));
+        setMini(false);
+        setWorkMenu(false);
+        setQuickNote(false);
+        resetView("home");
+        clearNotice();
+        requestAnimationFrame(() => {
+          if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
+        });
+      });
+    }).then((remove) => {
+      if (cancelled) remove();
+      else off = remove;
     });
     return () => {
       cancelled = true;
@@ -1766,7 +1800,7 @@ export default function PaperApp() {
             </button>
           </section>
           <p className="caption">
-            Inky Paper 0.6.2 · 独立数据空间
+            Inky Paper 0.6.3 · 独立数据空间
             <br />
             计时不等于有效专注；空白时段不推断为休息。
           </p>

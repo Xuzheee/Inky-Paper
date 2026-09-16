@@ -1,0 +1,21 @@
+{
+  "run": "workbench-context-063",
+  "today": "2026-09-16",
+  "tomorrow": "2026-09-17",
+  "checks": [
+    "Selecting a row in the second day uses that row's actual date and step",
+    "An in-flight reply retains its original task/date while navigation changes the next-send scope",
+    "Live Hermes suggestion and adoption use the request date, not the current browsing day",
+    "Adopted card returns to Inky with the exact step and duration selected, without starting a timer",
+    "The task-row action also returns to the selected step without starting a timer",
+    "Opening daily records clears the old task scope even after returning to tasks",
+    "An active timer blocks step replacement; ordinary return to Inky leaves it running",
+    "Reload restores the adopted card and the persisted request date",
+    "Full application restart preserves message scope, adopted date and selected Paper step without starting a clock"
+  ],
+  "errors": [],
+  "sessionId": "c522ff21-6700-4f58-a384-3a306bdd87b4",
+  "candidateStepId": "8ac99a7b-382a-4fca-843e-9b617e9eada0",
+  "restartPassed": true,
+  "finalAdoptedCardReviewPassed": true
+}

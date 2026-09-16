@@ -37,6 +37,7 @@ import {
   getError,
   minutes,
   mutate,
+  prepareStepInInky,
   paper,
   parseDate,
   Row,
@@ -432,19 +433,21 @@ export default function Workbench() {
           patch: { completed: !r.task.completed },
         });
   const choose = async (r: Row) => {
-    if (!r.step) return;
-    await onAction(
-      "select_step",
-      {
-        taskId: r.task.id,
-        stepId: r.step.id,
-        expectedRevision: r.task.revision,
-        expectedStepRevision: r.step.revision,
-      },
-      "已设为下一步，可以回到 Inky 开始。",
-    );
+    if (!r.step || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await prepareStepInInky(r);
+      setNotice("已选好下一步，回到 Inky 后点击 start 开始。");
+    } catch (e) {
+      setError(getError(e));
+    } finally {
+      await reload();
+      setBusy(false);
+    }
   };
   const goDay = (s: string) => {
+    setSelectedId("");
     setDay(s);
     setMonth(s.slice(0, 7));
     setNav("week");
@@ -563,7 +566,7 @@ export default function Workbench() {
             <div className="wk-detail-actions">
               {r.step && !r.step.completed && !r.task.completed && (
                 <button disabled={busy} onClick={() => void choose(r)}>
-                  设为下一步
+                  设为下一步并回到 Inky
                 </button>
               )}
               <button
@@ -669,6 +672,7 @@ export default function Workbench() {
             className={nav === "inbox" ? "active" : ""}
             onClick={() => {
               setNav("inbox");
+              setSelectedId("");
               setFilter("");
             }}
             onDragOver={(e) => e.preventDefault()}
@@ -693,6 +697,7 @@ export default function Workbench() {
                 className={filter === k ? "active" : ""}
                 onClick={() => {
                   setFilter(filter === k ? "" : k);
+                  setSelectedId("");
                   if (singleDay) setView("tasks");
                 }}
               >
@@ -704,7 +709,9 @@ export default function Workbench() {
         <div className="wk-side-bottom">
           <button
             onClick={() =>
-              void invoke("coach_show_main").catch((e) => setError(getError(e)))
+              void invoke("coach_show_main", { view: "home" }).catch((e) =>
+                setError(getError(e)),
+              )
             }
           >
             <ExternalLink size={20} />
@@ -787,6 +794,7 @@ export default function Workbench() {
                   aria-selected={view === "record"}
                   onClick={() => {
                     setView("record");
+                    setSelectedId("");
                     setFilter("");
                   }}
                 >
@@ -797,6 +805,7 @@ export default function Workbench() {
                   aria-selected={view === "markdown"}
                   onClick={() => {
                     setView("markdown");
+                    setSelectedId("");
                     setFilter("");
                   }}
                 >
@@ -1065,7 +1074,12 @@ export default function Workbench() {
           </>
         )}
       </section>
-      <CoachChat selected={selected} date={day} onSaved={() => void reload()} />
+      <CoachChat
+        selected={singleDay ? undefined : selected}
+        date={day}
+        onClearSelection={() => setSelectedId("")}
+        onSaved={() => void reload()}
+      />
       {editor && state && (
         <StepEditor
           key={editor.row ? key(editor.row) : `new-${editor.date}`}

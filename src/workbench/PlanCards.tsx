@@ -1,22 +1,40 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Pencil } from "lucide-react";
-import { BatchData, Candidate, dateKey, getError, paper } from "./model";
+import {
+  BatchData,
+  Candidate,
+  dateLabel,
+  validDate,
+  prepareStepInInky,
+  getError,
+  paper,
+} from "./model";
 
 export default function PlanCards({
   id,
   streaming,
   onSaved,
+  defaultDate,
 }: {
   id: string;
   streaming: boolean;
   onSaved: () => void;
+  defaultDate?: string;
 }) {
   const storageKey = `inky-wb-plan-${id}`;
   const initial = () => {
     try {
-      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      return {
+        ...saved,
+        date: validDate(saved.date)
+          ? saved.date
+          : validDate(defaultDate)
+            ? defaultDate
+            : "",
+      };
     } catch {
-      return {};
+      return { date: validDate(defaultDate) ? defaultDate : "" };
     }
   };
   const [draft, setDraft] = useState<{
@@ -25,6 +43,10 @@ export default function PlanCards({
     date?: string;
     order?: string[];
   }>(initial);
+  useEffect(() => {
+    // Freeze the request's date even if the user changes the visible day or restarts.
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+  }, [storageKey, draft]);
   const [data, setData] = useState<BatchData>();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -68,7 +90,8 @@ export default function PlanCards({
   const cards = order
     .map((id) => data.batch.cards.find((c) => c.id === id))
     .filter(Boolean) as Candidate[];
-  const date = draft.date || dateKey();
+  const date =
+    typeof pending?.date === "string" ? pending.date : draft.date || "";
   const current = (c: Candidate) => ({
     task: data.tasks.find((t) => t.id === c.taskId),
     step: data.steps.find((s) => s.id === (c.adoptedStepId || c.stepId)),
@@ -87,6 +110,7 @@ export default function PlanCards({
         i.date === date &&
         i.stepId === (c.adoptedStepId || c.stepId),
     );
+  const reviewableStale = stale.filter((c) => !joined(c));
   const move = (id: string, n: number) => {
     const ids = [...order],
       i = ids.indexOf(id),
@@ -102,6 +126,7 @@ export default function PlanCards({
     try {
       let payload = pending;
       if (!payload) {
+        if (!validDate(date)) throw Error("请先选择要加入的日期。");
         const chosen = cards.filter(
           (c) => selected.includes(c.id) && !joined(c),
         );
@@ -147,9 +172,9 @@ export default function PlanCards({
       await paper("adopt_plan_cards", payload);
       setPending(null);
       localStorage.removeItem(`${storageKey}-pending`);
-      update({ selected: [] });
+      update({ selected: [], date });
       setReviewed(false);
-      setNotice("已加入计划，可以在 Inky 中选择并开始。");
+      setNotice(`已加入 ${dateLabel(date)}，可选择下一步回到 Inky。`);
       await load();
       onSaved();
     } catch (e) {
@@ -165,6 +190,33 @@ export default function PlanCards({
         setReviewed(false);
         await load();
       }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const openInky = async (card: Candidate) => {
+    setBusy(true);
+    setNotice("");
+    try {
+      const latest = await paper<BatchData>("get_plan_batch", { batchId: id });
+      setData(latest);
+      const saved = latest.batch.cards.find((item) => item.id === card.id);
+      const step = latest.steps.find(
+        (item) => item.id === (saved?.adoptedStepId || saved?.stepId),
+      );
+      const task = latest.tasks.find((item) => item.id === card.taskId);
+      if (!task || !step) throw Error("这一步已变化，请重新读取计划。");
+      await prepareStepInInky({
+        task,
+        step,
+        item: latest.dayItems.find(
+          (item) =>
+            !item.removedAt && item.date === date && item.stepId === step.id,
+        ),
+      });
+      onSaved();
+    } catch (e) {
+      setNotice(getError(e));
     } finally {
       setBusy(false);
     }
@@ -215,6 +267,14 @@ export default function PlanCards({
             </p>
             {c.expectedResult && (
               <p className="muted">做到：{c.expectedResult}</p>
+            )}
+            {added && !done && (
+              <button
+                disabled={busy || !!pending}
+                onClick={() => void openInky(c)}
+              >
+                设为下一步并回到 Inky
+              </button>
             )}
             {editing === c.id && (
               <div className="wk-candidate-edit">
@@ -279,10 +339,10 @@ export default function PlanCards({
           </article>
         );
       })}
-      {stale.length > 0 && (
+      {reviewableStale.length > 0 && (
         <div className="wk-stale">
           <p>相关任务已有更新：</p>
-          {stale.map((c) => {
+          {reviewableStale.map((c) => {
             const { task, step } = current(c);
             return (
               <p key={c.id}>
@@ -311,10 +371,14 @@ export default function PlanCards({
           onChange={(e) => update({ date: e.target.value })}
         />
       </label>
+      {!date && (
+        <p className="muted">这条旧建议未保存安排日期，请先选择日期。</p>
+      )}
       <button
         className="wk-primary"
         disabled={
           busy ||
+          !validDate(date) ||
           (!pending &&
             !cards.some((c) => selected.includes(c.id) && !joined(c)))
         }
@@ -323,16 +387,22 @@ export default function PlanCards({
         {busy ? (
           "正在保存…"
         ) : pending ? (
-          "核实并重试"
+          `核实并重试 · ${dateLabel(date)}`
         ) : cards.every(joined) ? (
           <>
             <Check size={16} />
             已加入计划
           </>
         ) : cards.length === 1 ? (
-          "采用这一步"
+          date ? (
+            `采用这一步 · 加入 ${dateLabel(date)}`
+          ) : (
+            "请选择安排日期"
+          )
+        ) : date ? (
+          `采用 ${selected.length} 步 · 加入 ${dateLabel(date)}`
         ) : (
-          `采用所选步骤（${selected.length}）`
+          "请选择安排日期"
         )}
       </button>
       {notice && (

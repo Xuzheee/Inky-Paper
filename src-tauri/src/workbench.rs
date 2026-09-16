@@ -673,7 +673,7 @@ fn send(
         String::new()
     };
     let prompt = format!(
-        "{intro}本次请求快照（由 Paper 刚读取；不能沿用旧聊天的日期、任务或版本）：{context}\n按 resolvedIntent 回应：plan 帮助取舍和安排，stuck 先找缺信息、外部依赖、范围过大或明确自报状态，review 依据记录回顾，auto 按当前原话理解。信息足够直接建议，只问会改变结果的缺失信息；简单事项不强拆。temporaryConstraints 只对本次请求有效，不能从计时或空白补造精力。若 truncated 标记为真或需要扩大范围，再用工具读取。\n除非用户明确指定另一日期，计划采用日期使用此处 date。生成候选时在 directive 中写明日期，例如 ::inky-plan{{batchId=\"返回的真实 UUID\" date=\"YYYY-MM-DD\"}}；日期使用确切日历日期。不要把今天等同于当前查看日期。\n用户消息：\n{message}"
+        "{intro}本次请求快照（由 Paper 刚读取；不能沿用旧聊天的日期、任务或版本）：{context}\n按 resolvedIntent 回应：plan 帮助取舍和安排，stuck 先找缺信息、外部依赖、范围过大或明确自报状态，review 依据记录回顾，auto 按当前原话理解。信息足够直接建议，只问会改变结果的缺失信息；简单事项不强拆。temporaryConstraints 只对本次请求有效，不能从计时或空白补造精力。若 truncated 标记为真或需要扩大范围，再用工具读取。\n除非用户明确指定另一日期，计划采用日期使用此处 date。生成候选时在 directive 中写明日期，例如 ::inky-plan{{batchId=\"返回的真实 UUID\" date=\"YYYY-MM-DD\"}}；日期使用确切日历日期。不要把今天等同于当前查看日期。若在安排真实今天接下来的工作，以 currentLocalTime 为起点，不把已过去的钟点作为未来安排。未知的剩余可用时段保持未定，不因日历空白推断有空；只有用户明确补记历史时才安排过去的时刻。\n用户消息：\n{message}"
     );
     let result = p.rpc(
         "session/prompt",

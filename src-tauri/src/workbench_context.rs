@@ -341,6 +341,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
     Ok(json!({
         "schemaVersion":2,"date":date,"viewDate":view_date,
         "today":now.format("%Y-%m-%d").to_string(),"utcOffsetMinutes":offset,
+        "currentLocalTime":now.format("%Y-%m-%d %H:%M:%S %:z").to_string(),
         "sampledAt":sampled_at,"intent":intent,"resolvedIntent":intent,
         "selectedTaskId":task_id,"selectedStepId":step_id,"selectedDayItemId":item_id,
         "selectedProjectId":selected_project.map(|p| &p.id),"projectTitle":selected_project.map(|p| &p.title),

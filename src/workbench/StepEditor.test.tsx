@@ -14,6 +14,11 @@ import DailyJournal from "./DailyJournal";
 import type { State } from "../paper/paperTypes";
 import type { Row } from "./model";
 import type { DailyRecord } from "./dailyRecord";
+import {
+  editorObjectKey,
+  editorStorageKey,
+  requestStorageKey,
+} from "./editorDraft";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({
@@ -30,6 +35,8 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+  vi.restoreAllMocks();
   vi.mocked(invoke).mockReset();
 });
 
@@ -86,6 +93,7 @@ const fixture = (): { row: Row; state: State } => {
 };
 const propsFor = () => ({
   ...fixture(),
+  storageScope: "test-data-a",
   date: "2030-03-04",
   onClose: vi.fn(),
   onSaved: vi.fn(),
@@ -125,9 +133,14 @@ it("preserves a reservation without a start time while changing task details", a
   props.row.item!.durationMinutes = 60;
   props.row.item!.startMinute = null;
   render(<StepEditor {...props} />);
-  fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "修改标题" } });
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "修改标题" },
+  });
   await save();
-  expect(submitted().input).toMatchObject({startMinute:null,durationMinutes:60});
+  expect(submitted().input).toMatchObject({
+    startMinute: null,
+    durationMinutes: 60,
+  });
 });
 
 it("keeps arrangement and deadline separate, preserves free-text remarks, and saves edited criteria", async () => {
@@ -254,6 +267,7 @@ it("keeps an uncertain new-task request mounted through close, cancel and Escape
     .mockResolvedValue({});
   const props = {
     state: fixture().state,
+    storageScope: "test-data-a",
     date: null,
     onSaved: vi.fn(),
     onClose: vi.fn(),
@@ -290,4 +304,245 @@ it("allows abandoning an editor after a definitive rejected save", async () => {
   await screen.findByRole("alert");
   fireEvent.click(screen.getByRole("button", { name: "关闭" }));
   expect(props.onClose).toHaveBeenCalledTimes(1);
+});
+
+it("adds a title-only task while durably saving object ids and request before IPC", async () => {
+  const scope = "quick-add-data";
+  const props = {
+    state: fixture().state,
+    date: null,
+    storageScope: scope,
+    onSaved: vi.fn(),
+    onClose: vi.fn(),
+  };
+  vi.mocked(invoke).mockImplementation(async (_command, args) => {
+    const { input } = args as { input: Record<string, unknown> };
+    const pending = JSON.parse(
+      localStorage.getItem(requestStorageKey(scope, "editor:new"))!,
+    );
+    const draft = JSON.parse(
+      localStorage.getItem(editorStorageKey(scope, "new"))!,
+    );
+    expect(pending.pending.input).toEqual(input);
+    expect(draft.ids).toEqual({ taskId: input.taskId, stepId: input.stepId });
+    return {};
+  });
+  render(<StepEditor {...props} />);
+  expect(screen.getByLabelText("任务名称").closest("details")).toBeNull();
+  expect(
+    (screen.getByText("更多选项").closest("details") as HTMLDetailsElement)
+      .open,
+  ).toBe(false);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "寄出样品" },
+  });
+  await save();
+  expect(submitted().input).toMatchObject({
+    title: "寄出样品",
+    text: "寄出样品",
+    date: null,
+    plannedSeconds: 1500,
+  });
+  await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+  expect(localStorage.getItem(editorStorageKey(scope, "new"))).toBeNull();
+  expect(
+    localStorage.getItem(requestStorageKey(scope, "editor:new")),
+  ).toBeNull();
+});
+
+it("restores a closed object draft and freezes its original versions when the source changed", async () => {
+  const props = propsFor();
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "本地未保存标题" },
+  });
+  fireEvent.change(screen.getByLabelText("步骤完成标准"), {
+    target: { value: "本地标准" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  expect(invoke).not.toHaveBeenCalled();
+  view.unmount();
+  const changed = structuredClone({ row: props.row, state: props.state });
+  changed.row.task.title = "Paper 中的新标题";
+  changed.row.task.revision = 2;
+  changed.state.tasks[0] = changed.row.task;
+  render(<StepEditor {...props} row={changed.row} state={changed.state} />);
+  expect(value("任务名称")).toBe("本地未保存标题");
+  expect(value("步骤完成标准")).toBe("本地标准");
+  expect(screen.getByText("最新任务：Paper 中的新标题")).toBeTruthy();
+  expect(
+    (screen.getByRole("button", { name: "保存计划" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  const stored = JSON.parse(
+    localStorage.getItem(
+      editorStorageKey(props.storageScope, editorObjectKey(props.row)),
+    )!,
+  );
+  expect(stored.base.task.revision).toBe(1);
+  fireEvent.submit(
+    screen.getByRole("button", { name: "保存计划" }).closest("form")!,
+  );
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("retries the original new-task request after restart even when its target objects now exist", async () => {
+  vi.mocked(invoke)
+    .mockRejectedValueOnce(Error("response lost"))
+    .mockResolvedValue({});
+  const props = {
+    state: fixture().state,
+    date: "2030-03-04",
+    storageScope: "test-new",
+    onSaved: vi.fn(),
+    onClose: vi.fn(),
+  };
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "只保存一次" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("button", { name: "核实并重试" });
+  const first = structuredClone(vi.mocked(invoke).mock.calls[0]);
+  const input = (first[1] as any).input;
+  view.unmount();
+  const latest = structuredClone(props.state);
+  latest.tasks.push({
+    ...latest.tasks[0],
+    id: input.taskId,
+    title: input.title,
+  });
+  latest.planning!.steps.push({
+    ...latest.planning!.steps[0],
+    id: input.stepId,
+    taskId: input.taskId,
+  });
+  render(<StepEditor {...props} date="2030-03-10" state={latest} />);
+  expect(value("任务名称")).toBe("只保存一次");
+  expect(value("安排日期")).toBe("2030-03-04");
+  fireEvent.click(screen.getByRole("button", { name: "核实并重试" }));
+  await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(invoke).mock.calls[1]).toEqual(first);
+});
+
+it("does not restore another directory's draft and preserves independent object drafts", () => {
+  const props = propsFor();
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "目录 A 的草稿" },
+  });
+  view.unmount();
+  const other = render(<StepEditor {...props} storageScope="test-data-b" />);
+  expect(value("任务名称")).toBe("核对周报");
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "目录 B 的草稿" },
+  });
+  other.unmount();
+  render(<StepEditor {...props} />);
+  expect(value("任务名称")).toBe("目录 A 的草稿");
+  fireEvent.click(screen.getByRole("button", { name: "放弃草稿" }));
+  expect(
+    localStorage.getItem(
+      editorStorageKey("test-data-a", editorObjectKey(props.row)),
+    ),
+  ).toBeNull();
+  expect(
+    localStorage.getItem(
+      editorStorageKey("test-data-b", editorObjectKey(props.row)),
+    ),
+  ).not.toBeNull();
+});
+
+it("keeps a deleted object's restored draft readable without converting it into a new task", () => {
+  const props = propsFor();
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "保留的编辑" },
+  });
+  view.unmount();
+  const deleted = {
+    ...props.state,
+    tasks: [],
+    planning: { steps: [], dayItems: [] },
+  };
+  render(<StepEditor {...props} state={deleted} />);
+  expect(value("任务名称")).toBe("保留的编辑");
+  expect(screen.getByText("最新任务：任务已不可用")).toBeTruthy();
+  expect(
+    (screen.getByRole("button", { name: "保存计划" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  expect(
+    (screen.getByLabelText("已核对，使用当前草稿保存") as HTMLInputElement)
+      .disabled,
+  ).toBe(true);
+});
+
+it("keeps edits in place and does not send when the draft cannot be stored", () => {
+  const props = propsFor();
+  render(<StepEditor {...props} />);
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw Error("full");
+  });
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "仍在输入框" },
+  });
+  expect(screen.getByRole("alert").textContent).toContain("编辑草稿未能保存");
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  expect(invoke).not.toHaveBeenCalled();
+  expect(props.onClose).not.toHaveBeenCalled();
+  expect(value("任务名称")).toBe("仍在输入框");
+});
+
+it("merges untouched current fields only after explicit conflict review while retaining the user's edits", async () => {
+  const props = propsFor();
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "我修改的标题" },
+  });
+  const changed = structuredClone(props.state);
+  changed.tasks[0].revision = 2;
+  changed.tasks[0].category = "study";
+  changed.planning!.dayItems[0].revision = 2;
+  changed.planning!.dayItems[0].date = "2030-03-09";
+  changed.planning!.dayItems[0].startMinute = 600;
+  changed.planning!.dayItems[0].durationMinutes = 40;
+  view.rerender(<StepEditor {...props} state={changed} />);
+  expect(value("安排日期")).toBe("2030-03-04");
+  fireEvent.click(screen.getByLabelText("已核对，使用当前草稿保存"));
+  expect(value("任务名称")).toBe("我修改的标题");
+  expect(value("安排日期")).toBe("2030-03-09");
+  await save();
+  expect(submitted().input).toMatchObject({
+    title: "我修改的标题",
+    category: "study",
+    date: "2030-03-09",
+    startMinute: 600,
+    durationMinutes: 40,
+    expectedTaskRevision: 2,
+    expectedItemRevision: 2,
+  });
+});
+
+it("discards only a definitively rejected editor draft and its request when explicitly asked", async () => {
+  vi.mocked(invoke).mockRejectedValue(Error("INVALID_INPUT: invalid field"));
+  const props = propsFor();
+  render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "不再需要的草稿" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("alert");
+  fireEvent.click(screen.getByRole("button", { name: "放弃草稿" }));
+  expect(props.onClose).toHaveBeenCalledTimes(1);
+  const objectKey = editorObjectKey(props.row);
+  expect(
+    localStorage.getItem(editorStorageKey(props.storageScope, objectKey)),
+  ).toBeNull();
+  expect(
+    localStorage.getItem(
+      requestStorageKey(props.storageScope, `editor:${objectKey}`),
+    ),
+  ).toBeNull();
 });

@@ -31,6 +31,15 @@ import MarkdownJournal from "./MarkdownJournal";
 import TaskMetadata, { priorityLabels } from "./TaskMetadata";
 import LeftoverPlans, { planItemLabel } from "./LeftoverPlans";
 import { usePlanRequest } from "./usePlanRequest";
+import {
+  editorObjectKey,
+  editorStorageKey,
+  initialEditorDraft,
+  listEditorDrafts,
+  readEditorDraft,
+  requestStorageKey,
+  type EditorValues,
+} from "./editorDraft";
 import { dailyStats, datesWithRecords, durationLabel } from "./dailyRecord";
 import { useDailyRecords } from "./useDailyRecords";
 import {
@@ -90,6 +99,7 @@ export function StepEditor({
   onSaved,
   state,
   startMinute,
+  storageScope,
 }: {
   row?: Row;
   date: string | null;
@@ -97,41 +107,111 @@ export function StepEditor({
   onSaved: () => void;
   state: State;
   startMinute?: number;
+  storageScope: string;
 }) {
-  const [title, setTitle] = useState(row?.task.title || "");
-  const [text, setText] = useState(row?.step?.text || "");
-  const [category, setCategory] = useState(row?.task.category || "work");
-  const [priority, setPriority] = useState(row?.task.priority || "medium");
-  const [due, setDue] = useState(row?.task.due || "");
-  const [dueDate, setDueDate] = useState(row?.task.dueDate || "");
-  const [expectedResult, setExpectedResult] = useState(
-    row?.step?.expectedResult || "",
+  const objectKey = editorObjectKey(row);
+  const [initial] = useState(() => {
+    const fresh = initialEditorDraft(row, date, startMinute);
+    try {
+      if (!storageScope) throw Error("本地草稿存储尚未就绪。");
+      const saved = readEditorDraft(storageScope, objectKey);
+      return { draft: saved || fresh, restored: !!saved, error: "" };
+    } catch {
+      return {
+        draft: fresh,
+        restored: false,
+        error: "这份编辑草稿无法读取，请保留原记录后检查。暂未发送修改。",
+      };
+    }
+  });
+  const original = initial.draft.original;
+  const [values, setValues] = useState(initial.draft.values);
+  const editedFields = useRef(
+    new Set<keyof EditorValues>(
+      initial.draft.editedFields ||
+        (Object.keys(initial.draft.values) as (keyof EditorValues)[]),
+    ),
   );
-  const [day, setDay] = useState(row?.item?.date || date || "");
-  const [time, setTime] = useState(
-    row?.item?.startMinute != null
-      ? clock(row.item.startMinute)
-      : startMinute != null
-        ? clock(startMinute)
-        : "",
-  );
-  const [duration, setDuration] = useState(
-    row?.item?.durationMinutes ||
-      Math.round((row?.step?.plannedSeconds || 1500) / 60),
-  );
-  const [round, setRound] = useState(
-    Math.round((row?.step?.plannedSeconds || 1500) / 60),
-  );
+  const {
+    title,
+    text,
+    category,
+    priority,
+    due,
+    dueDate,
+    expectedResult,
+    day,
+    time,
+    duration,
+    round,
+  } = values;
+  const touched = useRef(initial.restored);
+  const editValue = <K extends keyof EditorValues>(
+    key: K,
+    value: EditorValues[K],
+  ) => {
+    touched.current = true;
+    editedFields.current.add(key);
+    setValues((previous) => ({ ...previous, [key]: value }));
+  };
+  const setTitle = (value: string) => editValue("title", value);
+  const setText = (value: string) => editValue("text", value);
+  const setCategory = (value: string) => editValue("category", value);
+  const setPriority = (value: string) => editValue("priority", value);
+  const setDue = (value: string) => editValue("due", value);
+  const setDueDate = (value: string) => editValue("dueDate", value);
+  const setExpectedResult = (value: string) =>
+    editValue("expectedResult", value);
+  const setDay = (value: string) => editValue("day", value);
+  const setTime = (value: string) => editValue("time", value);
+  const setDuration = (value: number) => editValue("duration", value);
+  const setRound = (value: number) => editValue("round", value);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [base, setBase] = useState(row);
-  const ids = useRef({
-    taskId: row?.task.id || crypto.randomUUID(),
-    stepId: row?.step?.id || crypto.randomUUID(),
-  });
+  const [storageError, setStorageError] = useState(initial.error);
+  const [base, setBase] = useState(initial.draft.base);
+  const ids = useRef(initial.draft.ids);
   const [review, setReview] = useState(false);
-  const request = usePlanRequest();
+  const request = usePlanRequest(
+    storageScope
+      ? requestStorageKey(storageScope, `editor:${objectKey}`)
+      : undefined,
+  );
+  const persistDraft = () => {
+    if (!storageScope || storageError) return false;
+    try {
+      localStorage.setItem(
+        editorStorageKey(storageScope, objectKey),
+        JSON.stringify({
+          ...initial.draft,
+          ids: ids.current,
+          values,
+          editedFields: [...editedFields.current],
+          base,
+          savedAt: Date.now(),
+        }),
+      );
+      return true;
+    } catch {
+      setStorageError(
+        "编辑草稿未能保存。请检查本地存储；内容仍留在此处，暂未发送修改。",
+      );
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (touched.current) persistDraft();
+  }, [values, base]);
+  const clearDraft = () =>
+    localStorage.removeItem(editorStorageKey(storageScope, objectKey));
   const save = async () => {
+    if (
+      !request.ready ||
+      storageError ||
+      busy ||
+      (conflict && (!request.pending || request.definitiveFailure))
+    )
+      return;
     setBusy(true);
     setError("");
     try {
@@ -147,14 +227,16 @@ export function StepEditor({
         text: text.trim() || title.trim(),
         category,
         // Omitted metadata keeps shared values intact, including older long criteria.
-        ...(!row || priority !== row.task.priority ? { priority } : {}),
-        ...(!row || due !== (row.task.due || "")
+        ...(!original || editedFields.current.has("priority")
+          ? { priority }
+          : {}),
+        ...(!original || editedFields.current.has("due")
           ? { due: due.trim() || null }
           : {}),
-        ...(!row || dueDate !== (row.task.dueDate || "")
+        ...(!original || editedFields.current.has("dueDate")
           ? { dueDate: dueDate || null }
           : {}),
-        ...(!row || expectedResult !== (row.step?.expectedResult || "")
+        ...(!original || editedFields.current.has("expectedResult")
           ? { expectedResult: expectedResult.trim() || null }
           : {}),
         plannedSeconds: round * 60,
@@ -166,12 +248,15 @@ export function StepEditor({
           ? time
             ? duration
             : base?.item?.startMinute == null
-              ? base?.item?.durationMinutes ?? null
+              ? (base?.item?.durationMinutes ?? null)
               : null
           : null,
       };
+      if (!persistDraft()) return;
       if (request.pending && !request.definitiveFailure) await request.retry();
       else await request.submit("workbench_save_step", input);
+      clearDraft();
+      touched.current = false;
       onSaved();
       onClose();
     } catch (e) {
@@ -186,10 +271,13 @@ export function StepEditor({
   const latestStep = state.planning?.steps.find(
     (s) => s.id === ids.current.stepId,
   );
+  const latestItem = state.planning?.dayItems.find(
+    (item) => item.id === base?.item?.id,
+  );
   const conflict =
     base &&
-    latest &&
-    (latest.revision !== base.task.revision ||
+    (!latest ||
+      latest.revision !== base.task.revision ||
       latestStep?.revision !== base.step?.revision ||
       state.planning?.dayItems.find((i) => i.id === base.item?.id)?.revision !==
         base.item?.revision);
@@ -199,10 +287,11 @@ export function StepEditor({
       setError("保存结果尚未确认。请先点击“核实并重试”，确认后再关闭。");
       return;
     }
+    if (touched.current && !persistDraft()) return;
     onClose();
   };
   return (
-    <Dialog title={row ? "修改计划" : "添加任务"} onClose={closeEditor}>
+    <Dialog title={original ? "修改计划" : "添加任务"} onClose={closeEditor}>
       <form
         className="wk-editor"
         onSubmit={(e) => {
@@ -212,7 +301,12 @@ export function StepEditor({
       >
         <fieldset
           className="wk-editor-fields"
-          disabled={busy || (!!request.pending && !request.definitiveFailure)}
+          disabled={
+            busy ||
+            !request.ready ||
+            !!storageError ||
+            (!!request.pending && !request.definitiveFailure)
+          }
         >
           <label>
             任务名称
@@ -225,177 +319,225 @@ export function StepEditor({
               onChange={(e) => setTitle(e.target.value)}
             />
           </label>
-          <label>
-            具体这一步 <small>可选，留空使用任务名称</small>
-            <input
-              maxLength={300}
-              value={text}
-              placeholder="例如：列出三个分享要点"
-              onChange={(e) => setText(e.target.value)}
-            />
-          </label>
-          <div className="wk-form-row">
+          {!original && (
+            <p className="muted">
+              {day ? `安排到 ${day}` : "先放入待安排"}；下一步默认同标题，首轮{" "}
+              {round} 分钟。
+            </p>
+          )}
+          <details className="wk-editor-more" open={!!original}>
+            <summary>
+              更多选项 <small>步骤、分类与安排按需补充</small>
+            </summary>
             <label>
-              分类
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {Object.entries(categories).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              首轮时长（分钟）
+              具体这一步 <small>可选，留空使用任务名称</small>
               <input
-                type="number"
-                min={1}
-                max={120}
-                required
-                value={round}
-                onChange={(e) => setRound(Number(e.target.value))}
+                maxLength={300}
+                value={text}
+                placeholder="例如：列出三个分享要点"
+                onChange={(e) => setText(e.target.value)}
               />
             </label>
-          </div>
-          <details
-            className="wk-editor-metadata"
-            open={
-              !!row &&
-              !!(
-                row.task.due ||
-                row.task.dueDate ||
-                row.step?.expectedResult ||
-                row.task.priority !== "medium"
-              )
-            }
-          >
-            <summary>
-              优先级与完成要求 <small>按需补充</small>
-            </summary>
             <div className="wk-form-row">
               <label>
-                优先级
+                分类
                 <select
-                  aria-label="优先级"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
                 >
-                  {Object.entries(priorityLabels).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
+                  {Object.entries(categories).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                截止日期 <small>可选</small>
-                <input
-                  aria-label="截止日期"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
-              </label>
-            </div>
-            <p className="muted">
-              截止日期是最晚完成日，与下面的安排日期分开保存。
-            </p>
-            <label>
-              截止备注 <small>保留原有说明</small>
-              <input
-                aria-label="截止备注"
-                maxLength={100}
-                value={due}
-                placeholder="例如：等对方回复后再确认"
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </label>
-            <label>
-              步骤完成标准 <small>可选</small>
-              <textarea
-                aria-label="步骤完成标准"
-                rows={2}
-                maxLength={2000}
-                value={expectedResult}
-                placeholder="做到什么就算这一步完成？"
-                onChange={(e) => setExpectedResult(e.target.value)}
-              />
-            </label>
-          </details>
-          <div className="wk-form-row">
-            <label>
-              安排日期
-              <input
-                aria-label="安排日期"
-                type="date"
-                required={!!row?.item}
-                value={day}
-                onChange={(e) => setDay(e.target.value)}
-              />
-            </label>
-            {!row?.item && (
-              <button
-                className="wk-subtle"
-                type="button"
-                onClick={() => {
-                  setDay("");
-                  setTime("");
-                }}
-              >
-                放入待安排
-              </button>
-            )}
-          </div>
-          {day && (
-            <div className="wk-form-row">
-              <label>
-                开始时间 <small>可选</small>
-                <input
-                  aria-label="开始时间"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </label>
-              <label>
-                日程时长（分钟）
+                首轮时长（分钟）
                 <input
                   type="number"
-                  required={!!time}
                   min={1}
-                  max={1440}
-                  disabled={!time}
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
+                  max={120}
+                  required
+                  value={round}
+                  onChange={(e) => setRound(Number(e.target.value))}
                 />
               </label>
             </div>
-          )}
-          <p className="muted">
-            日程表示你的安排，实际工作时间在 Inky 开始后记录。
-          </p>
+            <details
+              className="wk-editor-metadata"
+              open={
+                !!row &&
+                !!(
+                  row.task.due ||
+                  row.task.dueDate ||
+                  row.step?.expectedResult ||
+                  row.task.priority !== "medium"
+                )
+              }
+            >
+              <summary>
+                优先级与完成要求 <small>按需补充</small>
+              </summary>
+              <div className="wk-form-row">
+                <label>
+                  优先级
+                  <select
+                    aria-label="优先级"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                  >
+                    {Object.entries(priorityLabels).map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  截止日期 <small>可选</small>
+                  <input
+                    aria-label="截止日期"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="muted">
+                截止日期是最晚完成日，与下面的安排日期分开保存。
+              </p>
+              <label>
+                截止备注 <small>保留原有说明</small>
+                <input
+                  aria-label="截止备注"
+                  maxLength={100}
+                  value={due}
+                  placeholder="例如：等对方回复后再确认"
+                  onChange={(e) => setDue(e.target.value)}
+                />
+              </label>
+              <label>
+                步骤完成标准 <small>可选</small>
+                <textarea
+                  aria-label="步骤完成标准"
+                  rows={2}
+                  maxLength={2000}
+                  value={expectedResult}
+                  placeholder="做到什么就算这一步完成？"
+                  onChange={(e) => setExpectedResult(e.target.value)}
+                />
+              </label>
+            </details>
+            <div className="wk-form-row">
+              <label>
+                安排日期
+                <input
+                  aria-label="安排日期"
+                  type="date"
+                  required={!!row?.item}
+                  value={day}
+                  onChange={(e) => setDay(e.target.value)}
+                />
+              </label>
+              {!row?.item && (
+                <button
+                  className="wk-subtle"
+                  type="button"
+                  onClick={() => {
+                    setDay("");
+                    setTime("");
+                  }}
+                >
+                  放入待安排
+                </button>
+              )}
+            </div>
+            {day && (
+              <div className="wk-form-row">
+                <label>
+                  开始时间 <small>可选</small>
+                  <input
+                    aria-label="开始时间"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </label>
+                <label>
+                  日程时长（分钟）
+                  <input
+                    type="number"
+                    required={!!time}
+                    min={1}
+                    max={1440}
+                    disabled={!time}
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            )}
+            <p className="muted">
+              日程表示你的安排，实际工作时间在 Inky 开始后记录。
+            </p>
+          </details>
           {conflict && (
             <div className="wk-stale">
-              <p>最新任务：{latest?.title}</p>
-              <p>最新步骤：{latestStep?.text}</p>
-              <TaskMetadata task={latest!} step={latestStep} />
+              <p>原对象已变化，草稿保持原样。</p>
+              <p>最新任务：{latest?.title || "任务已不可用"}</p>
+              <p>最新步骤：{latestStep?.text || "步骤已不可用"}</p>
+              {base?.item && (
+                <p>
+                  最新安排：
+                  {latestItem && !latestItem.removedAt
+                    ? `${latestItem.date} · ${latestItem.startMinute == null ? "未设时刻" : clock(latestItem.startMinute)} · ${latestItem.durationMinutes == null ? "未设预留" : `${latestItem.durationMinutes} 分钟`}`
+                    : "安排已取消或不可用"}
+                </p>
+              )}
+              {latest && <TaskMetadata task={latest} step={latestStep} />}
+              <p>核对后保留你改过的字段，其余字段使用最新内容。</p>
               <label>
                 <input
                   type="checkbox"
                   checked={review}
+                  disabled={
+                    !latest ||
+                    (!!base?.step && !latestStep) ||
+                    (!!base?.item &&
+                      !state.planning?.dayItems.some(
+                        (item) => item.id === base.item!.id && !item.removedAt,
+                      ))
+                  }
                   onChange={(e) => {
                     setReview(e.target.checked);
-                    if (e.target.checked)
-                      setBase({
+                    if (e.target.checked) {
+                      const nextBase = {
                         task: latest!,
                         step: latestStep,
-                        item: state.planning?.dayItems.find(
-                          (i) => i.id === base?.item?.id,
-                        ),
-                      });
+                        item: latestItem,
+                      };
+                      const nextValues = initialEditorDraft(
+                        nextBase,
+                        day || null,
+                        time ? minutes(time) : undefined,
+                      ).values;
+                      touched.current = true;
+                      setValues(
+                        (current) =>
+                          Object.fromEntries(
+                            Object.entries(current).map(([key, value]) => [
+                              key,
+                              editedFields.current.has(
+                                key as keyof EditorValues,
+                              )
+                                ? value
+                                : nextValues[key as keyof EditorValues],
+                            ]),
+                          ) as EditorValues,
+                      );
+                      setBase(nextBase);
+                    }
                   }}
                 />
                 已核对，使用当前草稿保存
@@ -403,6 +545,16 @@ export function StepEditor({
             </div>
           )}
         </fieldset>
+        {initial.restored && (
+          <p className="muted">
+            已恢复此对象的未保存草稿；关闭后仍可继续编辑。
+          </p>
+        )}
+        {(storageError || request.storageError) && (
+          <p className="wk-error" role="alert">
+            {storageError || request.storageError}
+          </p>
+        )}
         {error && (
           <p className="wk-error" role="alert">
             {error}
@@ -414,6 +566,25 @@ export function StepEditor({
           </p>
         )}
         <footer>
+          {(!request.pending || request.definitiveFailure) &&
+            touched.current && (
+              <button
+                type="button"
+                disabled={busy || !!storageError}
+                onClick={() => {
+                  try {
+                    if (request.pending) request.discardDefinitiveFailure();
+                    clearDraft();
+                    touched.current = false;
+                    onClose();
+                  } catch {
+                    setStorageError("草稿暂时无法移除，请检查本地存储。");
+                  }
+                }}
+              >
+                放弃草稿
+              </button>
+            )}
           <button
             type="button"
             disabled={busy || (!!request.pending && !request.definitiveFailure)}
@@ -425,6 +596,8 @@ export function StepEditor({
             className="wk-primary"
             disabled={
               busy ||
+              !request.ready ||
+              !!storageError ||
               (!!conflict && (!request.pending || request.definitiveFailure))
             }
             type="submit"
@@ -443,6 +616,39 @@ export function StepEditor({
 
 export default function Workbench() {
   const [state, setState] = useState<State>();
+  const [storageScope, setStorageScope] = useState<string>();
+  const [storageIssue, setStorageIssue] = useState("");
+  const [drafts, setDrafts] = useState<ReturnType<typeof listEditorDrafts>>([]);
+  const refreshDrafts = useCallback(
+    (scope = storageScope) => {
+      if (!scope) return;
+      try {
+        setDrafts(listEditorDrafts(scope));
+      } catch {
+        setStorageIssue(
+          "本地编辑草稿无法读取，请保留原记录后检查。暂未发送修改。",
+        );
+      }
+    },
+    [storageScope],
+  );
+  const loadScope = useCallback(async () => {
+    try {
+      const { scopeId } = await invoke<{ scopeId: string }>(
+        "workbench_storage_scope",
+      );
+      if (!scopeId) throw Error("未返回存储范围");
+      const recovered = listEditorDrafts(scopeId);
+      setDrafts(recovered);
+      setStorageScope(scopeId);
+      setStorageIssue("");
+    } catch {
+      setStorageIssue("本地草稿存储尚未就绪，暂未发送修改。请重试读取。");
+    }
+  }, []);
+  useEffect(() => {
+    void loadScope();
+  }, [loadScope]);
   const [day, setDay] = useState(dateKey);
   const [month, setMonth] = useState(() => dateKey().slice(0, 7));
   const [view, setView] = useState<
@@ -469,8 +675,15 @@ export default function Workbench() {
     scope: "selected" | "unexecuted";
     retained: number;
   }>();
-  const request = usePlanRequest();
-  const blocked = busy || !!request.pending;
+  const request = usePlanRequest(
+    storageScope ? requestStorageKey(storageScope, "operations") : undefined,
+  );
+  const blocked =
+    busy ||
+    !request.ready ||
+    !!storageIssue ||
+    !!request.pending ||
+    drafts.some((draft) => draft.unconfirmed);
   const requestEffects = useRef<{
     message?: string | ((data: Record<string, unknown>) => string);
     after?: (data: Record<string, unknown>) => void;
@@ -536,6 +749,7 @@ export default function Workbench() {
       const message = requestEffects.current.message;
       if (message)
         setNotice(typeof message === "string" ? message : message(data));
+      else setNotice("操作已核实，计划和记录已刷新。");
     } catch (e) {
       setError(getError(e));
       await reload();
@@ -690,7 +904,7 @@ export default function Workbench() {
         durationMinutes:
           date && st != null
             ? Math.min(duration, 1440 - st)
-            : r.item.durationMinutes ?? null,
+            : (r.item.durationMinutes ?? null),
       });
     } else {
       setEditor({ row: r, date, startMinute: start });
@@ -1033,12 +1247,58 @@ export default function Workbench() {
             )}
           </div>
         </div>
-        {error && (
+        {(!storageScope || storageIssue) && (
+          <div className="wk-banner" role="status">
+            <span>{storageIssue || "正在读取本地草稿…"}</span>
+            {storageIssue && (
+              <button onClick={() => void loadScope()}>重试读取草稿</button>
+            )}
+          </div>
+        )}
+        {!!drafts.length && (
+          <details
+            className="wk-draft-recovery"
+            open={drafts.some((draft) => draft.unconfirmed)}
+          >
+            <summary>
+              未保存草稿 · {drafts.length}
+              {drafts.some((draft) => draft.unconfirmed)
+                ? " · 有待核实的保存"
+                : ""}
+            </summary>
+            {drafts.map((draft) => (
+              <button
+                key={draft.objectKey}
+                disabled={
+                  !request.ready || !!request.pending || !!storageIssue || busy
+                }
+                onClick={() =>
+                  setEditor({
+                    row: draft.original,
+                    date: draft.values.day || null,
+                  })
+                }
+              >
+                {draft.unconfirmed ? "核实保存" : "恢复草稿"}：
+                {draft.values.title || "未命名任务"}
+                <small>{draft.values.day || "待安排"}</small>
+              </button>
+            ))}
+          </details>
+        )}
+        {(error || request.pending || request.storageError) && (
           <div className="wk-banner wk-error" role="alert">
-            <span>{error}</span>
+            <span>
+              {request.storageError ||
+                error ||
+                "上次计划操作的结果尚未核实，请使用原提交重试。"}
+            </span>
             {request.pending && (
               <>
-                <button disabled={busy} onClick={() => void retryAction()}>
+                <button
+                  disabled={busy || !request.ready}
+                  onClick={() => void retryAction()}
+                >
                   核实并重试
                 </button>
                 {request.definitiveFailure && (
@@ -1334,19 +1594,28 @@ export default function Workbench() {
           </>
         )}
       </section>
-      <CoachChat
-        selected={singleDay ? undefined : selected}
-        date={day}
-        onClearSelection={() => setSelectedId("")}
-        onSaved={() => void reload()}
-      />
-      {editor && state && (
+      {storageScope && (
+        <CoachChat
+          selected={singleDay ? undefined : selected}
+          date={day}
+          onClearSelection={() => setSelectedId("")}
+          onSaved={() => void reload()}
+        />
+      )}
+      {editor && state && storageScope && (
         <StepEditor
           key={editor.row ? key(editor.row) : `new-${editor.date}`}
           {...editor}
+          storageScope={storageScope}
           state={state}
-          onClose={() => setEditor(undefined)}
-          onSaved={() => void reload()}
+          onClose={() => {
+            setEditor(undefined);
+            refreshDrafts();
+          }}
+          onSaved={() => {
+            void reload();
+            refreshDrafts();
+          }}
         />
       )}
       {cancelPreview && (

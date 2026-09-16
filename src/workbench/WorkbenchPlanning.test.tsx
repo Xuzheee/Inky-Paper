@@ -104,6 +104,8 @@ beforeEach(() => {
   writes = [];
   handleWrite = () => ({ remainingActiveCount: 1 });
   vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "workbench_storage_scope")
+      return { scopeId: "test-data-a" };
     if (command !== "paper_execute") return {};
     const { action, input } = args as {
       action: string;
@@ -116,6 +118,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.mocked(invoke).mockReset();
 });
 
@@ -238,5 +241,91 @@ it("cancels only the selected arrangement and retries a lost response with ident
   expect(writes[1]).toEqual(writes[0]);
   await screen.findByText(
     "已取消所选安排，仍有 2 条有效安排；步骤未放回待安排。",
+  );
+});
+
+it("restores a lost plan operation after restart without recomputing versions or affected items", async () => {
+  handleWrite = () => {
+    if (writes.length === 1) {
+      data.tasks[0].revision = 2;
+      data.planning!.dayItems[0].revision = 2;
+      throw Error("保存响应丢失");
+    }
+    return { remainingActiveCount: 2 };
+  };
+  const view = render(<Workbench />);
+  const group = await openOld();
+  fireEvent.click(
+    within(group).getAllByRole("button", { name: "取消本次安排" })[0],
+  );
+  fireEvent.click(screen.getByRole("button", { name: "确认取消 1 条安排" }));
+  await within(screen.getByRole("dialog")).findByRole("button", {
+    name: "核实并重试",
+  });
+  const first = structuredClone(writes[0]);
+  view.unmount();
+  render(<Workbench />);
+  fireEvent.click(await screen.findByRole("button", { name: "核实并重试" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(first);
+  await screen.findByText("操作已核实，计划和记录已刷新。");
+});
+
+it("offers recovery for an uncertain editor save after restarting the entire workbench", async () => {
+  handleWrite = () => {
+    if (writes.length === 1) throw Error("保存响应丢失");
+    return {};
+  };
+  const view = render(<Workbench />);
+  await screen.findByText("旧安排");
+  fireEvent.click(screen.getByRole("button", { name: "待安排" }));
+  fireEvent.click(screen.getByRole("button", { name: "添加任务" }));
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "重启后核实的任务" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("button", { name: "核实并重试" });
+  const first = structuredClone(writes[0]);
+  view.unmount();
+  render(<Workbench />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: /核实保存：重启后核实的任务/ }),
+  );
+  expect((screen.getByLabelText("任务名称") as HTMLInputElement).value).toBe(
+    "重启后核实的任务",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "核实并重试" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(first);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(
+    screen.queryByRole("button", { name: /核实保存：重启后核实的任务/ }),
+  ).toBeNull();
+});
+
+it("keeps plan mutations disabled until the data-directory storage scope is available", async () => {
+  const original = vi.mocked(invoke).getMockImplementation()!;
+  let resolveScope!: (value: unknown) => void;
+  vi.mocked(invoke).mockImplementation(async (command, args) =>
+    command === "workbench_storage_scope"
+      ? new Promise((resolve) => {
+          resolveScope = resolve;
+        })
+      : original(command, args),
+  );
+  render(<Workbench />);
+  await openOld();
+  expect(
+    (screen.getByRole("button", { name: "今天继续" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "今天继续" }));
+  expect(writes).toHaveLength(0);
+  resolveScope({ scopeId: "test-data-a" });
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("button", { name: "今天继续" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false),
   );
 });

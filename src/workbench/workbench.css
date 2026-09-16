@@ -1153,6 +1153,45 @@
   margin: 0;
   min-width: 0;
 }
+.wk-editor-more > summary {
+  cursor: pointer;
+  color: #56654d;
+}
+.wk-editor-more > summary small {
+  margin-left: 7px;
+  color: #7f857e;
+  font-size: 12px;
+}
+.wk-editor-more > :not(summary) {
+  margin-top: 17px;
+}
+.wk-draft-recovery {
+  margin: 0 28px 12px;
+  padding: 9px 12px;
+  border: 1px dashed var(--wk-line);
+  border-radius: 8px;
+  flex-shrink: 0;
+  max-height: 22vh;
+  overflow: auto;
+  font-size: 13px;
+}
+.wk-draft-recovery > summary {
+  cursor: pointer;
+  color: #56654d;
+}
+.wk-draft-recovery > button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  padding: 8px 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.wk-draft-recovery small {
+  font-size: 11px;
+  color: var(--wk-muted);
+  flex-shrink: 0;
+}
 .wk-leftovers {
   margin: 0 28px 12px;
   border: 1px dashed var(--wk-line);

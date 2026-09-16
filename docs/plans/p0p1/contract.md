@@ -110,3 +110,9 @@ P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退
 `save_day_constraints` 仅 user，输入 date/expectedRevision（首次0）/availableMinutes/unavailable/requestId。整体校验后一次提交，保留修改事件，不影响任何时钟。当天统计只用有效且父任务/步骤未完成的安排：明确预留分钟相加；未估计数量独立，不能计为0；日历占用合并明确时间段；独立输出重叠 item 对及不可用冲突。完成的安排保留可查，不计入剩余投入。
 
 公共后端 `day_capacity(state,date)` 输出 `{date,availableMinutes,reservedMinutes,unestimatedCount,calendarOccupiedMinutes,overlapPairs:[{first,second}],unavailableConflicts:[{itemId,startMinute,endMinute}],overBudget,fullyEstimated}`；首轮 plannedSeconds 不参与计算，未知预算 overBudget 为 null。上下文只注入本次日期约束及统计，界面可请求只读 `get_day_capacity`，禁止自动调用模型。M3/M4 依计划允许在接口稳定后并行。
+
+## M4 项目（W-04）
+
+Task 新增可空 projectId，不改变 category。ContextState 增加 projects 默认空；Project `{id,title,goal,criteria,referenceLinks:string[],archived,revision,updatedAt,source}`。文本可为空的 goal/criteria 用空字符串，链接最多10条，只允许 http/https URL，不自动访问。
+
+`save_project` 仅用户操作，输入 projectId/expectedRevision（首次0）/title/goal/criteria/referenceLinks/archived/requestId；同一版本事务保存。归档仅更新项目，不改变任务/安排/执行快照。`set_task_project` 用户输入 taskId/expectedTaskRevision/projectId:null|string/expectedProjectRevision（非空项目必须）/requestId；关联校验目标未归档，清空不改分类。已有任务的归档项目关联保留。相关 Coach 范围只取选择任务、当天安排和实际纳入请求的未安排任务的项目，不默认注入所有项目；没有抓取的链接明确标注未读取。全局任务导出包含项目标识及可读名称，历史执行仍用会话原快照。

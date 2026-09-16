@@ -61,6 +61,7 @@ const data = (): State => ({
 const setup = (
   state = data(),
   extra: { busy?: boolean; hasSession?: boolean } = {},
+  allTasks = true,
 ) => {
   const props = {
     data: state,
@@ -75,6 +76,8 @@ const setup = (
     ...extra,
   };
   const view = render(<TaskSheet {...props} />);
+  if (allTasks)
+    fireEvent.click(screen.getByRole("button", { name: "全部任务" }));
   return { ...view, props };
 };
 const toggle = () => screen.getByRole("button", { name: /^任务 A/ });
@@ -166,6 +169,123 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe("Paper shared daily queue", () => {
+  it("defaults to ordered individual steps and keeps completed rows in place when plans update", () => {
+    const state = data();
+    const first = state.planning!.dayItems[0];
+    first.order = 2;
+    state.planning!.dayItems.push({
+      ...first,
+      id: "day-two",
+      stepId: "two",
+      order: 0,
+    });
+    const { container, props, rerender } = setup(state, {}, false);
+    const names = () =>
+      Array.from(
+        container.querySelectorAll(".sheet-queue-item .sheet-task-name"),
+        (node) => node.textContent,
+      );
+    expect(screen.getByRole("heading", { name: "今日步骤" })).toBeTruthy();
+    expect(names()).toEqual(["动作 two", "动作 one"]);
+    const updated = structuredClone(state);
+    updated.planning!.steps[1].completed = true;
+    updated.planning!.steps[1].revision += 1;
+    rerender(<TaskSheet {...props} data={updated} />);
+    expect(names()).toEqual(["动作 two", "动作 one"]);
+    expect(
+      container
+        .querySelector('[data-plan-item-id="day-two"]')
+        ?.getAttribute("data-completed"),
+    ).toBe("true");
+    expect(updated.tasks[0].completed).toBe(false);
+    updated.planning!.dayItems[0].date = "2099-01-01";
+    rerender(<TaskSheet {...props} data={structuredClone(updated)} />);
+    expect(names()).toEqual(["动作 two"]);
+  });
+
+  it("expands without selecting and prepares only the clicked day's exact step and item", async () => {
+    const { props } = setup(data(), {}, false);
+    fireEvent.click(screen.getByRole("button", { name: /^动作 one/ }));
+    expect(props.choose).not.toHaveBeenCalled();
+    expect(props.completeStep).not.toHaveBeenCalled();
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Do this：动作 one" }),
+      ),
+    );
+    expect(props.choose).toHaveBeenCalledExactlyOnceWith(
+      props.data.planning!.steps[0],
+      props.data.planning!.dayItems[0],
+    );
+    expect(props.selectTask).not.toHaveBeenCalled();
+    expect(props.complete).not.toHaveBeenCalled();
+  });
+
+  it("crosses a queue step without completing its parent or selecting it", async () => {
+    const { props, container } = setup(data(), {}, false);
+    const node = prepareStroke(
+      container.querySelector<HTMLElement>(
+        ".sheet-queue-item .sheet-task-name",
+      )!,
+    );
+    await stroke(node, point(110), point(170));
+    expect(props.completeStep).toHaveBeenCalledExactlyOnceWith(
+      props.data.planning!.steps[0],
+    );
+    expect(props.complete).not.toHaveBeenCalled();
+    expect(props.choose).not.toHaveBeenCalled();
+  });
+
+  it("offers unplanned steps on an empty day while leaving future arrangements out of that list", async () => {
+    const state = data();
+    state.planning!.dayItems[0].date = "2099-01-01";
+    const { props } = setup(state, {}, false);
+    fireEvent.click(screen.getByText("未安排事项 · 1"));
+    expect(screen.queryByRole("button", { name: /^动作 one/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^动作 two/ }));
+    await act(async () =>
+      fireEvent.click(
+        screen.getByRole("button", { name: "Do this：动作 two" }),
+      ),
+    );
+    expect(props.choose).toHaveBeenCalledExactlyOnceWith(
+      state.planning!.steps[1],
+      undefined,
+    );
+    expect(state.planning!.dayItems[0].date).toBe("2099-01-01");
+    fireEvent.click(screen.getByRole("button", { name: "全部任务" }));
+    expect(toggle()).toBeTruthy();
+  });
+
+  it("shows common metadata only in expanded detail and locks a queue during a session", () => {
+    const state = data();
+    state.tasks[0].priority = "high";
+    state.tasks[0].due = "等资料齐了";
+    state.tasks[0].dueDate = "2030-03-08";
+    const { props } = setup(state, { hasSession: true }, false);
+    expect(screen.queryByText("截止日期：2030-03-08")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^动作 one/ }));
+    expect(screen.getByText("优先级：高")).toBeTruthy();
+    expect(screen.getByText("截止备注：等资料齐了")).toBeTruthy();
+    expect(screen.getByText("截止日期：2030-03-08")).toBeTruthy();
+    expect(screen.getByText("做到：明确结果")).toBeTruthy();
+    const choose = screen.getByRole("button", {
+      name: "Do this：动作 one",
+    }) as HTMLButtonElement;
+    expect(choose.disabled).toBe(true);
+    fireEvent.click(choose);
+    expect(props.choose).not.toHaveBeenCalled();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "完成步骤：动作 one",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
 });
 
 describe("TaskSheet explicit selection and paper gestures", () => {

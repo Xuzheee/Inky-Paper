@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { DayItem, PlanStep, Session, State, Task } from "./paperTypes";
+import { planningViews } from "../shared/planning";
 import "./day-plan.css";
 
 export const localDate = (date = new Date()) =>
@@ -108,14 +109,8 @@ export function DayPlan({
       serial.current++;
     };
   }, [date, stateKey]);
-  const items = (data.planning?.dayItems || [])
-    .filter((item) => item.date === date && !item.removedAt)
-    .sort((a, b) => a.order - b.order);
-  const prepared = items.map((item) => ({
-    item,
-    step: data.planning?.steps.find((s) => s.id === item.stepId),
-    task: data.tasks.find((t) => t.id === item.taskId),
-  }));
+  const prepared = planningViews(data, date).today;
+  const items = prepared.map((row) => row.item!);
   const done = prepared.filter((x) => x.step?.completed).length;
   const open = async (personal = false) => {
     try {
@@ -148,7 +143,7 @@ export function DayPlan({
       )}
       <div className="plan-card-list">
         {prepared.map(({ item, step, task }) => (
-          <article className="plan-card" key={item.id}>
+          <article className="plan-card" key={item!.id}>
             <small>{task?.title || "任务暂不可用"}</small>
             <h2 className={step?.completed ? "crossed" : ""}>
               {step?.text || "步骤暂不可用"}
@@ -180,8 +175,8 @@ export function DayPlan({
               disabled={busy}
               onClick={() =>
                 void mutate("remove_plan_item", {
-                  planItemId: item.id,
-                  expectedRevision: item.revision,
+                  planItemId: item!.id,
+                  expectedRevision: item!.revision,
                 })
               }
             >

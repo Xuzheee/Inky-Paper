@@ -94,6 +94,7 @@ const session = (status = "running"): Session => ({
 });
 let state: State;
 const button = (name: string) => screen.getByRole("button", { name });
+const allTasks = () => fireEvent.click(button("全部任务"));
 const outcome = (name: "还没完成" | "已完成") =>
   screen.getByRole("radio", { name }) as HTMLInputElement;
 const showFeedbackFields = () => {
@@ -124,6 +125,7 @@ const enableTaskSteps = () => {
   };
 };
 const selectTaskStep = async (id: string) => {
+  allTasks();
   if (!screen.queryByRole("button", { name: `Do this：步骤 ${id}` })) {
     fireEvent.click(
       screen.getByRole("button", { name: new RegExp(`^任务 ${id}`) }),
@@ -326,6 +328,55 @@ afterEach(() => {
 });
 
 describe("Paper current flows", () => {
+  it("shows the shared daily queue by default and refreshes external order without changing the selected note", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    state.planning!.dayItems = state.tasks.map((item, index) => ({
+      id: `today-${item.id}`,
+      taskId: item.id,
+      stepId: item.nextAction!.id,
+      date: localDate(),
+      order: 1 - index,
+      revision: 1,
+      removedAt: null,
+    }));
+    await open();
+    const queue = () =>
+      Array.from(
+        document.querySelectorAll(".sheet-queue-item .sheet-task-name"),
+        (node) => node.textContent,
+      );
+    expect(queue()).toEqual(["步骤 B", "步骤 A"]);
+    expect(screen.getByRole("heading", { name: "今日步骤" })).toBeTruthy();
+    state.planning!.dayItems[0].order = 0;
+    state.planning!.dayItems[1].order = 1;
+    await sync();
+    expect(queue()).toEqual(["步骤 A", "步骤 B"]);
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 A" },
+      ),
+    ).toBeTruthy();
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it("can start without daily planning and offers a temporary task from the same home", async () => {
+    enableTaskSteps();
+    await open();
+    expect(screen.getByText(/今天还没有安排/)).toBeTruthy();
+    fireEvent.click(button("临时做一件"));
+    expect(screen.getByRole("heading", { name: "添一件小事" })).toBeTruthy();
+    fireEvent.click(button("返回上一页"));
+    await act(async () => fireEvent.click(button("start")));
+    expect(state.planning!.dayItems).toEqual([]);
+    expect(state.sessions).toHaveLength(1);
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "start_session",
+    ]);
+    expect(mutations()[0][1].input.dayItemId).toBeUndefined();
+  });
+
   it("defaults to unfinished and changes the end choice without writing until the single save action", async () => {
     enableTaskSteps();
     state.sessions = [session("waiting")];
@@ -664,6 +715,7 @@ describe("Paper current flows", () => {
       fireEvent.click(button("设置"));
       fireEvent.click(button("返回上一页"));
       expect(document.querySelector(".paper-motto")!.textContent).toBe(motto);
+      allTasks();
       fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
       await sync();
       expect(document.querySelector(".paper-motto")!.textContent).toBe(motto);
@@ -686,6 +738,7 @@ describe("Paper current flows", () => {
   it("manually completes and undoes the current step without completing its task or starting a clock", async () => {
     enableTaskSteps();
     await open();
+    allTasks();
     fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
     await act(async () => fireEvent.click(button("完成步骤：步骤 A")));
     expect(state.planning!.steps[0].completed).toBe(true);
@@ -746,6 +799,7 @@ describe("Paper current flows", () => {
     state.sessions = [{ ...session("finished"), endedAt: Date.now() }];
     const snapshot = structuredClone(state.sessions[0]);
     await open();
+    allTasks();
     fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
     await act(async () => fireEvent.click(button("完成步骤：核对来源")));
     expect(state.planning!.steps[1].completed).toBe(true);
@@ -772,6 +826,7 @@ describe("Paper current flows", () => {
       return fallback(command, args);
     });
     await open();
+    allTasks();
     fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
     await act(async () => fireEvent.click(button("完成步骤：步骤 A")));
     expect(screen.getByRole("alert").textContent).toContain("步骤已被更新");
@@ -797,6 +852,7 @@ describe("Paper current flows", () => {
       return fallback(command, args);
     });
     await open();
+    allTasks();
     fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
     const complete = button("完成步骤：步骤 A") as HTMLButtonElement;
     await act(async () => {
@@ -820,6 +876,7 @@ describe("Paper current flows", () => {
     state.tasks.push(task("B"), task("C"));
     enableTaskSteps();
     await open();
+    allTasks();
     const order = () =>
       Array.from(
         screen
@@ -1017,6 +1074,7 @@ describe("Paper current flows", () => {
       }
       await sync();
       const snapshot = structuredClone(state.sessions[0]);
+      allTasks();
       if (!screen.queryByRole("button", { name: "Do this：步骤 B" }))
         fireEvent.click(screen.getByRole("button", { name: /^任务 B/ }));
       const otherStep = button("Do this：步骤 B") as HTMLButtonElement;
@@ -1055,6 +1113,7 @@ describe("Paper current flows", () => {
     expect(mutations()).toHaveLength(0);
     await act(async () => fireEvent.click(button("保存并结束")));
     fireEvent.click(await screen.findByRole("button", { name: "回到任务页" }));
+    allTasks();
     fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
     const completed = () =>
       screen
@@ -1301,7 +1360,7 @@ describe("Paper current flows", () => {
   });
   it("does not create blank or unchanged edit drafts", async () => {
     await open();
-    fireEvent.click(button("添加任务"));
+    fireEvent.click(button("临时做一件"));
     fireEvent.click(button("稍后再写"));
     expect(localStorage.getItem("paper-edit-draft")).toBeNull();
     fireEvent.click(button("修改下一步"));

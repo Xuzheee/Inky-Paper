@@ -13,6 +13,7 @@ import type {
 } from "./paperTypes";
 import { DayPlan, localDate } from "./DayPlan";
 import { TaskSheet } from "./TaskSheet";
+import { planningViews } from "../shared/planning";
 import { PAPER_MOTTOS } from "./mottos";
 import { PaperFooter } from "./PaperFooter";
 import { SessionEnd } from "./SessionEnd";
@@ -85,6 +86,16 @@ export default function PaperApp() {
   } = usePaperNavigation();
   const [workStartTask, setWorkStartTask] = useState<Task | null>(null);
   const [historyLimit, setHistoryLimit] = useState(20);
+  const [today, setToday] = useState(localDate);
+  useEffect(() => {
+    const updateDay = () => setToday(localDate());
+    const interval = window.setInterval(updateDay, 60_000);
+    window.addEventListener("focus", updateDay);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", updateDay);
+    };
+  }, []);
   const draftBaseline = useRef<Draft>(taskDraft());
   const [selected, setSelected] = useState(
       getStored<string>("paper-selected", ""),
@@ -904,7 +915,11 @@ export default function PaperApp() {
         />
       ) : view === "home" ? (
         <>
-          <div className="home-body paper-scroll-surface" id="paper-home-scroll" ref={homeScrollRef}>
+          <div
+            className="home-body paper-scroll-surface"
+            id="paper-home-scroll"
+            ref={homeScrollRef}
+          >
             {header()}
             <section className="intro">
               <h1>就从这一步开始</h1>
@@ -1015,6 +1030,7 @@ export default function PaperApp() {
             )}
             <TaskSheet
               data={data}
+              date={today}
               selectedTaskId={task?.id}
               busy={busy}
               hasSession={!!session}
@@ -1050,21 +1066,14 @@ export default function PaperApp() {
                 src="/paper-assets/imgIconPlus.svg"
                 alt=""
               />{" "}
-              添加任务
+              临时做一件
             </button>
             <button
               className="outline today-plan-link"
               onClick={() => setView("day-plan")}
             >
               <span>今日计划与记录</span>
-              <span>
-                {
-                  (data.planning?.dayItems || []).filter(
-                    (x) => x.date === localDate() && !x.removedAt,
-                  ).length
-                }{" "}
-                张卡片
-              </span>
+              <span>{planningViews(data, today).today.length} 张卡片</span>
             </button>
             {work ? (
               <WorkCard block={work} open={() => setView("work")} />
@@ -1819,7 +1828,9 @@ export default function PaperApp() {
         scrollRef={view === "home" ? homeScrollRef : paperRef}
         pageKey={`${view}:${loaded}`}
         canDrag={native}
-        moveBy={(deltaX, deltaY) => invoke("move_window_by", { deltaX, deltaY })}
+        moveBy={(deltaX, deltaY) =>
+          invoke("move_window_by", { deltaX, deltaY })
+        }
         onError={(error) => setError(String(error))}
       />
     </main>

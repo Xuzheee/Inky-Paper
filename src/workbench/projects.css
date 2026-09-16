@@ -1,0 +1,99 @@
+.wk-projects {
+  padding: 24px 30px 40px;
+  max-width: 920px;
+  margin: 0 auto;
+}
+.wk-projects h2,
+.wk-project h3 {
+  margin: 0;
+  font-weight: 500;
+}
+.wk-projects > header p,
+.wk-project-hint {
+  color: var(--wk-muted, #7f857e);
+  font-size: 13px;
+}
+.wk-project {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--wk-line, #e1e5dc);
+  border-radius: 9px;
+}
+.wk-project > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.wk-project > header small,
+.wk-project > header span {
+  color: var(--wk-muted, #7f857e);
+  font-size: 12px;
+}
+.wk-project p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.wk-project strong {
+  display: block;
+  font-size: 12px;
+  color: var(--wk-muted, #7f857e);
+  font-weight: 400;
+}
+.wk-project fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.wk-project form label {
+  display: grid;
+  gap: 5px;
+  font-size: 14px;
+  margin: 10px 0;
+}
+.wk-project input:not([type="checkbox"]),
+.wk-project textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--wk-line, #e1e5dc);
+  background: white;
+  padding: 8px 10px;
+  border-radius: 5px;
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+}
+.wk-project-archive,
+.wk-project form .wk-project-archive {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.wk-project-links {
+  padding-top: 5px;
+  border-top: 1px dashed var(--wk-line, #e1e5dc);
+}
+.wk-project-links p {
+  font-size: 12px;
+  color: var(--wk-muted, #7f857e);
+}
+.wk-project-links button {
+  display: block;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: 13px;
+  max-width: 100%;
+}
+.wk-project-conflict {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: #f5f2e8;
+  border-radius: 7px;
+}
+@media (max-width: 900px) {
+  .wk-projects {
+    padding: 18px;
+  }
+}

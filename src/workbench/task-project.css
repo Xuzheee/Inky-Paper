@@ -1,0 +1,41 @@
+.wk-task-project {
+  margin-top: 12px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--wk-line, #e1e5dc);
+  font-size: 13px;
+}
+.wk-task-project > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wk-task-project label {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+.wk-task-project select {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--wk-line, #e1e5dc);
+  border-radius: 5px;
+  padding: 8px;
+  background: white;
+}
+.wk-task-project p {
+  font-size: 12px;
+  margin: 8px 0;
+  color: var(--wk-muted, #7f857e);
+}
+.wk-task-project [role="alert"],
+.wk-task-project [role="status"] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-task-project form > [role="alert"] {
+  background: #f5f2e8;
+  padding: 10px;
+  border-radius: 6px;
+}

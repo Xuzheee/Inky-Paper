@@ -116,3 +116,9 @@ P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退
 Task 新增可空 projectId，不改变 category。ContextState 增加 projects 默认空；Project `{id,title,goal,criteria,referenceLinks:string[],archived,revision,updatedAt,source}`。文本可为空的 goal/criteria 用空字符串，链接最多10条，只允许 http/https URL，不自动访问。
 
 `save_project` 仅用户操作，输入 projectId/expectedRevision（首次0）/title/goal/criteria/referenceLinks/archived/requestId；同一版本事务保存。归档仅更新项目，不改变任务/安排/执行快照。`set_task_project` 用户输入 taskId/expectedTaskRevision/projectId:null|string/expectedProjectRevision（非空项目必须）/requestId；关联校验目标未归档，清空不改分类。已有任务的归档项目关联保留。相关 Coach 范围只取选择任务、当天安排和实际纳入请求的未安排任务的项目，不默认注入所有项目；没有抓取的链接明确标注未读取。全局任务导出包含项目标识及可读名称，历史执行仍用会话原快照。
+
+## M4 用户确认的偏好（C-04）
+
+ContextState.preferences 默认空，Preference `{id,text,scope:global|day|project,date:null|string,projectId:null|string,enabled,revision,confirmedAt,updatedAt,source}`；同时有 preferencesRevision 默认0，每次实际变更递增。`save_preference` 用户专用输入 preferenceId/expectedRevision（首次0）/text（1–1000字）/scope/date/projectId/enabled/requestId；scope day 必须日期，project 必须有效未归档项目，其余字段须 null，显式保存即确认。`delete_preference` 输入 preferenceId/expectedRevision/requestId，仅从可用偏好集合删除，返回 deletedId，历史事件与对话不冒称已清除。
+
+每次请求注入当前适用且 enabled 的偏好：global、当天匹配、相关未归档项目匹配；已停用/删除/其他日期不注入。当前用户原话优先于已保存偏好，最新偏好快照优先于聊天中的旧版本；文本不会自动变为长期偏好。只复用 Hermes 的模型/账户，不另建通用记忆提供方。UI 明示删除只影响后续 Inky 请求，不删除已有对话/历史。

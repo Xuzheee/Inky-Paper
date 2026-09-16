@@ -102,3 +102,11 @@ P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退
 - 笔记保留原 id/text/source/sessionId/taskId/action。新增 revision 默认 1；organization 为 kept/linked/converted，可空表示待整理；linkedTaskId 独立于来源 taskId。`organize_note` 仅用户调用，输入 noteId/expectedRevision/mode/targetTaskId?/expectedTaskRevision?/requestId；keep 保留、link 校验目标版本、convert 创建或复用 originNoteId 的目标。转换参数 title/taskId/nextAction 可传，title 缺省原文前 300 字，原文不截断。转换已有目标时复用，绝不删除笔记；已转换笔记不允许改掉转换关系。现有 create_task(originNoteId) 同步记录整理状态与版本。
 
 公共模块实现可以委派到独立新文件，主任务接线公共类型与事务。每包完成再领取下一项。
+
+## M4 日约束（W-03）
+
+`planning.context` 默认空 ContextState，先含 `days: DayConstraint[]`。每项 `{date,revision,availableMinutes:number|null,unavailable:[{startMinute,endMinute}],updatedAt,source}`。日期严格 YYYY-MM-DD，可投入 0–1440 分钟，未填为 null；不可用区间为同日整数分钟 `[0,1440]` 且 start < end。用户可清空预算和区间但保留对象版本。
+
+`save_day_constraints` 仅 user，输入 date/expectedRevision（首次0）/availableMinutes/unavailable/requestId。整体校验后一次提交，保留修改事件，不影响任何时钟。当天统计只用有效且父任务/步骤未完成的安排：明确预留分钟相加；未估计数量独立，不能计为0；日历占用合并明确时间段；独立输出重叠 item 对及不可用冲突。完成的安排保留可查，不计入剩余投入。
+
+公共后端 `day_capacity(state,date)` 输出 `{date,availableMinutes,reservedMinutes,unestimatedCount,calendarOccupiedMinutes,overlapPairs:[{first,second}],unavailableConflicts:[{itemId,startMinute,endMinute}],overBudget,fullyEstimated}`；首轮 plannedSeconds 不参与计算，未知预算 overBudget 为 null。上下文只注入本次日期约束及统计，界面可请求只读 `get_day_capacity`，禁止自动调用模型。M3/M4 依计划允许在接口稳定后并行。

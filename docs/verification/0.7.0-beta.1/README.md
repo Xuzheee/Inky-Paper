@@ -30,4 +30,8 @@
 
 ## 构建与检查
 
-交付完成后由同目录 `release-manifest.json` 记录实际源码提交、版本、检查结果、exe SHA-256、旧exe备份和最终路径。此处不提前声称构建或复制成功。
+2026-09-16 已完成交付。构建源码提交 `5bd868cede56ca63cfa717bc4afef09e153e5b12`；release构建、类型检查、273项前端、170项Rust（另1项性能基准忽略）、MCP schema检查均通过。已复制到 `app/Inky Paper.exe` 并确认源文件与交付文件哈希相同；Windows ProductVersion/FileVersion均为 `0.7.0-beta.1`。
+
+SHA-256：`C8E0C2E2425AC20D5149E16C7F731D7497220C28386ADB2B882E4DB19E4AB851`。
+
+旧0.6.4 exe已备份到 `app/backups/Inky Paper-0.6.4-before-beta-20260916-234651.exe`。详细记录见 [release-manifest.json](release-manifest.json)。本次没有运行桌面/模型验收，没有启动正式数据实例。

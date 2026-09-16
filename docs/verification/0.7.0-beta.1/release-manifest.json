@@ -1,0 +1,31 @@
+{
+  "version": "0.7.0-beta.1",
+  "channel": "trial",
+  "deliveredAt": "2026-09-16T23:46:52.6841972+08:00",
+  "sourceCommit": "5bd868cede56ca63cfa717bc4afef09e153e5b12",
+  "branch": "codex/inky-workbench",
+  "buildCommand": "corepack pnpm tauri build --no-bundle",
+  "productVersion": "0.7.0-beta.1",
+  "fileVersion": "0.7.0-beta.1",
+  "source": "C:\\Users\\31009\\clauddd\\Inky-Paper\\src-tauri\\target\\release\\inky-paper.exe",
+  "delivered": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\Inky Paper.exe",
+  "sha256": "C8E0C2E2425AC20D5149E16C7F731D7497220C28386ADB2B882E4DB19E4AB851",
+  "bytes": 71860224,
+  "backup": {
+    "path": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\backups\\Inky Paper-0.6.4-before-beta-20260916-234651.exe",
+    "sha256": "757AB110DDC0881F828B75F17C1E686D3BC0B680574B83E449BD92E270ECF605"
+  },
+  "checks": {
+    "typecheck": "passed",
+    "frontendPassed": 273,
+    "rustPassed": 170,
+    "rustIgnored": 1,
+    "mcpSchemaPassed": 1,
+    "releaseBuild": "passed",
+    "deliveredHashMatch": true
+  },
+  "currentDeliveryNativeValidation": "not run; prior M1-M4 evidence retained",
+  "coachFixedCases": "deferred by user; no model calls this delivery",
+  "formalDatabaseOpened": false,
+  "pendingDocument": "docs/plans/p0p1/M5_PENDING.md"
+}

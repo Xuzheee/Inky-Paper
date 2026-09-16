@@ -1,0 +1,16 @@
+{
+  "build": "3fd2af9",
+  "isolatedRun": "p0p1-m2-native-01",
+  "scope": "capture and skip-feedback save only",
+  "actions": {
+    "captureNote": {
+      "clicks": 2,
+      "textEntry": 1
+    },
+    "finishWithoutFeedback": {
+      "clicks": 2,
+      "saveClickToHomeMs": 854.3410000000001
+    }
+  },
+  "limitations": "UI automation timings exclude thinking and cannot measure user productivity; full-loop prechange timing not captured"
+}

@@ -1,0 +1,38 @@
+{
+  "run": "p0p1-m3-controls-02",
+  "checks": [
+    "Collapsed and reloaded composer preserves its scoped draft; read-only four-stage diagnostics creates no conversation or clock",
+    "Native batch reschedule previews without writing, adopts one dependent group atomically, preserves original times/reservations/session snapshots and task count"
+  ],
+  "modelCalls": 0,
+  "diagnostics": {
+    "checks": [
+      {
+        "code": "ready",
+        "retry": "重新检查本机依赖",
+        "stage": "dependency",
+        "summary": "本机 Hermes 与 Node.js 已找到"
+      },
+      {
+        "code": "unknown",
+        "retry": "重新发送原问题以连接",
+        "stage": "acp",
+        "summary": "Hermes 当前未连接；发送消息时连接"
+      },
+      {
+        "code": "unknown",
+        "retry": "刷新计划并重试原问题",
+        "stage": "paper",
+        "summary": "Paper 本机服务就绪，尚未验证当前连接的工具调用"
+      },
+      {
+        "code": "unknown",
+        "retry": "手动重试原问题",
+        "stage": "model",
+        "summary": "本次启动尚未验证模型；检查不会自动发送消息"
+      }
+    ],
+    "sampledAt": 1789558441606
+  },
+  "passed": true
+}

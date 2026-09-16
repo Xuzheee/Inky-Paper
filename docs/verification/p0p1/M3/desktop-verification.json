@@ -1,0 +1,32 @@
+{
+  "isolatedRun": "p0p1-m3-native-02",
+  "pid": 26992,
+  "checks": [
+    "Native focus captures the original note and source; two-click end/save needs no feedback, keeps task pending and starts no next clock",
+    "Workbench organizes the captured note into one task while keeping original text, note id, session and action source",
+    "Contextual feedback shows one question; completed step prompts once for its parent, and keeping follow-up never completes the parent or starts a clock",
+    "A real committed title-only add with a deliberately lost response restores its original request after webview reload without duplicating the task",
+    "A different native process PID restores the exact prepared source, original session snapshots, acknowledged parent prompt and unique note conversion without starting a clock"
+  ],
+  "errors": [],
+  "complete": false,
+  "modelCalls": 0,
+  "baselineTiming": null,
+  "actions": {
+    "captureNote": {
+      "clicks": 2,
+      "textEntry": 1,
+      "elapsedMs": 190.57150000000001
+    },
+    "finishWithoutFeedback": {
+      "clicks": 2,
+      "endToHomeMs": 721.6322,
+      "saveClickToHomeMs": 72.05070000000023
+    }
+  },
+  "faultInjection": "One deliberately lost workbench_save_step response after the real native transaction committed",
+  "flowPassed": true,
+  "restartPassed": true,
+  "restartPid": 28840,
+  "restartErrors": []
+}

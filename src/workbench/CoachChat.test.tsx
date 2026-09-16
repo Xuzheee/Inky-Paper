@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useState } from "react";
 import CoachChat from "./CoachChat";
 import type { DiscussionContext, Row } from "./model";
 
@@ -242,6 +243,8 @@ it.each([
       selectedTaskId: "task",
       selectedStepId: "step",
       selectedDayItemId: "item",
+      selectedProjectId: null,
+      projectTitle: null,
       taskTitle: "草稿标题",
       stepText: "草稿步骤",
       today: expect.any(String),
@@ -284,6 +287,220 @@ it("resets manually edited shortcut intent to auto and sends only the current wo
   expect(sent.context).not.toHaveProperty("energy");
   expect(sent.context).not.toHaveProperty("latestFacts");
   expect(sent.context.selectedDayItemId).toBeNull();
+});
+
+it("keeps the mounted stream and next draft through collapsing and reopening Coach", async () => {
+  let sent: Record<string, any> = {};
+  let resolve!: (value: unknown) => void;
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "workbench_history") return { sessions: [], messages: [] };
+    if (command === "workbench_send") {
+      sent = args as typeof sent;
+      return new Promise((done) => {
+        resolve = done;
+      });
+    }
+  });
+  function Harness() {
+    const [collapsed, setCollapsed] = useState(false);
+    return (
+      <CoachChat
+        {...props}
+        date="2030-03-04"
+        storageScope="scope-a"
+        collapsed={collapsed}
+        onToggleCollapsed={() => setCollapsed((value) => !value)}
+      />
+    );
+  }
+  render(<Harness />);
+  fireEvent.change(screen.getByLabelText("发送给 Coach"), {
+    target: { value: "核对现在的安排" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "发送" }));
+  const input = screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement;
+  fireEvent.change(input, { target: { value: "下次讨论的草稿" } });
+  fireEvent.click(screen.getByRole("button", { name: "收起 Coach" }));
+  expect(input.isConnected).toBe(true);
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(screen.getByRole("status").textContent).toBe("正在回复");
+  await act(async () =>
+    events.get("workbench:chat")!({
+      payload: {
+        requestId: sent.requestId,
+        sessionId: "session",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { text: "正在核对日期" },
+        },
+      },
+    }),
+  );
+  await act(async () => resolve(reply(sent, sent.context)));
+  expect(events.size).toBe(3);
+  fireEvent.click(screen.getByRole("button", { name: "展开 Coach" }));
+  expect(screen.getByText("已读取本次范围。")).toBeTruthy();
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("下次讨论的草稿");
+  expect(localStorage.getItem("inky-wb:scope-a:composer")).toBe(
+    "下次讨论的草稿",
+  );
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.some(([command]) => command === "workbench_cancel"),
+  ).toBe(false);
+});
+
+it("restores composer text only from the active data-directory scope", async () => {
+  vi.mocked(invoke).mockResolvedValue({ sessions: [], messages: [] });
+  localStorage.setItem("inky-wb-composer", "旧的未隔离输入");
+  let view = render(
+    <CoachChat {...props} date="2030-03-04" storageScope="scope-a" />,
+  );
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("");
+  fireEvent.change(screen.getByLabelText("发送给 Coach"), {
+    target: { value: "A 的草稿" },
+  });
+  view.unmount();
+  view = render(
+    <CoachChat {...props} date="2030-03-04" storageScope="scope-b" />,
+  );
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("");
+  fireEvent.change(screen.getByLabelText("发送给 Coach"), {
+    target: { value: "B 的草稿" },
+  });
+  view.unmount();
+  render(<CoachChat {...props} date="2030-03-04" storageScope="scope-a" />);
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("A 的草稿");
+  expect(localStorage.getItem("inky-wb:scope-b:composer")).toBe("B 的草稿");
+});
+
+it("stores an external prefill as the next draft without sending or replacing the active request scope", async () => {
+  let sent: Record<string, any> = {};
+  let resolve!: (value: unknown) => void;
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "workbench_history") return { sessions: [], messages: [] };
+    if (command === "workbench_send") {
+      sent = args as typeof sent;
+      return new Promise((done) => {
+        resolve = done;
+      });
+    }
+  });
+  const view = render(
+    <CoachChat
+      {...props}
+      date="2030-03-04"
+      selected={selected}
+      storageScope="scope-a"
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "我卡住了" }));
+  fireEvent.click(screen.getByRole("button", { name: "发送" }));
+  view.rerender(
+    <CoachChat
+      {...props}
+      date="2030-03-08"
+      storageScope="scope-a"
+      prefill={{ text: "根据预算一起取舍", serial: 1 }}
+    />,
+  );
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("根据预算一起取舍");
+  expect(localStorage.getItem("inky-wb:scope-a:composer")).toBe(
+    "根据预算一起取舍",
+  );
+  expect(screen.getByLabelText("Coach 讨论范围").textContent).toContain(
+    "本次回复 · 2030-03-04",
+  );
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.filter(([command]) => command === "workbench_send"),
+  ).toHaveLength(1);
+  expect(sent.context.selectedStepId).toBe("step");
+  await act(async () => resolve(reply(sent, sent.context)));
+});
+
+it("binds an explicitly selected project to the request and its visible discussion scope", async () => {
+  let sent: Record<string, any> = {};
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "workbench_history") return { sessions: [], messages: [] };
+    if (command === "workbench_send") {
+      sent = args as typeof sent;
+      return reply(sent, sent.context);
+    }
+  });
+  render(
+    <CoachChat
+      {...props}
+      date="2030-03-04"
+      selectedProject={{ id: "project-a", title: "春季报告" }}
+    />,
+  );
+  expect(screen.getByLabelText("Coach 讨论范围").textContent).toContain(
+    "春季报告",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "安排一下" }));
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "发送" })),
+  );
+  expect(sent.context).toMatchObject({
+    selectedProjectId: "project-a",
+    projectTitle: "春季报告",
+    selectedTaskId: null,
+  });
+  expect(screen.getAllByText("2030-03-04 · 春季报告")).toHaveLength(2);
+});
+
+it("opens diagnostics without sending and puts a failed question back in the composer for an explicit retry", async () => {
+  vi.mocked(invoke).mockImplementation(async (command) => {
+    if (command === "workbench_history")
+      return {
+        sessions: [{ id: "old", title: "原问题", updated: 1 }],
+        messages: [
+          {
+            id: "question",
+            role: "user",
+            text: "原问题：接下来做什么",
+            created: 1,
+          },
+        ],
+      };
+    if (command === "workbench_diagnostics")
+      return {
+        sampledAt: 1000,
+        checks: [
+          {
+            stage: "model",
+            code: "failed",
+            summary: "模型调用失败",
+            retry: "手动重试原问题",
+          },
+        ],
+      };
+  });
+  render(<CoachChat {...props} date="2030-03-04" storageScope="scope-a" />);
+  await screen.findByText("原问题：接下来做什么");
+  fireEvent.click(screen.getByRole("button", { name: "连接检查" }));
+  fireEvent.click(await screen.findByRole("button", { name: "准备重试问题" }));
+  expect(
+    (screen.getByLabelText("发送给 Coach") as HTMLTextAreaElement).value,
+  ).toBe("原问题：接下来做什么");
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.some(([command]) => command === "workbench_send"),
+  ).toBe(false);
 });
 
 it("binds normalized connected facts to both request messages while page changes and next-draft shortcuts remain separate", async () => {

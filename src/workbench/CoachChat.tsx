@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Clock, Leaf, Plus, Send, Square, X } from "lucide-react";
+import {
+  Clock,
+  Leaf,
+  Plus,
+  Send,
+  Square,
+  X,
+  PanelRightClose,
+  PanelRightOpen,
+  Cable,
+} from "lucide-react";
 import {
   Conversation,
   dateKey,
@@ -16,10 +26,23 @@ import {
 } from "./model";
 import PlanCards from "./PlanCards";
 import AdjustmentCards from "./AdjustmentCards";
+import ConnectionDiagnostics from "./ConnectionDiagnostics";
+import { storagePrefix } from "./editorDraft";
+import "./coach-controls.css";
 
 const directive = planDirective;
 const scopeLabel = (context: DiscussionContext) =>
-  `${context.date} · ${context.stepText || context.taskTitle || "当天计划与记录"}`;
+  `${context.date} · ${context.stepText || context.taskTitle || context.projectTitle || "当天计划与记录"}`;
+const readComposer = (key: string) => {
+  try {
+    return { text: localStorage.getItem(key) || "", error: "" };
+  } catch {
+    return {
+      text: "",
+      error: "输入草稿无法读取。请检查本地存储后重新打开，暂未发送消息。",
+    };
+  }
+};
 const applyReply = (messages: Message[], requestId: string, reply: Message) =>
   messages.map((message) => {
     if (message.id === reply.id)
@@ -54,22 +77,66 @@ export default function CoachChat({
   onSaved,
   onClearSelection,
   prefill,
+  storageScope,
+  collapsed = false,
+  onToggleCollapsed,
+  selectedProject,
 }: {
   selected?: Row;
   date: string;
   onSaved: () => void;
   onClearSelection: () => void;
-  prefill?: {text:string;serial:number};
+  prefill?: { text: string; serial: number };
+  storageScope?: string;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  selectedProject?: { id: string; title: string };
 }) {
   const [session, setSession] = useState<string>();
   const [sessions, setSessions] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState(
-    () => localStorage.getItem("inky-wb-composer") || "",
-  );
+  const composerKey = storageScope
+    ? `${storagePrefix(storageScope)}composer`
+    : "inky-wb-composer";
+  const [initialComposer] = useState(() => readComposer(composerKey));
+  const [text, setText] = useState(initialComposer.text);
+  const [composerError, setComposerError] = useState(initialComposer.error);
+  const [draftNotice, setDraftNotice] = useState("");
+  const draftText = useRef(text);
+  const draftKey = useRef(composerKey);
+  const saveText = (value: string) => {
+    draftText.current = value;
+    setText(value);
+    try {
+      if (value) localStorage.setItem(composerKey, value);
+      else localStorage.removeItem(composerKey);
+      setComposerError("");
+      return true;
+    } catch {
+      setComposerError(
+        "输入草稿未能保存。文字保留在此页，请检查本地存储后重试。",
+      );
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (draftKey.current === composerKey) return;
+    const next = readComposer(composerKey);
+    draftKey.current = composerKey;
+    draftText.current = next.text;
+    setText(next.text);
+    setComposerError(next.error);
+    setIntent("auto");
+  }, [composerKey]);
   const [intent, setIntent] =
     useState<NonNullable<DiscussionContext["intent"]>>("auto");
-  useEffect(()=>{if(prefill){setText(prefill.text);setIntent("plan");}},[prefill]);
+  useEffect(() => {
+    if (prefill) {
+      saveText(prefill.text);
+      setIntent("plan");
+      setDraftNotice("已放入输入框，发送后再讨论。");
+    }
+  }, [prefill]);
   const [busy, setBusy] = useState(false);
   const [replyContext, setReplyContext] = useState<DiscussionContext>();
   const currentContext: DiscussionContext = {
@@ -80,6 +147,8 @@ export default function CoachChat({
     selectedTaskId: selected?.task.id ?? null,
     selectedStepId: selected?.step?.id ?? null,
     selectedDayItemId: selected?.item?.id ?? null,
+    selectedProjectId: selectedProject?.id ?? null,
+    projectTitle: selectedProject?.title ?? null,
     taskTitle: selected?.task.title ?? null,
     stepText: selected?.step?.text ?? null,
   };
@@ -87,6 +156,7 @@ export default function CoachChat({
   const dayName =
     currentContext.date === dateKey() ? "今天" : dateLabel(currentContext.date);
   const [history, setHistory] = useState(false);
+  const [diagnostics, setDiagnostics] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [permission, setPermission] = useState<{
@@ -220,12 +290,18 @@ export default function CoachChat({
     end.current?.scrollIntoView({ block: "end" });
   }, [messages.length, messages[messages.length - 1]?.text, status]);
   const send = async (value = text) => {
-    if (!value.trim() || sending.current) return;
+    if (!value.trim() || sending.current || composerError) return;
+    if (!saveText("")) {
+      draftText.current = value;
+      setText(value);
+      return;
+    }
     sending.current = true;
     setBusy(true);
     setError("");
     setStatus("正在连接 Hermes…");
     setHistory(false);
+    setDraftNotice("");
     const requestId = crypto.randomUUID();
     turn.current = requestId;
     const now = Date.now();
@@ -248,9 +324,7 @@ export default function CoachChat({
         context,
       },
     ]);
-    setText("");
     setIntent("auto");
-    localStorage.removeItem("inky-wb-composer");
     try {
       const r = await invoke<{
         sessionId: string;
@@ -289,11 +363,7 @@ export default function CoachChat({
             : m,
         ),
       );
-      setText((current) => {
-        const saved = current || value;
-        localStorage.setItem("inky-wb-composer", saved);
-        return saved;
-      });
+      saveText(draftText.current || value);
     } finally {
       if (turn.current === requestId) {
         sending.current = false;
@@ -313,254 +383,325 @@ export default function CoachChat({
     }
   };
   return (
-    <aside className="wk-coach" aria-label="Coach 对话">
-      <header className="wk-coach-header">
-        <div>
-          <h2>
-            Coach <i className={busy ? "working" : ""} />
-          </h2>
-          <p>围绕当前这一步</p>
-        </div>
-        <button
-          aria-label="对话历史"
-          disabled={busy}
-          onClick={() => setHistory(!history)}
-        >
-          <Clock size={20} />
-          <span>历史</span>
-        </button>
-      </header>
-      <div
-        className="wk-chat-context"
-        aria-label="Coach 讨论范围"
-        aria-live="polite"
-      >
-        <div>
-          <strong>
-            {busy ? "本次回复" : "讨论范围"} · {visibleContext.date}
-          </strong>
-          <p>
-            {visibleContext.stepText ||
-              visibleContext.taskTitle ||
-              "当天计划与记录"}
-          </p>
-          {busy &&
-            scopeLabel(visibleContext) !== scopeLabel(currentContext) && (
-              <small>下次发送：{scopeLabel(currentContext)}</small>
-            )}
-        </div>
-        {selected && (
-          <button
-            aria-label="取消任务选择，讨论当天记录"
-            onClick={onClearSelection}
-          >
-            <X size={16} />
+    <aside
+      className={`wk-coach${collapsed ? " is-collapsed" : ""}`}
+      aria-label="Coach 对话"
+    >
+      {collapsed && (
+        <div className="wk-coach-rail">
+          <button aria-label="展开 Coach" onClick={onToggleCollapsed}>
+            <PanelRightOpen size={19} />
+            展开 Coach
           </button>
-        )}
-      </div>
-      {history ? (
-        <div className="wk-history">
-          <button
-            className="wk-primary"
-            onClick={() => {
-              void load();
-              setHistory(false);
-              setError("");
-            }}
-          >
-            <Plus size={18} />
-            新对话
-          </button>
-          {sessions.map((s) => (
+          {busy && (
+            <small role="status">
+              {permission ? "等待你确认" : "正在回复"}
+            </small>
+          )}
+        </div>
+      )}
+      <div className="wk-coach-panel" hidden={collapsed}>
+        <header className="wk-coach-header">
+          <div>
+            <h2>
+              Coach <i className={busy ? "working" : ""} />
+            </h2>
+            <p>围绕当前这一步</p>
+          </div>
+          <div className="wk-coach-tools">
             <button
-              className={s.id === session ? "active" : ""}
-              key={s.id}
+              aria-label="对话历史"
+              disabled={busy}
+              onClick={() => setHistory(!history)}
+            >
+              <Clock size={20} />
+            </button>
+            <button
+              aria-label="连接检查"
+              title="连接检查"
+              aria-expanded={diagnostics}
+              onClick={() => setDiagnostics(!diagnostics)}
+            >
+              <Cable size={19} />
+            </button>
+            {onToggleCollapsed && (
+              <button
+                aria-label="收起 Coach"
+                title="收起 Coach"
+                onClick={onToggleCollapsed}
+              >
+                <PanelRightClose size={19} />
+              </button>
+            )}
+          </div>
+        </header>
+        {diagnostics && (
+          <ConnectionDiagnostics
+            busy={busy}
+            onRefreshPlan={onSaved}
+            onRetryQuestion={() => {
+              const last = [...messages]
+                .reverse()
+                .find((message) => message.role === "user");
+              if (last) {
+                saveText(last.text);
+                setIntent("auto");
+              }
+              setDraftNotice(
+                last
+                  ? "已将原问题放入输入框，请核对后发送。"
+                  : "在输入框写下问题后发送，届时再连接并调用模型。",
+              );
+            }}
+          />
+        )}
+        <div
+          className="wk-chat-context"
+          aria-label="Coach 讨论范围"
+          aria-live="polite"
+        >
+          <div>
+            <strong>
+              {busy ? "本次回复" : "讨论范围"} · {visibleContext.date}
+            </strong>
+            <p>
+              {visibleContext.stepText ||
+                visibleContext.taskTitle ||
+                visibleContext.projectTitle ||
+                "当天计划与记录"}
+            </p>
+            {busy &&
+              scopeLabel(visibleContext) !== scopeLabel(currentContext) && (
+                <small>下次发送：{scopeLabel(currentContext)}</small>
+              )}
+          </div>
+          {(selected || selectedProject) && (
+            <button
+              aria-label={
+                selected
+                  ? "取消任务选择，讨论当天记录"
+                  : "取消项目选择，讨论当天记录"
+              }
+              onClick={onClearSelection}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+        {history ? (
+          <div className="wk-history">
+            <button
+              className="wk-primary"
               onClick={() => {
-                void load(s.id).catch((e) => setError(getError(e)));
+                void load();
                 setHistory(false);
                 setError("");
               }}
             >
-              <span>{s.title}</span>
-              <small>{new Date(s.updated).toLocaleDateString("zh-CN")}</small>
+              <Plus size={18} />
+              新对话
             </button>
-          ))}
-          {!sessions.length && <p className="muted">还没有对话。</p>}
-        </div>
-      ) : (
-        <div className="wk-chat-scroll">
-          {!messages.length && (
-            <div className="wk-chat-empty">
-              <div className="wk-avatar">
-                <Leaf size={21} />
-              </div>
-              <h3>先说说，你想推进什么？</h3>
-              <p>一起拆解目标、调整安排，或者想清楚卡住的那一步。</p>
-            </div>
-          )}
-          {messages.map((m) => (
-            <article className={`wk-message ${m.role}`} key={m.id}>
-              {m.role === "assistant" && (
-                <div className="wk-message-heading">
-                  <span className="wk-avatar">
-                    <Leaf size={17} />
-                  </span>
-                  <span>Hermes Coach</span>
-                  <time>
-                    {new Date(m.created).toLocaleTimeString("zh-CN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </div>
-              )}
-              <div className="wk-message-content">
-                {m.context && (
-                  <p className="wk-message-scope">{scopeLabel(m.context)}</p>
-                )}
-                <RichText
-                  text={m.text
-                    .replace(directive, "")
-                    .replace(adjustmentDirective, "")
-                    .trim()}
-                />
-                {[...m.text.matchAll(directive)].map((match) => (
-                  <PlanCards
-                    key={match[1]}
-                    id={match[1]}
-                    streaming={m.status === "sending"}
-                    defaultDate={
-                      validDate(match[2]) ? match[2] : m.context?.date
-                    }
-                    onSaved={onSaved}
-                  />
-                ))}
-                {[...m.text.matchAll(adjustmentDirective)].map((match) => (
-                  <AdjustmentCards
-                    key={match[1]}
-                    id={match[1]}
-                    streaming={m.status === "sending"}
-                    onSaved={onSaved}
-                  />
-                ))}
-                {m.status === "interrupted" && (
-                  <small className="muted">回复已停止</small>
-                )}
-              </div>
-            </article>
-          ))}
-          {busy && (
-            <p className="wk-thinking" role="status">
-              {status}
-            </p>
-          )}
-          <div ref={end} />
-        </div>
-      )}
-      {permission && (
-        <div className="wk-permission">
-          <strong>
-            {permission.params.toolCall?.title || "Hermes 请求执行操作"}
-          </strong>
-          <p>请选择是否允许本次操作。</p>
-          {permission.params.options.map((o) => (
-            <button
-              key={o.optionId}
-              onClick={() => void answerPermission(o.optionId)}
-            >
-              {o.name}
-            </button>
-          ))}
-          <button onClick={() => void answerPermission(null)}>取消</button>
-        </div>
-      )}
-      {error && (
-        <div className="wk-chat-error" role="alert">
-          <span>{error}</span>
-          <button aria-label="关闭对话错误" onClick={() => setError("")}>
-            <X size={15} />
-          </button>
-        </div>
-      )}
-      <div className="wk-coach-shortcuts" aria-label="Coach 请求入口">
-        {(
-          [
-            { intent: "plan", label: "安排一下", text: `帮我安排${dayName}` },
-            {
-              intent: "stuck",
-              label: "我卡住了",
-              text: selected
-                ? "这一步有点难开始"
-                : "我有点卡住了，帮我明确下一步",
-            },
-            {
-              intent: "review",
-              label: "回顾一下",
-              text: `回顾${dayName}的工作`,
-            },
-          ] as const
-        ).map((shortcut) => (
-          <button
-            key={shortcut.intent}
-            type="button"
-            aria-pressed={intent === shortcut.intent}
-            onClick={() => {
-              setText(shortcut.text);
-              setIntent(shortcut.intent);
-              localStorage.setItem("inky-wb-composer", shortcut.text);
-            }}
-          >
-            {shortcut.label}
-          </button>
-        ))}
-      </div>
-      <form
-        className="wk-composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <textarea
-          aria-label="发送给 Coach"
-          placeholder="说说哪里卡住了…"
-          maxLength={16000}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setIntent("auto");
-            localStorage.setItem("inky-wb-composer", e.target.value);
-          }}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              !e.shiftKey &&
-              !e.nativeEvent.isComposing
-            ) {
-              e.preventDefault();
-              if (!busy) void send();
-            }
-          }}
-        />
-        {busy ? (
-          <button
-            type="button"
-            aria-label="停止回复"
-            onClick={() =>
-              void invoke("workbench_cancel").catch((e) =>
-                setError(getError(e)),
-              )
-            }
-          >
-            <Square size={20} />
-          </button>
+            {sessions.map((s) => (
+              <button
+                className={s.id === session ? "active" : ""}
+                key={s.id}
+                onClick={() => {
+                  void load(s.id).catch((e) => setError(getError(e)));
+                  setHistory(false);
+                  setError("");
+                }}
+              >
+                <span>{s.title}</span>
+                <small>{new Date(s.updated).toLocaleDateString("zh-CN")}</small>
+              </button>
+            ))}
+            {!sessions.length && <p className="muted">还没有对话。</p>}
+          </div>
         ) : (
-          <button aria-label="发送" disabled={!text.trim()}>
-            <Send size={22} />
-          </button>
+          <div className="wk-chat-scroll">
+            {!messages.length && (
+              <div className="wk-chat-empty">
+                <div className="wk-avatar">
+                  <Leaf size={21} />
+                </div>
+                <h3>先说说，你想推进什么？</h3>
+                <p>一起拆解目标、调整安排，或者想清楚卡住的那一步。</p>
+              </div>
+            )}
+            {messages.map((m) => (
+              <article className={`wk-message ${m.role}`} key={m.id}>
+                {m.role === "assistant" && (
+                  <div className="wk-message-heading">
+                    <span className="wk-avatar">
+                      <Leaf size={17} />
+                    </span>
+                    <span>Hermes Coach</span>
+                    <time>
+                      {new Date(m.created).toLocaleTimeString("zh-CN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                  </div>
+                )}
+                <div className="wk-message-content">
+                  {m.context && (
+                    <p className="wk-message-scope">{scopeLabel(m.context)}</p>
+                  )}
+                  <RichText
+                    text={m.text
+                      .replace(directive, "")
+                      .replace(adjustmentDirective, "")
+                      .trim()}
+                  />
+                  {[...m.text.matchAll(directive)].map((match) => (
+                    <PlanCards
+                      key={match[1]}
+                      id={match[1]}
+                      streaming={m.status === "sending"}
+                      defaultDate={
+                        validDate(match[2]) ? match[2] : m.context?.date
+                      }
+                      onSaved={onSaved}
+                    />
+                  ))}
+                  {[...m.text.matchAll(adjustmentDirective)].map((match) => (
+                    <AdjustmentCards
+                      key={match[1]}
+                      id={match[1]}
+                      streaming={m.status === "sending"}
+                      onSaved={onSaved}
+                    />
+                  ))}
+                  {m.status === "interrupted" && (
+                    <small className="muted">回复已停止</small>
+                  )}
+                </div>
+              </article>
+            ))}
+            {busy && (
+              <p className="wk-thinking" role="status">
+                {status}
+              </p>
+            )}
+            <div ref={end} />
+          </div>
         )}
-        <small>Enter 发送 · Shift + Enter 换行</small>
-      </form>
+        {permission && (
+          <div className="wk-permission">
+            <strong>
+              {permission.params.toolCall?.title || "Hermes 请求执行操作"}
+            </strong>
+            <p>请选择是否允许本次操作。</p>
+            {permission.params.options.map((o) => (
+              <button
+                key={o.optionId}
+                onClick={() => void answerPermission(o.optionId)}
+              >
+                {o.name}
+              </button>
+            ))}
+            <button onClick={() => void answerPermission(null)}>取消</button>
+          </div>
+        )}
+        {error && (
+          <div className="wk-chat-error" role="alert">
+            <span>{error}</span>
+            <button aria-label="关闭对话错误" onClick={() => setError("")}>
+              <X size={15} />
+            </button>
+          </div>
+        )}
+        <div className="wk-coach-shortcuts" aria-label="Coach 请求入口">
+          {(
+            [
+              { intent: "plan", label: "安排一下", text: `帮我安排${dayName}` },
+              {
+                intent: "stuck",
+                label: "我卡住了",
+                text: selected
+                  ? "这一步有点难开始"
+                  : "我有点卡住了，帮我明确下一步",
+              },
+              {
+                intent: "review",
+                label: "回顾一下",
+                text: `回顾${dayName}的工作`,
+              },
+            ] as const
+          ).map((shortcut) => (
+            <button
+              key={shortcut.intent}
+              type="button"
+              aria-pressed={intent === shortcut.intent}
+              onClick={() => {
+                saveText(shortcut.text);
+                setIntent(shortcut.intent);
+              }}
+            >
+              {shortcut.label}
+            </button>
+          ))}
+        </div>
+        {(draftNotice || composerError) && (
+          <p
+            className="wk-coach-draft-notice"
+            role={composerError ? "alert" : "status"}
+          >
+            {composerError || draftNotice}
+          </p>
+        )}
+        <form
+          className="wk-composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          <textarea
+            aria-label="发送给 Coach"
+            placeholder="说说哪里卡住了…"
+            maxLength={16000}
+            value={text}
+            onChange={(e) => {
+              saveText(e.target.value);
+              setIntent("auto");
+              setDraftNotice("");
+            }}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                if (!busy) void send();
+              }
+            }}
+          />
+          {busy ? (
+            <button
+              type="button"
+              aria-label="停止回复"
+              onClick={() =>
+                void invoke("workbench_cancel").catch((e) =>
+                  setError(getError(e)),
+                )
+              }
+            >
+              <Square size={20} />
+            </button>
+          ) : (
+            <button
+              aria-label="发送"
+              disabled={!text.trim() || !!composerError}
+            >
+              <Send size={22} />
+            </button>
+          )}
+          <small>Enter 发送 · Shift + Enter 换行</small>
+        </form>
+      </div>
     </aside>
   );
 }

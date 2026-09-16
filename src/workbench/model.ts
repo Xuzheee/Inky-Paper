@@ -37,6 +37,8 @@ export const mutate = <T = Record<string, unknown>>(
   input: Record<string, unknown>,
 ) => paper<T>(action, { requestId: crypto.randomUUID(), ...input });
 export type DiscussionContext = {
+  selectedProjectId?: string | null;
+  projectTitle?: string | null;
   date: string;
   selectedTaskId: string | null;
   selectedStepId: string | null;

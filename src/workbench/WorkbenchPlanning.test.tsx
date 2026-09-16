@@ -21,12 +21,24 @@ vi.mock("./useDailyRecords", () => ({ useDailyRecords: () => ({}) }));
 vi.mock("./CoachChat", () => ({
   default: ({
     selected,
+    collapsed,
+    onToggleCollapsed,
+    prefill,
   }: {
     selected?: { step?: { id: string }; item?: { date: string } };
+    collapsed?: boolean;
+    onToggleCollapsed?: () => void;
+    prefill?: { text: string };
   }) => (
-    <div data-testid="coach-scope">
-      {selected?.step?.id} / {selected?.item?.date}
-    </div>
+    <>
+      <div data-testid="coach-scope">
+        {selected?.step?.id} / {selected?.item?.date}
+      </div>
+      <button onClick={onToggleCollapsed}>
+        {collapsed ? "展开 Coach" : "收起 Coach"}
+      </button>
+      <div data-testid="coach-prefill">{prefill?.text}</div>
+    </>
   ),
 }));
 const today = dateKey();
@@ -40,6 +52,29 @@ const makeItem = (id: string, date: string): DayItem => ({
   removedAt: null,
   startMinute: 540,
   durationMinutes: 30,
+});
+
+it("expands a collapsed Coach for the budget discussion entry without submitting a request", async () => {
+  render(<Workbench />);
+  fireEvent.click(await screen.findByRole("button", { name: "收起 Coach" }));
+  expect(
+    document.querySelector(".wk-app")!.classList.contains("wk-coach-collapsed"),
+  ).toBe(true);
+  const budget = document.querySelector(".wk-capacity")!;
+  fireEvent.click(budget.querySelector("summary")!);
+  fireEvent.click(screen.getByRole("button", { name: "请 Coach 帮我取舍" }));
+  expect(
+    document.querySelector(".wk-app")!.classList.contains("wk-coach-collapsed"),
+  ).toBe(false);
+  expect(screen.getByTestId("coach-prefill").textContent).toContain(
+    `请根据 ${today} 的可投入时间`,
+  );
+  expect(writes).toHaveLength(0);
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.some(([command]) => command === "workbench_send"),
+  ).toBe(false);
 });
 let data: State;
 let writes: { action: string; input: Record<string, any> }[];
@@ -378,9 +413,7 @@ it("shows the latest cue for the selected step in its task details", async () =>
     session("session-a2", "step", 3000, "从第三行的原始数据继续"),
   ];
   render(<Workbench />);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "继续核对数字" }),
-  );
+  fireEvent.click(await screen.findByRole("button", { name: "继续核对数字" }));
   const cue = screen.getByText("从第三行的原始数据继续");
   expect(cue.closest(".wk-step-cue")?.getAttribute("data-session-id")).toBe(
     "session-a2",
@@ -405,12 +438,8 @@ it("opens the notes workspace without day views and returns to a linked task's v
   fireEvent.click(await screen.findByRole("button", { name: "随手记整理" }));
   await screen.findByRole("region", { name: "随手记整理" });
   expect(screen.queryByRole("tablist", { name: "计划视图" })).toBeNull();
-  expect(
-    screen.queryByRole("button", { name: "今天" }),
-  ).toBeNull();
-  expect(
-    screen.queryByRole("button", { name: "批量改期" }),
-  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "今天" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "批量改期" })).toBeNull();
   expect(document.querySelector(".wk-capacity")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "全部" }));
   fireEvent.click(screen.getByRole("button", { name: "打开任务" }));

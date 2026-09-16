@@ -55,3 +55,11 @@
 .wk-context .muted {
   color: #797f75;
 }
+.wk-context-page {
+  overflow: auto;
+  padding: 0 28px 28px;
+  min-height: 0;
+}
+.wk-projects button {
+  overflow-wrap: anywhere;
+}

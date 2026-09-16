@@ -116,7 +116,7 @@ export default function DayCapacity({
   return (
     <details className="wk-context wk-capacity">
       <summary>
-        {date} · 预留 {capacity?.reservedMinutes ?? "…"} 分钟
+        {date} · 全日预留 {capacity?.reservedMinutes ?? "…"} 分钟
         {capacity?.unestimatedCount
           ? ` · ${capacity.unestimatedCount} 项未估计`
           : ""}

@@ -88,6 +88,12 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
     let sampled_at = now.timestamp_millis();
     let offset = now.offset().local_minus_utc() / 60;
     let state = crate::paper::load(c)?;
+    let selected_project = match input.get("selectedProjectId") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(id)) if !id.is_empty() && id.chars().count()<=100 => Some(state.planning.context.projects.iter().find(|p|p.id==*id).ok_or("CONFLICT: 所选项目已不存在，请刷新后重试")?),
+        _ => return Err("INVALID_INPUT: selectedProjectId".into())
+    };
+    let in_project = |task_id:&str| selected_project.is_none_or(|project| state.tasks.iter().any(|task|task.id==task_id && task.project_id.as_ref()==Some(&project.id)));
     let task = task_id
         .as_ref()
         .map(|id| {
@@ -98,6 +104,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
                 .ok_or("CONFLICT: 所选任务已不存在，请刷新后重试")
         })
         .transpose()?;
+    if task.is_some_and(|task| !in_project(&task.id)) { return Err("CONFLICT: 所选任务已不属于当前项目，请重新选择".into()); }
     let step = step_id
         .as_ref()
         .map(|id| {
@@ -152,7 +159,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
                 .planning
                 .day_items
                 .iter()
-                .filter(|item| item.date == date && item.removed_at.is_none())
+                .filter(|item| item.date == date && item.removed_at.is_none() && in_project(&item.task_id))
                 .collect();
             items.sort_by(|a, b| a.order.cmp(&b.order).then_with(|| a.id.cmp(&b.id)));
             counts["dayPlan"] = json!(items.len());
@@ -211,7 +218,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
                 .map(|item| (item.task_id.as_str(), item.step_id.as_str()))
                 .collect();
             let mut unplanned = Vec::new();
-            for task in state.tasks.iter().filter(|task| !task.completed) {
+            for task in state.tasks.iter().filter(|task| !task.completed && in_project(&task.id)) {
                 let steps: Vec<_> = state
                     .planning
                     .steps
@@ -323,8 +330,9 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
         _ => {}
     }
     let mut relevant_tasks: BTreeSet<&str> = versions.tasks.keys().map(String::as_str).collect();
-    for item in &state.planning.day_items { if item.date==date && item.removed_at.is_none() { relevant_tasks.insert(&item.task_id); } }
-    let project_ids: BTreeSet<&str> = state.tasks.iter().filter(|task| relevant_tasks.contains(task.id.as_str())).filter_map(|task|task.project_id.as_deref()).collect();
+    for item in &state.planning.day_items { if item.date==date && item.removed_at.is_none() && in_project(&item.task_id) { relevant_tasks.insert(&item.task_id); } }
+    let mut project_ids: BTreeSet<&str> = state.tasks.iter().filter(|task| relevant_tasks.contains(task.id.as_str())).filter_map(|task|task.project_id.as_deref()).collect();
+    if let Some(project)=selected_project { project_ids.insert(&project.id); }
     let projects:Vec<_>=state.planning.context.projects.iter().filter(|p|project_ids.contains(p.id.as_str())).collect();
     counts["projects"]=json!(projects.len()); truncated["projects"]=json!(projects.len()>20);
     facts["projects"]=json!(projects.into_iter().take(20).collect::<Vec<_>>());
@@ -335,6 +343,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
         "today":now.format("%Y-%m-%d").to_string(),"utcOffsetMinutes":offset,
         "sampledAt":sampled_at,"intent":intent,"resolvedIntent":intent,
         "selectedTaskId":task_id,"selectedStepId":step_id,"selectedDayItemId":item_id,
+        "selectedProjectId":selected_project.map(|p| &p.id),"projectTitle":selected_project.map(|p| &p.title),
         "taskTitle":task.map(|task| &task.title),"stepText":step.map(|step| &step.text),
         "temporaryConstraints":{"text":message,"scope":"request"},
         "latestFacts":facts,
@@ -363,6 +372,25 @@ mod tests {
         let last=build(&c,scope,"继续").unwrap();
         assert_eq!(last["latestFacts"]["currentPreferences"]["items"],json!([]));
         assert!(last["latestFacts"]["currentPreferences"]["revision"].as_u64().unwrap()>first["latestFacts"]["currentPreferences"]["revision"].as_u64().unwrap());
+    }
+    #[test]
+    fn project_filter_limits_planning_facts_and_reads_current_background() {
+        let mut c=db(); let (task_id,step_id,_)=ids(&c);
+        let project=uuid::Uuid::new_v4().to_string();
+        let request=|input:Value| {let mut v=input;v["requestId"]=json!(uuid::Uuid::new_v4().to_string());v};
+        crate::paper::execute(&mut c,"save_project",request(json!({"projectId":project,"expectedRevision":0,"title":"项目A","goal":"先核对两项","criteria":"结果可复核","referenceLinks":["https://example.com"],"archived":false})),"user").unwrap();
+        let revision=crate::paper::load(&c).unwrap().tasks.iter().find(|t|t.id==task_id).unwrap().revision;
+        crate::paper::execute(&mut c,"set_task_project",request(json!({"taskId":task_id,"expectedTaskRevision":revision,"projectId":project,"expectedProjectRevision":1})),"user").unwrap();
+        let scope=json!({"date":DATE,"intent":"plan","selectedProjectId":project});
+        let result=build(&c,scope.clone(),"安排这个项目").unwrap();
+        assert_eq!(result["projectTitle"],"项目A");
+        for row in result["latestFacts"]["dayPlan"].as_array().unwrap(){assert_eq!(row["task"]["projectId"],project);}
+        for row in result["latestFacts"]["unplanned"].as_array().unwrap(){assert_eq!(row["task"]["projectId"],project);}
+        assert_eq!(result["latestFacts"]["projects"][0]["goal"],"先核对两项");
+        assert!(result["latestFacts"]["referenceLinksRule"].as_str().unwrap().contains("尚未读取"));
+        let _=step_id;
+        crate::paper::execute(&mut c,"save_project",request(json!({"projectId":project,"expectedRevision":1,"title":"项目A","goal":"先明确接口范围","criteria":"结果可复核","referenceLinks":[],"archived":false})),"user").unwrap();
+        assert_eq!(build(&c,scope,"再安排").unwrap()["latestFacts"]["projects"][0]["goal"],"先明确接口范围");
     }
     const DATE: &str = "2030-03-04";
     fn db() -> Connection {

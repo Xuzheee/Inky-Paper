@@ -30,6 +30,9 @@ import {
   type LeftoverPlan,
 } from "../shared/planning";
 import CoachChat from "./CoachChat";
+import ProjectsPanel from "./ProjectsPanel";
+import TaskProject from "./TaskProject";
+import PreferencesPanel from "./PreferencesPanel";
 import DayCapacity from "./DayCapacity";
 import BulkReschedule from "./BulkReschedule";
 import NotesInbox from "./NotesInbox";
@@ -661,13 +664,17 @@ export default function Workbench() {
     text: string;
     serial: number;
   }>();
+  const [coachCollapsed, setCoachCollapsed] = useState(false);
   const [month, setMonth] = useState(() => dateKey().slice(0, 7));
   const [view, setView] = useState<
     "tasks" | "calendar" | "record" | "markdown"
   >("tasks");
   const [documentKind, setDocumentKind] = useState("day");
   const [recordsRevision, setRecordsRevision] = useState(0);
-  const [nav, setNav] = useState<"week" | "inbox" | "notes">("week");
+  const [nav, setNav] = useState<"week" | "inbox" | "notes" | "context">(
+    "week",
+  );
+  const [projectFilter, setProjectFilter] = useState("");
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [editor, setEditor] = useState<{
@@ -745,7 +752,11 @@ export default function Workbench() {
   const key = (r: Row) => r.item?.id || r.step?.id || r.task.id;
   const selected = [...rows, ...loose].find((r) => key(r) === selectedId);
   const visible = (items: Row[]) =>
-    items.filter((r) => !filter || r.task.category === filter);
+    items.filter(
+      (r) =>
+        (!filter || r.task.category === filter) &&
+        (!projectFilter || r.task.projectId === projectFilter),
+    );
   const finishAction = async (
     submit: () => Promise<Record<string, unknown>>,
   ) => {
@@ -1004,6 +1015,14 @@ export default function Workbench() {
                 </div>
               ))}
             <TaskMetadata task={r.task} step={r.step} />
+            {state && storageScope && (
+              <TaskProject
+                task={r.task}
+                state={state}
+                storageScope={storageScope}
+                onSaved={() => void reload()}
+              />
+            )}
             {cue && (
               <div className="wk-step-cue" data-session-id={cue.sessionId}>
                 <strong>下次从这里继续</strong>
@@ -1065,7 +1084,7 @@ export default function Workbench() {
   };
   const monday = shiftDay(day, -((parseDate(day).getDay() + 6) % 7));
   return (
-    <main className="wk-app">
+    <main className={`wk-app${coachCollapsed ? " wk-coach-collapsed" : ""}`}>
       <aside className="wk-sidebar">
         <div className="wk-brand">
           <Leaf size={30} />
@@ -1109,10 +1128,13 @@ export default function Workbench() {
         </section>
         <nav className="wk-nav">
           <button
-            className={nav === "week" && !filter ? "active" : ""}
+            className={
+              nav === "week" && !filter && !projectFilter ? "active" : ""
+            }
             onClick={() => {
               setNav("week");
               setFilter("");
+              setProjectFilter("");
               goDay(dateKey());
             }}
           >
@@ -1125,6 +1147,7 @@ export default function Workbench() {
               setNav("inbox");
               setSelectedId("");
               setFilter("");
+              setProjectFilter("");
             }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => drop(e, null)}
@@ -1136,6 +1159,7 @@ export default function Workbench() {
             className={nav === "notes" ? "active" : ""}
             onClick={() => {
               setNav("notes");
+              setProjectFilter("");
               setView("tasks");
               setSelectedId("");
               setFilter("");
@@ -1150,7 +1174,7 @@ export default function Workbench() {
             className="wk-project-heading"
             onClick={() => setShowProjects(!showProjects)}
           >
-            项目
+            分类
             <ChevronDown size={18} className={!showProjects ? "closed" : ""} />
           </button>
           {showProjects &&
@@ -1159,7 +1183,8 @@ export default function Workbench() {
                 key={k}
                 className={filter === k ? "active" : ""}
                 onClick={() => {
-                  if (nav === "notes") setNav("week");
+                  if (nav === "notes" || nav === "context") setNav("week");
+                  setProjectFilter("");
                   setFilter(filter === k ? "" : k);
                   setSelectedId("");
                   if (singleDay) setView("tasks");
@@ -1169,6 +1194,44 @@ export default function Workbench() {
                 {v}
               </button>
             ))}
+        </div>
+        <div className="wk-projects" aria-label="项目筛选">
+          <p className="wk-project-heading">项目</p>
+          {(state?.planning?.context?.projects || [])
+            .filter(
+              (p) =>
+                !p.archived || state?.tasks.some((t) => t.projectId === p.id),
+            )
+            .map((project) => (
+              <button
+                key={project.id}
+                title={project.title}
+                className={projectFilter === project.id ? "active" : ""}
+                onClick={() => {
+                  setProjectFilter(
+                    projectFilter === project.id ? "" : project.id,
+                  );
+                  setFilter("");
+                  setSelectedId("");
+                  setNav("week");
+                  setView("tasks");
+                }}
+              >
+                {project.title}
+                {project.archived ? "（已归档）" : ""}
+              </button>
+            ))}
+          <button
+            onClick={() => {
+              setNav("context");
+              setSelectedId("");
+              setFilter("");
+              setProjectFilter("");
+              setView("tasks");
+            }}
+          >
+            管理项目与偏好
+          </button>
         </div>
         <div className="wk-side-bottom">
           <button
@@ -1202,13 +1265,15 @@ export default function Workbench() {
         <div className="wk-hero">
           <div>
             <h2>
-              {nav === "notes"
-                ? "整理随手记"
-                : nav === "inbox"
-                  ? "先放在这里，慢慢理清。"
-                  : singleDay
-                    ? "这一天，留下足迹。"
-                    : "这一周，慢慢推进。"}
+              {nav === "context"
+                ? "项目与偏好"
+                : nav === "notes"
+                  ? "整理随手记"
+                  : nav === "inbox"
+                    ? "先放在这里，慢慢理清。"
+                    : singleDay
+                      ? "这一天，留下足迹。"
+                      : "这一周，慢慢推进。"}
             </h2>
             {nav !== "notes" && (
               <div className="wk-date-controls">
@@ -1232,6 +1297,9 @@ export default function Workbench() {
             {nav !== "notes" && (
               <p>
                 {filter && !singleDay ? `${categories[filter]} · ` : ""}
+                {projectFilter && !singleDay
+                  ? `${state?.planning?.context?.projects?.find((p) => p.id === projectFilter)?.title || "项目"} · `
+                  : ""}
                 {singleDay ? (
                   day
                 ) : (
@@ -1372,7 +1440,9 @@ export default function Workbench() {
             scope={storageScope}
             onSaved={() => void reload()}
             onDiscuss={(text) => {
+              setCoachCollapsed(false);
               setSelectedId("");
+              setProjectFilter("");
               setCoachPrefill({ text, serial: Date.now() });
             }}
           />
@@ -1389,18 +1459,40 @@ export default function Workbench() {
         {state && nav === "week" && !singleDay && (
           <LeftoverPlans
             groups={plans.leftovers.filter(
-              (group) => !filter || group.task.category === filter,
+              (group) =>
+                (!filter || group.task.category === filter) &&
+                (!projectFilter || group.task.projectId === projectFilter),
             )}
             busy={blocked}
             onContinue={continueToday}
             onEdit={(row) => setEditor({ row, date: row.item!.date })}
             onCancel={(row) => previewCancel(row, "selected")}
             onUnplan={(row) => previewCancel(row, "unexecuted")}
-            onDiscuss={(row) => setSelectedId(key(row))}
+            onDiscuss={(row) => {
+              setSelectedId(key(row));
+              setCoachCollapsed(false);
+            }}
           />
         )}
         {!state ? (
           <p className="wk-loading">正在读取工作记录…</p>
+        ) : nav === "context" ? (
+          storageScope ? (
+            <div className="wk-context-page">
+              <ProjectsPanel
+                state={state}
+                storageScope={storageScope}
+                onSaved={() => void reload()}
+              />
+              <PreferencesPanel
+                state={state}
+                storageScope={storageScope}
+                onSaved={() => void reload()}
+              />
+            </div>
+          ) : (
+            <p>正在读取本地设置…</p>
+          )
         ) : nav === "notes" ? (
           storageScope ? (
             <NotesInbox
@@ -1411,6 +1503,7 @@ export default function Workbench() {
                 const row = [...loose, ...rows].find((r) => r.task.id === id);
                 setView("tasks");
                 setFilter("");
+                setProjectFilter("");
                 if (row?.item) {
                   goDay(row.item.date);
                   setSelectedId(key(row));
@@ -1682,10 +1775,24 @@ export default function Workbench() {
       </section>
       {storageScope && (
         <CoachChat
+          key={storageScope}
+          collapsed={coachCollapsed}
+          onToggleCollapsed={() => setCoachCollapsed((value) => !value)}
+          selectedProject={
+            !singleDay && (nav === "week" || nav === "inbox")
+              ? state?.planning?.context?.projects?.find(
+                  (p) => p.id === projectFilter,
+                )
+              : undefined
+          }
+          storageScope={storageScope}
           prefill={coachPrefill}
           selected={singleDay ? undefined : selected}
           date={day}
-          onClearSelection={() => setSelectedId("")}
+          onClearSelection={() => {
+            setSelectedId("");
+            setProjectFilter("");
+          }}
           onSaved={() => void reload()}
         />
       )}

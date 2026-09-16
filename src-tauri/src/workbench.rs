@@ -680,17 +680,20 @@ fn send(
         json!({"sessionId":session,"prompt":[{"type":"text","text":prompt}]}),
         600,
     );
-    if !rt.cancelled.load(Ordering::SeqCst) {
-        rt.model_status.store(if result.is_ok() { 1 } else { 2 }, Ordering::SeqCst);
-    }
     if result.is_err() {
         p.stop();
     }
     let turn = p.active.lock().map_err(err)?.take();
     let text = turn.map(|x| x.text).unwrap_or_default();
+    // Hermes may report exhausted provider retries as end_turn with a diagnostic
+    // sentence instead of a JSON-RPC error. That is not a successful model answer.
+    let provider_failed = terminal_provider_failure(&text);
+    if !rt.cancelled.load(Ordering::SeqCst) {
+        rt.model_status.store(if result.is_ok() && !provider_failed { 1 } else { 2 }, Ordering::SeqCst);
+    }
     let status = if rt.cancelled.load(Ordering::SeqCst) {
         "interrupted"
-    } else if result.is_err() {
+    } else if result.is_err() || provider_failed {
         "error"
     } else if result
         .as_ref()
@@ -701,7 +704,9 @@ fn send(
     } else {
         "done"
     };
-    let text = if text.is_empty() {
+    let text = if provider_failed {
+        "模型连接未能完成这次回复。请在连接检查中查看状态，再手动重试原问题。".into()
+    } else if text.is_empty() {
         if status == "interrupted" {
             "已停止回复。".into()
         } else {
@@ -724,6 +729,8 @@ fn send(
     p.permissions.lock().map_err(err)?.clear();
     let error = if status == "interrupted" {
         None
+    } else if provider_failed {
+        Some("模型连接失败，请检查连接后手动重试。".to_string())
     } else {
         result.err()
     };
@@ -746,8 +753,21 @@ pub async fn workbench_send(
     .map_err(err)?
 }
 
+fn terminal_provider_failure(text: &str) -> bool {
+    text.trim().strip_prefix("API call failed after ")
+        .and_then(|rest| rest.split_once(" retries:"))
+        .is_some_and(|(count, _)| count.parse::<u32>().is_ok())
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn exhausted_provider_retries_are_not_successful_model_answers() {
+        assert!(super::terminal_provider_failure("API call failed after 3 retries: Connection error."));
+        assert!(!super::terminal_provider_failure("正常建议：先核对两项数字。"));
+        assert!(!super::terminal_provider_failure("日志中提到 API call failed after 3 retries: Connection error."));
+        assert!(!super::terminal_provider_failure("API call failed after some retries: quoted text"));
+    }
     use super::*;
 
     #[test]

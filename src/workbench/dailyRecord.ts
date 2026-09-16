@@ -3,6 +3,7 @@ import type {
   DayItem,
   ManualStepChange,
   PlanStep,
+  PlanChange,
   Session,
   State,
   Task,
@@ -13,8 +14,14 @@ export type DailyRecord = {
   date: string;
   utcOffsetMinutes: number;
   planItems: (DayItem & { task: Task | null; step: PlanStep | null })[];
-  sessions: (Session & { dailySeconds: number; timePrecision: string })[];
+  sessions: (Session & {
+    dailySeconds: number;
+    timePrecision: string;
+    dayItemId?: string | null;
+    planDate?: string | null;
+  })[];
   manualStepChanges?: ManualStepChange[];
+  planChanges?: PlanChange[];
   notes: State["notes"];
   workBlocks: WorkBlock[];
   summaries: {
@@ -87,6 +94,11 @@ export function datesWithRecords(state: State | null | undefined) {
   state?.planning?.manualStepChanges?.forEach((change) =>
     add(change.recordedAt),
   );
+  state?.planning?.planChanges?.forEach((change) => {
+    add(change.recordedAt);
+    if (change.before) days.add(change.before.date);
+    if (change.after) days.add(change.after.date);
+  });
   return days;
 }
 

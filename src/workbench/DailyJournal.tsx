@@ -2,6 +2,21 @@ import { Check, FileText, RotateCcw } from "lucide-react";
 import { dailyStats, durationLabel } from "./dailyRecord";
 import type { DayEntry } from "./useDailyRecords";
 import TaskMetadata from "./TaskMetadata";
+import type { DayItem, State } from "../paper/paperTypes";
+import { planItemLabel } from "./LeftoverPlans";
+
+const changeLabels: Record<string, string> = {
+  workbench_save_step: "保存安排",
+  workbench_move_item: "改期或调整顺序",
+  continue_plan_items: "继续原步骤",
+  cancel_plan_items: "取消安排",
+  adopt_plan_cards: "采用候选",
+  remove_plan_item: "移除安排",
+};
+const snapshotLabel = (item: DayItem | null) =>
+  !item
+    ? "尚无这条安排"
+    : `${planItemLabel(item)} · ${item.removedAt != null ? "已取消" : item.resolvedAt != null ? "旧安排已处理" : "有效安排"}`;
 
 const at = (value: number) =>
   new Date(value).toLocaleString("zh-CN", {
@@ -14,10 +29,12 @@ export default function DailyJournal({
   date,
   entry,
   openMarkdown,
+  state,
 }: {
   date: string;
   entry?: DayEntry;
   openMarkdown: (kind?: string) => void;
+  state?: State;
 }) {
   const record = entry?.record;
   if (entry?.error)
@@ -104,6 +121,59 @@ export default function DailyJournal({
           </div>
         ))}
       </section>
+      {!!record.planChanges?.length && (
+        <section className="wk-record-section">
+          <h3>安排变更</h3>
+          <p className="wk-record-help">
+            下面保留变更前后的安排快照；步骤名称取当前信息，执行记录不会随改期变化。
+          </p>
+          {record.planChanges.map((change) => {
+            const target = change.after || change.before;
+            const current = record.planItems.find(
+              (item) => item.stepId === target?.stepId,
+            );
+            const step =
+              state?.planning?.steps.find(
+                (item) => item.id === target?.stepId,
+              ) || current?.step;
+            return (
+              <details
+                className="wk-record-item wk-plan-change"
+                key={change.id}
+              >
+                <summary>
+                  <span>
+                    {changeLabels[change.operation] || "调整安排"}
+                    {step ? ` · ${step.text}` : ""}
+                  </span>
+                  <small>{at(change.recordedAt)}</small>
+                </summary>
+                <p>
+                  <strong>变更前：</strong>
+                  {snapshotLabel(change.before)}
+                </p>
+                <p>
+                  <strong>变更后：</strong>
+                  {snapshotLabel(change.after)}
+                </p>
+                {change.before &&
+                  change.after &&
+                  change.before.order !== change.after.order && (
+                    <p className="wk-record-help">顺序同时调整。</p>
+                  )}
+                {change.after?.continuedTo && (
+                  <p className="wk-record-help">
+                    已关联后续安排，继续使用原步骤。
+                  </p>
+                )}
+                <p className="wk-record-help" data-step-id={target?.stepId}>
+                  {step ? `对应步骤：${step.text}` : "原步骤当前不可用"}
+                </p>
+              </details>
+            );
+          })}
+        </section>
+      )}
       <section className="wk-record-section">
         <h3>实际记录</h3>
         <p className="wk-record-help">
@@ -138,6 +208,11 @@ export default function DailyJournal({
               </p>
             )}
             {session.feedback?.output && <p>产出：{session.feedback.output}</p>}
+            {session.kind !== "rest" && (
+              <p className="wk-record-help">
+                原安排：{session.planDate || "计划外 / 未关联安排"}
+              </p>
+            )}
             {session.feedback?.blocker && (
               <p>卡点：{session.feedback.blocker}</p>
             )}

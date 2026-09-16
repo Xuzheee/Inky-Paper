@@ -23,11 +23,14 @@ import {
   ExternalLink,
   RefreshCw,
 } from "lucide-react";
-import type { State } from "../paper/paperTypes";
+import type { DayItem, State } from "../paper/paperTypes";
+import { planningViews, type LeftoverPlan } from "../shared/planning";
 import CoachChat from "./CoachChat";
 import DailyJournal from "./DailyJournal";
 import MarkdownJournal from "./MarkdownJournal";
 import TaskMetadata, { priorityLabels } from "./TaskMetadata";
+import LeftoverPlans, { planItemLabel } from "./LeftoverPlans";
+import { usePlanRequest } from "./usePlanRequest";
 import { dailyStats, datesWithRecords, durationLabel } from "./dailyRecord";
 import { useDailyRecords } from "./useDailyRecords";
 import {
@@ -37,7 +40,6 @@ import {
   dateKey,
   getError,
   minutes,
-  mutate,
   prepareStepInInky,
   paper,
   parseDate,
@@ -128,13 +130,16 @@ export function StepEditor({
     stepId: row?.step?.id || crypto.randomUUID(),
   });
   const [review, setReview] = useState(false);
+  const request = usePlanRequest();
   const save = async () => {
     setBusy(true);
     setError("");
     try {
       if (day && !validDate(day)) throw Error("请选择有效的安排日期。");
       if (dueDate && !validDate(dueDate)) throw Error("请选择有效的截止日期。");
-      await mutate("workbench_save_step", {
+      if (base?.item && !day)
+        throw Error("请保留安排日期；取消安排可在任务详情中操作。");
+      const input = {
         ...ids.current,
         expectedTaskRevision: base?.task.revision ?? null,
         expectedStepRevision: base?.step?.revision ?? null,
@@ -158,7 +163,9 @@ export function StepEditor({
         expectedItemRevision: base?.item?.revision ?? null,
         startMinute: time && day ? minutes(time) : null,
         durationMinutes: time && day ? duration : null,
-      });
+      };
+      if (request.pending && !request.definitiveFailure) await request.retry();
+      else await request.submit("workbench_save_step", input);
       onSaved();
       onClose();
     } catch (e) {
@@ -180,13 +187,16 @@ export function StepEditor({
       latestStep?.revision !== base.step?.revision ||
       state.planning?.dayItems.find((i) => i.id === base.item?.id)?.revision !==
         base.item?.revision);
+  const closeEditor = () => {
+    if (busy) return;
+    if (request.pending && !request.definitiveFailure) {
+      setError("保存结果尚未确认。请先点击“核实并重试”，确认后再关闭。");
+      return;
+    }
+    onClose();
+  };
   return (
-    <Dialog
-      title={row ? "修改计划" : "添加任务"}
-      onClose={() => {
-        if (!busy) onClose();
-      }}
-    >
+    <Dialog title={row ? "修改计划" : "添加任务"} onClose={closeEditor}>
       <form
         className="wk-editor"
         onSubmit={(e) => {
@@ -194,206 +204,230 @@ export function StepEditor({
           void save();
         }}
       >
-        <label>
-          任务名称
-          <input
-            autoFocus
-            required
-            maxLength={300}
-            value={title}
-            placeholder="例如：准备周五的分享"
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </label>
-        <label>
-          具体这一步 <small>可选，留空使用任务名称</small>
-          <input
-            maxLength={300}
-            value={text}
-            placeholder="例如：列出三个分享要点"
-            onChange={(e) => setText(e.target.value)}
-          />
-        </label>
-        <div className="wk-form-row">
+        <fieldset
+          className="wk-editor-fields"
+          disabled={busy || (!!request.pending && !request.definitiveFailure)}
+        >
           <label>
-            分类
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {Object.entries(categories).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            首轮时长（分钟）
+            任务名称
             <input
-              type="number"
-              min={1}
-              max={120}
+              autoFocus
               required
-              value={round}
-              onChange={(e) => setRound(Number(e.target.value))}
+              maxLength={300}
+              value={title}
+              placeholder="例如：准备周五的分享"
+              onChange={(e) => setTitle(e.target.value)}
             />
           </label>
-        </div>
-        <details
-          className="wk-editor-metadata"
-          open={
-            !!row &&
-            !!(
-              row.task.due ||
-              row.task.dueDate ||
-              row.step?.expectedResult ||
-              row.task.priority !== "medium"
-            )
-          }
-        >
-          <summary>
-            优先级与完成要求 <small>按需补充</small>
-          </summary>
+          <label>
+            具体这一步 <small>可选，留空使用任务名称</small>
+            <input
+              maxLength={300}
+              value={text}
+              placeholder="例如：列出三个分享要点"
+              onChange={(e) => setText(e.target.value)}
+            />
+          </label>
           <div className="wk-form-row">
             <label>
-              优先级
+              分类
               <select
-                aria-label="优先级"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
               >
-                {Object.entries(priorityLabels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
+                {Object.entries(categories).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
                   </option>
                 ))}
               </select>
             </label>
             <label>
-              截止日期 <small>可选</small>
-              <input
-                aria-label="截止日期"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </label>
-          </div>
-          <p className="muted">
-            截止日期是最晚完成日，与下面的安排日期分开保存。
-          </p>
-          <label>
-            截止备注 <small>保留原有说明</small>
-            <input
-              aria-label="截止备注"
-              maxLength={100}
-              value={due}
-              placeholder="例如：等对方回复后再确认"
-              onChange={(e) => setDue(e.target.value)}
-            />
-          </label>
-          <label>
-            步骤完成标准 <small>可选</small>
-            <textarea
-              aria-label="步骤完成标准"
-              rows={2}
-              maxLength={2000}
-              value={expectedResult}
-              placeholder="做到什么就算这一步完成？"
-              onChange={(e) => setExpectedResult(e.target.value)}
-            />
-          </label>
-        </details>
-        <div className="wk-form-row">
-          <label>
-            安排日期
-            <input
-              aria-label="安排日期"
-              type="date"
-              value={day}
-              onChange={(e) => setDay(e.target.value)}
-            />
-          </label>
-          <button
-            className="wk-subtle"
-            type="button"
-            onClick={() => {
-              setDay("");
-              setTime("");
-            }}
-          >
-            放入待安排
-          </button>
-        </div>
-        {day && (
-          <div className="wk-form-row">
-            <label>
-              开始时间 <small>可选</small>
-              <input
-                aria-label="开始时间"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </label>
-            <label>
-              日程时长（分钟）
+              首轮时长（分钟）
               <input
                 type="number"
-                required={!!time}
                 min={1}
-                max={1440}
-                disabled={!time}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
+                max={120}
+                required
+                value={round}
+                onChange={(e) => setRound(Number(e.target.value))}
               />
             </label>
           </div>
-        )}
-        <p className="muted">
-          日程表示你的安排，实际工作时间在 Inky 开始后记录。
-        </p>
-        {conflict && (
-          <div className="wk-stale">
-            <p>最新任务：{latest?.title}</p>
-            <p>最新步骤：{latestStep?.text}</p>
-            <TaskMetadata task={latest!} step={latestStep} />
+          <details
+            className="wk-editor-metadata"
+            open={
+              !!row &&
+              !!(
+                row.task.due ||
+                row.task.dueDate ||
+                row.step?.expectedResult ||
+                row.task.priority !== "medium"
+              )
+            }
+          >
+            <summary>
+              优先级与完成要求 <small>按需补充</small>
+            </summary>
+            <div className="wk-form-row">
+              <label>
+                优先级
+                <select
+                  aria-label="优先级"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  {Object.entries(priorityLabels).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                截止日期 <small>可选</small>
+                <input
+                  aria-label="截止日期"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </label>
+            </div>
+            <p className="muted">
+              截止日期是最晚完成日，与下面的安排日期分开保存。
+            </p>
             <label>
+              截止备注 <small>保留原有说明</small>
               <input
-                type="checkbox"
-                checked={review}
-                onChange={(e) => {
-                  setReview(e.target.checked);
-                  if (e.target.checked)
-                    setBase({
-                      task: latest!,
-                      step: latestStep,
-                      item: state.planning?.dayItems.find(
-                        (i) => i.id === base?.item?.id,
-                      ),
-                    });
-                }}
+                aria-label="截止备注"
+                maxLength={100}
+                value={due}
+                placeholder="例如：等对方回复后再确认"
+                onChange={(e) => setDue(e.target.value)}
               />
-              已核对，使用当前草稿保存
             </label>
+            <label>
+              步骤完成标准 <small>可选</small>
+              <textarea
+                aria-label="步骤完成标准"
+                rows={2}
+                maxLength={2000}
+                value={expectedResult}
+                placeholder="做到什么就算这一步完成？"
+                onChange={(e) => setExpectedResult(e.target.value)}
+              />
+            </label>
+          </details>
+          <div className="wk-form-row">
+            <label>
+              安排日期
+              <input
+                aria-label="安排日期"
+                type="date"
+                required={!!row?.item}
+                value={day}
+                onChange={(e) => setDay(e.target.value)}
+              />
+            </label>
+            {!row?.item && (
+              <button
+                className="wk-subtle"
+                type="button"
+                onClick={() => {
+                  setDay("");
+                  setTime("");
+                }}
+              >
+                放入待安排
+              </button>
+            )}
           </div>
-        )}
+          {day && (
+            <div className="wk-form-row">
+              <label>
+                开始时间 <small>可选</small>
+                <input
+                  aria-label="开始时间"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </label>
+              <label>
+                日程时长（分钟）
+                <input
+                  type="number"
+                  required={!!time}
+                  min={1}
+                  max={1440}
+                  disabled={!time}
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                />
+              </label>
+            </div>
+          )}
+          <p className="muted">
+            日程表示你的安排，实际工作时间在 Inky 开始后记录。
+          </p>
+          {conflict && (
+            <div className="wk-stale">
+              <p>最新任务：{latest?.title}</p>
+              <p>最新步骤：{latestStep?.text}</p>
+              <TaskMetadata task={latest!} step={latestStep} />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={review}
+                  onChange={(e) => {
+                    setReview(e.target.checked);
+                    if (e.target.checked)
+                      setBase({
+                        task: latest!,
+                        step: latestStep,
+                        item: state.planning?.dayItems.find(
+                          (i) => i.id === base?.item?.id,
+                        ),
+                      });
+                  }}
+                />
+                已核对，使用当前草稿保存
+              </label>
+            </div>
+          )}
+        </fieldset>
         {error && (
           <p className="wk-error" role="alert">
             {error}
           </p>
         )}
+        {request.pending && !request.definitiveFailure && (
+          <p className="muted">
+            保存结果尚未确认，草稿已保留。请先核实并重试，确认后再编辑或关闭。
+          </p>
+        )}
         <footer>
-          <button type="button" disabled={busy} onClick={onClose}>
+          <button
+            type="button"
+            disabled={busy || (!!request.pending && !request.definitiveFailure)}
+            onClick={closeEditor}
+          >
             取消
           </button>
           <button
             className="wk-primary"
-            disabled={busy || !!conflict}
+            disabled={
+              busy ||
+              (!!conflict && (!request.pending || request.definitiveFailure))
+            }
             type="submit"
           >
-            {busy ? "正在保存…" : "保存计划"}
+            {busy
+              ? "正在保存…"
+              : request.pending && !request.definitiveFailure
+                ? "核实并重试"
+                : "保存计划"}
           </button>
         </footer>
       </form>
@@ -423,6 +457,19 @@ export default function Workbench() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [showProjects, setShowProjects] = useState(true);
+  const [cancelPreview, setCancelPreview] = useState<{
+    row: Row;
+    items: DayItem[];
+    scope: "selected" | "unexecuted";
+    retained: number;
+  }>();
+  const request = usePlanRequest();
+  const blocked = busy || !!request.pending;
+  const requestEffects = useRef<{
+    message?: string | ((data: Record<string, unknown>) => string);
+    after?: (data: Record<string, unknown>) => void;
+  }>({});
+  const actionInFlight = useRef(false);
   const generation = useRef(0);
   const dragged = useRef<Row>();
   const timeline = useRef<HTMLDivElement>(null);
@@ -460,50 +507,118 @@ export default function Workbench() {
     setFilter("");
     setView("record");
   };
-  const rows: Row[] = (state?.planning?.dayItems || [])
-    .filter((i) => !i.removedAt)
-    .map((item) => ({
-      item,
-      task: state?.tasks.find((t) => t.id === item.taskId)!,
-      step: state?.planning?.steps.find((s) => s.id === item.stepId),
-    }))
-    .filter((r) => r.task);
-  const loose: Row[] = (state?.tasks || [])
-    .filter((t) => !t.completed)
-    .flatMap((task) => {
-      const steps = (state?.planning?.steps || []).filter(
-        (s) =>
-          s.taskId === task.id &&
-          !s.completed &&
-          !rows.some((r) => r.step?.id === s.id),
-      );
-      return steps.length
-        ? steps.map((step) => ({ task, step }))
-        : !state?.planning?.steps.some((s) => s.taskId === task.id)
-          ? [{ task }]
-          : [];
-    });
+  const plans = state
+    ? planningViews(state, dateKey())
+    : { rows: [], unplanned: [], leftovers: [] };
+  const rows: Row[] = plans.rows;
+  const loose: Row[] = plans.unplanned;
   const key = (r: Row) => r.item?.id || r.step?.id || r.task.id;
   const selected = [...rows, ...loose].find((r) => key(r) === selectedId);
   const visible = (items: Row[]) =>
     items.filter((r) => !filter || r.task.category === filter);
-  const onAction = async (
-    action: string,
-    input: Record<string, unknown>,
-    success?: string,
+  const finishAction = async (
+    submit: () => Promise<Record<string, unknown>>,
   ) => {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     setBusy(true);
     setError("");
     try {
-      await mutate(action, input);
+      const data = await submit();
       await reload();
-      if (success) setNotice(success);
+      requestEffects.current.after?.(data);
+      const message = requestEffects.current.message;
+      if (message)
+        setNotice(typeof message === "string" ? message : message(data));
     } catch (e) {
       setError(getError(e));
       await reload();
     } finally {
+      actionInFlight.current = false;
       setBusy(false);
     }
+  };
+  const onAction = (
+    action: string,
+    input: Record<string, unknown>,
+    message?: string | ((data: Record<string, unknown>) => string),
+    after?: (data: Record<string, unknown>) => void,
+  ) => {
+    if (blocked || actionInFlight.current) return;
+    requestEffects.current = { message, after };
+    return finishAction(() => request.submit(action, input));
+  };
+  const retryAction = () => finishAction(request.retry);
+  const reconsiderAction = async () => {
+    await reload();
+    if (request.discardDefinitiveFailure()) {
+      setCancelPreview(undefined);
+      setError("");
+    }
+  };
+  const previewCancel = (row: Row, scope: "selected" | "unexecuted") => {
+    if (!row.step || blocked || !state) return;
+    const active = rows
+      .filter((r) => r.task.id === row.task.id && r.step?.id === row.step!.id)
+      .map((r) => r.item!);
+    const executed = new Set(
+      state.planning?.sessionLinks?.map((link) => link.dayItemId),
+    );
+    const items =
+      scope === "selected"
+        ? active.filter((item) => item.id === row.item?.id)
+        : active.filter((item) => !executed.has(item.id));
+    setCancelPreview({
+      row,
+      scope,
+      items,
+      retained: active.length - items.length,
+    });
+  };
+  const cancelItems = () => {
+    if (!cancelPreview || !cancelPreview.items.length) return;
+    const { row, items, scope } = cancelPreview;
+    void onAction(
+      "cancel_plan_items",
+      {
+        taskId: row.task.id,
+        stepId: row.step!.id,
+        expectedTaskRevision: row.task.revision,
+        expectedStepRevision: row.step!.revision,
+        items: items.map((item) => ({ id: item.id, revision: item.revision })),
+        scope,
+      },
+      (data) =>
+        Number(data.remainingActiveCount) > 0
+          ? `已取消所选安排，仍有 ${data.remainingActiveCount} 条有效安排；步骤未放回待安排。`
+          : "已取消所选安排，步骤已回到待安排。任务和执行记录保留。",
+      () => {
+        setCancelPreview(undefined);
+        setSelectedId("");
+      },
+    );
+  };
+  const continueToday = (group: LeftoverPlan) => {
+    void onAction(
+      "continue_plan_items",
+      {
+        taskId: group.task.id,
+        stepId: group.step.id,
+        expectedTaskRevision: group.task.revision,
+        expectedStepRevision: group.step.revision,
+        items: group.items.map((item) => ({
+          id: item.id,
+          revision: item.revision,
+        })),
+        date: dateKey(),
+      },
+      "已安排今天继续，保留同一步骤和原有记录。",
+      (data) => {
+        goDay(dateKey());
+        setView("tasks");
+        setSelectedId((data.item as DayItem).id);
+      },
+    );
   };
   const complete = (r: Row) =>
     r.step
@@ -520,7 +635,7 @@ export default function Workbench() {
           patch: { completed: !r.task.completed },
         });
   const choose = async (r: Row) => {
-    if (!r.step || busy) return;
+    if (!r.step || blocked) return;
     setBusy(true);
     setError("");
     try {
@@ -549,9 +664,13 @@ export default function Workbench() {
     e.stopPropagation();
     const r = dragged.current;
     dragged.current = undefined;
-    if (!r || busy) return;
+    if (!r || blocked) return;
     if (r.item && r.item.id === before?.item?.id) return;
     if (r.item) {
+      if (date === null) {
+        previewCancel(r, "unexecuted");
+        return;
+      }
       const st = start ?? r.item.startMinute ?? null;
       const duration =
         r.item.durationMinutes ||
@@ -570,7 +689,7 @@ export default function Workbench() {
     }
   };
   const dragProps = (r: Row) => ({
-    draggable: !busy,
+    draggable: !blocked,
     onDragStart: (e: DragEvent) => {
       dragged.current = r;
       e.dataTransfer.setData("text/plain", key(r));
@@ -600,7 +719,7 @@ export default function Workbench() {
           <button
             className={`wk-check ${r.step?.completed || r.task.completed ? "checked" : ""}`}
             aria-label={`${r.step?.completed || r.task.completed ? "撤销完成" : "完成"} ${r.step?.text || r.task.title}`}
-            disabled={busy}
+            disabled={blocked}
             onClick={() => void complete(r)}
           >
             {(r.step?.completed || r.task.completed) && <Check size={15} />}
@@ -622,6 +741,7 @@ export default function Workbench() {
           )}
           <button
             className="wk-edit"
+            disabled={blocked}
             aria-label={`修改 ${r.step?.text || r.task.title}`}
             onClick={() => setEditor({ row: r, date: r.item?.date || null })}
           >
@@ -638,7 +758,7 @@ export default function Workbench() {
                   <button
                     className={`wk-check ${step.completed ? "checked" : ""}`}
                     aria-label={`${step.completed ? "撤销完成" : "完成"}步骤 ${step.text}`}
-                    disabled={busy}
+                    disabled={blocked}
                     onClick={() => void complete({ ...r, step })}
                   >
                     {step.completed && <Check size={14} />}
@@ -651,29 +771,33 @@ export default function Workbench() {
             <TaskMetadata task={r.task} step={r.step} />
             <div className="wk-detail-actions">
               {r.step && !r.step.completed && !r.task.completed && (
-                <button disabled={busy} onClick={() => void choose(r)}>
+                <button disabled={blocked} onClick={() => void choose(r)}>
                   设为下一步并回到 Inky
                 </button>
               )}
               <button
+                disabled={blocked}
                 onClick={() =>
                   setEditor({ row: r, date: r.item?.date || null })
                 }
               >
                 修改安排
               </button>
-              {r.item && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void onAction("remove_plan_item", {
-                      planItemId: r.item!.id,
-                      expectedRevision: r.item!.revision,
-                    })
-                  }
-                >
-                  移出这天
-                </button>
+              {r.item && r.step && !r.step.completed && !r.task.completed && (
+                <>
+                  <button
+                    disabled={blocked}
+                    onClick={() => previewCancel(r, "selected")}
+                  >
+                    取消本次安排
+                  </button>
+                  <button
+                    disabled={blocked}
+                    onClick={() => previewCancel(r, "unexecuted")}
+                  >
+                    放回待安排
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -904,9 +1028,26 @@ export default function Workbench() {
         {error && (
           <div className="wk-banner wk-error" role="alert">
             <span>{error}</span>
-            <button aria-label="关闭错误" onClick={() => setError("")}>
-              <X size={17} />
-            </button>
+            {request.pending && (
+              <>
+                <button disabled={busy} onClick={() => void retryAction()}>
+                  核实并重试
+                </button>
+                {request.definitiveFailure && (
+                  <button
+                    disabled={busy}
+                    onClick={() => void reconsiderAction()}
+                  >
+                    重新读取再操作
+                  </button>
+                )}
+              </>
+            )}
+            {!request.pending && (
+              <button aria-label="关闭错误" onClick={() => setError("")}>
+                <X size={17} />
+              </button>
+            )}
           </div>
         )}
         {notice && (
@@ -917,13 +1058,29 @@ export default function Workbench() {
             </button>
           </div>
         )}
+        {state && nav === "week" && !singleDay && (
+          <LeftoverPlans
+            groups={plans.leftovers.filter(
+              (group) => !filter || group.task.category === filter,
+            )}
+            busy={blocked}
+            onContinue={continueToday}
+            onEdit={(row) => setEditor({ row, date: row.item!.date })}
+            onCancel={(row) => previewCancel(row, "selected")}
+            onUnplan={(row) => previewCancel(row, "unexecuted")}
+            onDiscuss={(row) => setSelectedId(key(row))}
+          />
+        )}
         {!state ? (
           <p className="wk-loading">正在读取工作记录…</p>
         ) : nav === "inbox" ? (
           <div className="wk-inbox">
             <header>
               <h3>待安排</h3>
-              <button onClick={() => setEditor({ date: null })}>
+              <button
+                disabled={blocked}
+                onClick={() => setEditor({ date: null })}
+              >
                 <Plus size={19} />
                 添加任务
               </button>
@@ -935,7 +1092,10 @@ export default function Workbench() {
               <div className="wk-empty">
                 <Inbox size={28} />
                 <p>这里暂时没有待安排的任务</p>
-                <button onClick={() => setEditor({ date: null })}>
+                <button
+                  disabled={blocked}
+                  onClick={() => setEditor({ date: null })}
+                >
                   记下一件想做的事
                 </button>
               </div>
@@ -944,6 +1104,7 @@ export default function Workbench() {
         ) : view === "record" ? (
           <DailyJournal
             date={day}
+            state={state}
             entry={records[day]}
             openMarkdown={(kind = "day") => {
               setDocumentKind(kind);
@@ -1020,6 +1181,7 @@ export default function Workbench() {
                     >
                       <button
                         className="wk-add-task"
+                        disabled={blocked}
                         onClick={() => setEditor({ date: d })}
                       >
                         <Plus size={20} />
@@ -1052,6 +1214,7 @@ export default function Workbench() {
                         <button
                           key={key(r)}
                           className={r.step?.completed ? "done" : ""}
+                          disabled={blocked}
                           {...dragProps(r)}
                           onClick={() => setEditor({ row: r, date: d })}
                         >
@@ -1061,6 +1224,7 @@ export default function Workbench() {
                       ))}
                       <button
                         aria-label={`${d}添加日程`}
+                        disabled={blocked}
                         onClick={() => setEditor({ date: d })}
                       >
                         <Plus size={14} />
@@ -1112,6 +1276,7 @@ export default function Workbench() {
                         {Array.from({ length: 24 }, (_, h) => (
                           <button
                             className="wk-time-slot"
+                            disabled={blocked}
                             aria-label={`${d} ${clock(h * 60)}添加日程`}
                             key={h}
                             style={{ top: h * 68 }}
@@ -1127,6 +1292,7 @@ export default function Workbench() {
                           return (
                             <button
                               className={`wk-calendar-event ${r.task.category} ${r.step?.completed ? "done" : ""}`}
+                              disabled={blocked}
                               key={key(r)}
                               {...dragProps(r)}
                               style={{
@@ -1174,6 +1340,86 @@ export default function Workbench() {
           onClose={() => setEditor(undefined)}
           onSaved={() => void reload()}
         />
+      )}
+      {cancelPreview && (
+        <Dialog
+          title={
+            cancelPreview.scope === "selected" ? "取消本次安排" : "放回待安排"
+          }
+          onClose={() => {
+            if (!busy) setCancelPreview(undefined);
+          }}
+        >
+          <section className="wk-cancel-preview">
+            <h3>{cancelPreview.row.step?.text}</h3>
+            <p>只取消下面列出的安排，任务、步骤和执行记录会保留。</p>
+            {cancelPreview.items.length ? (
+              <ul aria-label="将取消的安排">
+                {cancelPreview.items.map((item) => (
+                  <li key={item.id} data-plan-item={item.id}>
+                    {planItemLabel(item)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="wk-stale">
+                没有可取消的未执行安排。已有执行关系的安排会保留。
+              </p>
+            )}
+            {!!cancelPreview.retained && (
+              <p className="wk-stale">
+                {cancelPreview.scope === "unexecuted"
+                  ? "已有执行关系的"
+                  : "其他"}
+                {cancelPreview.retained}{" "}
+                条有效安排会保留，取消后仍不会列为待安排。
+              </p>
+            )}
+            {error && request.pending && (
+              <p className="wk-error" role="alert">
+                {error}
+              </p>
+            )}
+            {request.pending && !request.definitiveFailure && (
+              <p className="muted">结果尚未确认。重试会使用原操作和原参数。</p>
+            )}
+            <footer>
+              <button
+                disabled={busy}
+                onClick={() => setCancelPreview(undefined)}
+              >
+                返回
+              </button>
+              {request.pending ? (
+                <>
+                  {request.definitiveFailure && (
+                    <button
+                      disabled={busy}
+                      onClick={() => void reconsiderAction()}
+                    >
+                      重新读取再操作
+                    </button>
+                  )}
+                  <button
+                    className="wk-primary"
+                    disabled={busy}
+                    onClick={() => void retryAction()}
+                  >
+                    核实并重试
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="wk-primary"
+                  disabled={busy || !cancelPreview.items.length}
+                  onClick={cancelItems}
+                >
+                  确认取消 {cancelPreview.items.length} 条安排
+                </button>
+              )}
+            </footer>
+          </section>
+        </Dialog>
       )}
       {settings && (
         <Dialog title="工作台设置" onClose={() => setSettings(false)}>

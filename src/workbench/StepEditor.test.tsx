@@ -215,3 +215,69 @@ it("displays shared metadata in cards and labels record metadata as current stat
   expect(screen.getByText("等财务回复后确认")).toBeTruthy();
   expect(screen.getByText("第三项与原始报表一致")).toBeTruthy();
 });
+
+it("retries an uncertain editor save with the original payload after fresh state has advanced", async () => {
+  vi.mocked(invoke)
+    .mockRejectedValueOnce(Error("保存响应丢失"))
+    .mockResolvedValue({});
+  const props = propsFor();
+  const view = render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("截止备注"), {
+    target: { value: "已确认截止要求" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("button", { name: "核实并重试" });
+  const first = structuredClone(vi.mocked(invoke).mock.calls[0]);
+  const newer = structuredClone(props.state);
+  newer.tasks[0].revision = 2;
+  view.rerender(<StepEditor {...props} state={newer} />);
+  expect(screen.getByLabelText("截止备注").matches(":disabled")).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "核实并重试" }));
+  await waitFor(() => expect(invoke).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(invoke).mock.calls[1]).toEqual(first);
+  await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+});
+
+it("keeps an uncertain new-task request mounted through close, cancel and Escape until an exact retry succeeds", async () => {
+  vi.mocked(invoke)
+    .mockRejectedValueOnce(Error("response lost"))
+    .mockResolvedValue({});
+  const props = {
+    state: fixture().state,
+    date: null,
+    onSaved: vi.fn(),
+    onClose: vi.fn(),
+  };
+  render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), {
+    target: { value: "只创建一次的新任务" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("button", { name: "核实并重试" });
+  const first = structuredClone(vi.mocked(invoke).mock.calls[0]);
+  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  expect(screen.getByRole("alert").textContent).toContain("确认后再关闭");
+  const cancel = screen.getByRole("button", {
+    name: "取消",
+  }) as HTMLButtonElement;
+  expect(cancel.disabled).toBe(true);
+  fireEvent.click(cancel);
+  const escape = new Event("cancel", { bubbles: false, cancelable: true });
+  fireEvent(screen.getByRole("dialog"), escape);
+  expect(escape.defaultPrevented).toBe(true);
+  expect(props.onClose).not.toHaveBeenCalled();
+  expect((screen.getByRole("dialog") as HTMLDialogElement).open).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "核实并重试" }));
+  await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(invoke).mock.calls[1]).toEqual(first);
+});
+
+it("allows abandoning an editor after a definitive rejected save", async () => {
+  vi.mocked(invoke).mockRejectedValue(Error("INVALID_INPUT: invalid field"));
+  const props = propsFor();
+  render(<StepEditor {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "保存计划" }));
+  await screen.findByRole("alert");
+  fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+  expect(props.onClose).toHaveBeenCalledTimes(1);
+});

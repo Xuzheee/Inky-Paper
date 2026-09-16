@@ -1,0 +1,111 @@
+.wk-adjustments {
+  border: 1px solid var(--wk-line, #dedfd5);
+  border-radius: 10px;
+  margin: 14px 0;
+  padding: 14px;
+  background: #fafbf6;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.wk-adjustments > header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+.wk-adjustments > header > span,
+.wk-adjustments small,
+.wk-adjust-preserved {
+  color: var(--wk-muted, #79816f);
+  font-size: 12px;
+}
+.wk-adjustments article {
+  border-top: 1px dashed var(--wk-line, #dedfd5);
+  padding: 12px 0;
+}
+.wk-adjust-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.wk-adjust-choice input {
+  margin-top: 3px;
+  accent-color: #697e59;
+}
+.wk-adjustments p {
+  margin: 7px 0;
+  line-height: 1.65;
+}
+.wk-adjust-action {
+  margin-top: 12px;
+  padding-left: 10px;
+  border-left: 2px solid #d9e0d1;
+}
+.wk-adjust-action strong {
+  font-weight: 500;
+}
+.wk-adjust-action p {
+  margin: 4px 0;
+}
+.wk-adjustments button {
+  font-size: 12px;
+}
+.wk-adjust-edit-toggle,
+.wk-adjust-reload {
+  margin-top: 8px;
+  color: #61714f;
+}
+.wk-adjust-editor {
+  border: 1px solid var(--wk-line, #dedfd5);
+  border-radius: 6px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 10px;
+}
+.wk-adjust-editor > div + div {
+  margin-top: 12px;
+}
+.wk-adjust-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.wk-adjust-editor input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px;
+}
+.wk-adjust-editor p {
+  font-size: 11px;
+  color: var(--wk-muted, #79816f);
+}
+.wk-adjust-save,
+.wk-adjust-pending {
+  background: #f0f2e9;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+.wk-adjust-save button,
+.wk-adjust-pending button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.wk-adjustments > .wk-primary {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+.wk-adjustments > .wk-adjust-reload {
+  display: block;
+}
+.wk-adjust-notice {
+  white-space: pre-wrap;
+  color: #7c583c;
+}
+.wk-adjustments button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

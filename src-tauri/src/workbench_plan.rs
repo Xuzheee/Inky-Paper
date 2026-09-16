@@ -34,10 +34,11 @@ fn day(v: &Value) -> Result<Option<String>, String> {
 }
 fn time(v: &Value) -> Result<(Option<u32>, Option<u32>), String> {
     if v["startMinute"].is_null() {
-        if !v["durationMinutes"].is_null() {
-            return Err("INVALID_INPUT: 请同时填写开始时间与时长。".into());
-        }
-        return Ok((None, None));
+        let duration = if v["durationMinutes"].is_null() { None } else {
+            let minutes = v["durationMinutes"].as_u64().filter(|value| (1..=1440).contains(value)).ok_or("INVALID_INPUT: 预留时长需为 1–1440 分钟。")?;
+            Some(minutes as u32)
+        };
+        return Ok((None, duration));
     }
     let start = v["startMinute"].as_u64().ok_or("INVALID_INPUT: 开始时间")?;
     let duration = v["durationMinutes"].as_u64().ok_or("INVALID_INPUT: 时长")?;
@@ -98,7 +99,7 @@ pub(crate) fn execute(
     }
     let date = day(v)?;
     let (start, duration) = time(v)?;
-    if date.is_none() && start.is_some() {
+    if date.is_none() && (start.is_some() || duration.is_some()) {
         return Err("INVALID_INPUT: 请先选择日期。".into());
     }
     if op == "workbench_move_item" {

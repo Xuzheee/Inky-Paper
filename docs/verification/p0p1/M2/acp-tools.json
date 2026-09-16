@@ -1,0 +1,21 @@
+{
+  "realHermesProcess": true,
+  "modelCalls": 0,
+  "paperDatabaseAccess": false,
+  "isolatedHermesHistory": "C:\\Users\\31009\\clauddd\\Inky-Paper\\output\\p0p1-m2-policy\\hermes-state.sqlite3",
+  "tools": [
+    "mcp__inky_workbench__inky_paper_get_coach_context",
+    "mcp__inky_workbench__inky_paper_get_daily_record",
+    "mcp__inky_workbench__inky_paper_get_plan_adjustment",
+    "mcp__inky_workbench__inky_paper_get_plan_batch",
+    "mcp__inky_workbench__inky_paper_get_task",
+    "mcp__inky_workbench__inky_paper_list_tasks",
+    "mcp__inky_workbench__inky_paper_propose_coaching_action",
+    "mcp__inky_workbench__inky_paper_propose_plan_adjustment",
+    "mcp__inky_workbench__inky_paper_propose_plan_batch",
+    "mcp__inky_workbench__inky_paper_read_events",
+    "mcp__inky_workbench__inky_paper_read_history",
+    "mcp__inky_workbench__inky_paper_save_daily_summary"
+  ],
+  "answer": "Available tools (12):\n  mcp__inky_workbench__inky_paper_get_coach_context: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read the current work block, option...\n  mcp__inky_workbench__inky_paper_get_daily_record: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read latest date-specific plans, ac...\n  mcp__inky_workbench__inky_paper_get_plan_adjustment: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read stored adjustment groups, comp...\n  mcp__inky_workbench__inky_paper_get_plan_batch: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read a candidate batch with current...\n  mcp__inky_workbench__inky_paper_get_task: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read latest task revision and immut...\n  mcp__inky_workbench__inky_paper_list_tasks: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 List independent Inky Paper tasks, ...\n  mcp__inky_workbench__inky_paper_propose_coaching_action: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Only when the user asks for coachin...\n  mcp__inky_workbench__inky_paper_propose_plan_adjustment: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Propose changes to EXISTING steps i...\n  mcp__inky_workbench__inky_paper_propose_plan_batch: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Only after the user asks to plan or...\n  mcp__inky_workbench__inky_paper_read_events: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Incremental execution event feed: t...\n  mcp__inky_workbench__inky_paper_read_history: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Read real focus/rest intervals, act...\n  mcp__inky_workbench__inky_paper_save_daily_summary: Inky Paper 新版专用（不是旧版 Inky / mcp__inky__）。 Only after an explicit user request..."
+}

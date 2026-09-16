@@ -192,6 +192,7 @@ pub fn execute(
     v: Value,
     source: &str,
 ) -> Result<(Value, bool), String> {
+    crate::paper_permissions::authorize(source, action)?;
     if action == "save_daily_summary" {
         let cached = v["requestId"]
             .as_str()
@@ -260,6 +261,7 @@ fn execute_inner(
             | "coach_observe"
             | "coach_analysis_status"
             | "get_plan_batch"
+            | "get_plan_adjustment"
             | "get_daily_record"
     );
     let request_id = if read {
@@ -888,6 +890,14 @@ fn execute_inner(
             }
             out
         }
+        "get_plan_adjustment" | "propose_plan_adjustment" | "revise_plan_adjustment" | "adopt_plan_adjustment" => {
+            let out = crate::plan_adjustments::execute(&mut s, action, &v, source, t)?;
+            if action != "get_plan_adjustment" {
+                event(&tx, action, source, out.clone())?;
+                changed = true;
+            }
+            out
+        }
         "get_coach_context"
         | "get_coach_prompt"
         | "start_work"
@@ -1058,8 +1068,8 @@ mod tests {
         let mut c = db();
         let t = task(&mut c);
         let v = json!({"requestId":id(),"taskId":t.id,"expectedRevision":1,"patch":{"title":"新的方案"}});
-        let a = execute(&mut c, "update_task", v.clone(), "agent").unwrap();
-        assert_eq!(a.0, execute(&mut c, "update_task", v, "agent").unwrap().0);
+        let a = execute(&mut c, "update_task", v.clone(), "user").unwrap();
+        assert_eq!(a.0, execute(&mut c, "update_task", v, "user").unwrap().0);
         assert!(call(
             &mut c,
             "update_task",

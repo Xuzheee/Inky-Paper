@@ -162,7 +162,13 @@ export function StepEditor({
         itemId: base?.item?.id ?? null,
         expectedItemRevision: base?.item?.revision ?? null,
         startMinute: time && day ? minutes(time) : null,
-        durationMinutes: time && day ? duration : null,
+        durationMinutes: day
+          ? time
+            ? duration
+            : base?.item?.startMinute == null
+              ? base?.item?.durationMinutes ?? null
+              : null
+          : null,
       };
       if (request.pending && !request.definitiveFailure) await request.retry();
       else await request.submit("workbench_save_step", input);
@@ -682,7 +688,9 @@ export default function Workbench() {
         beforeItemId: before?.item?.id || null,
         startMinute: date ? st : null,
         durationMinutes:
-          date && st != null ? Math.min(duration, 1440 - st) : null,
+          date && st != null
+            ? Math.min(duration, 1440 - st)
+            : r.item.durationMinutes ?? null,
       });
     } else {
       setEditor({ row: r, date, startMinute: start });

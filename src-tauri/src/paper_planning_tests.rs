@@ -13,19 +13,8 @@ fn call(c: &mut Connection, operation: &str, mut input: Value) -> Result<Value, 
     {
         input["requestId"] = json!(id());
     }
-    let source = if matches!(
-        operation,
-        "start_work"
-            | "start_session"
-            | "finish_session"
-            | "select_step"
-            | "set_step_completed"
-            | "remove_plan_item"
-    ) {
-        "user"
-    } else {
-        "hermes"
-    };
+    // Proposals/read tools are model operations; adoption and edits are user clicks.
+    let source = if crate::paper_permissions::model_action(operation) { "hermes" } else { "user" };
     paper::execute(c, operation, input, source).map(|x| x.0)
 }
 fn batch(c: &mut Connection) -> Value {

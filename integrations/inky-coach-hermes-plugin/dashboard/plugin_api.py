@@ -22,7 +22,15 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _connection_file():
+def _connection_file(action):
+    if action == "adopt_plan_cards":
+        override = os.environ.get("INKY_PAPER_USER_CONNECTION_FILE")
+        if override:
+            return Path(override)
+        model_file = os.environ.get("INKY_PAPER_CONNECTION_FILE")
+        if model_file:
+            return Path(model_file).with_name("paper-user-bridge.json")
+        return Path(os.environ.get("APPDATA", "")) / "com.inky.paper" / "paper-user-bridge.json"
     override = os.environ.get("INKY_PAPER_CONNECTION_FILE")
     if override:
         return Path(override)
@@ -40,7 +48,9 @@ def paper_request(action, payload):
     if len(body) > MAX_BODY:
         return _error("INVALID_INPUT: 所选卡片内容过长，请减少本批卡片。", True)
     try:
-        connection = json.loads(_connection_file().read_text(encoding="utf-8"))
+        connection = json.loads(_connection_file(action).read_text(encoding="utf-8"))
+        if action == "adopt_plan_cards" and connection.get("capability") != "user-adoption":
+            return _error("FORBIDDEN: 需要 Paper 提供的本地用户采用连接，请更新并重启 Paper。", True)
         url = urlsplit(connection["url"])
         token = connection.get("token")
         if (
@@ -77,7 +87,7 @@ def paper_request(action, payload):
             message = ""
         # Only Paper's known validation/conflict failures confirm no mutation.
         known = isinstance(message, str) and message.startswith(
-            ("CONFLICT:", "INVALID_INPUT:", "NOT_FOUND:", "BUSY:")
+            ("CONFLICT:", "INVALID_INPUT:", "NOT_FOUND:", "BUSY:", "FORBIDDEN:", "ACTIVE_SESSION:", "REQUEST_ID_REUSED:")
         )
         return _error(message if known else "Paper 暂未确认保存；可用原提交重试。", known)
     except (OSError, ValueError, TypeError):

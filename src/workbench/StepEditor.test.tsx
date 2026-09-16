@@ -120,6 +120,16 @@ it("loads existing metadata and omits unchanged fields while editing the title",
     expect(submitted().input).not.toHaveProperty(key);
 });
 
+it("preserves a reservation without a start time while changing task details", async () => {
+  const props = propsFor();
+  props.row.item!.durationMinutes = 60;
+  props.row.item!.startMinute = null;
+  render(<StepEditor {...props} />);
+  fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "修改标题" } });
+  await save();
+  expect(submitted().input).toMatchObject({startMinute:null,durationMinutes:60});
+});
+
 it("keeps arrangement and deadline separate, preserves free-text remarks, and saves edited criteria", async () => {
   render(<StepEditor {...propsFor()} />);
   fireEvent.change(screen.getByLabelText("安排日期"), {

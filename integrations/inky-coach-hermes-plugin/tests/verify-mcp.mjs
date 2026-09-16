@@ -39,11 +39,11 @@ try {
   await client.connect(transport);
   const { tools } = await client.listTools();
   const names = tools.map(tool => tool.name);
-  for (const name of ['list_tasks', 'get_task', 'create_task', 'update_task', 'read_history', 'read_events', 'get_coach_context', 'propose_coaching_action', 'propose_plan_batch', 'get_plan_batch', 'get_daily_record', 'save_daily_summary']) {
+  for (const name of ['list_tasks', 'get_task', 'propose_plan_adjustment', 'get_plan_adjustment', 'read_history', 'read_events', 'get_coach_context', 'propose_coaching_action', 'propose_plan_batch', 'get_plan_batch', 'get_daily_record', 'save_daily_summary']) {
     assert(names.includes(`inky_paper_${name}`), `missing ${name}`);
   }
   assert.equal(names.length, 12);
-  assert(!names.some(name => /adopt|start_session|stop_session|runtime_tick/.test(name)));
+  assert(!names.some(name => /adopt|revise|create_task|update_task|start_session|stop_session|runtime_tick/.test(name)));
   const proposed = { requestId: uuid(2), batchId: uuid(1), cards: [{ id: uuid(3), taskId: uuid(4), taskTitle: '测试任务', text: '起草结论', plannedSeconds: 1500 }] };
   const invoke = (name, args) => client.callTool({ name: `inky_paper_${name}`, arguments: args });
   assert(!(await invoke('propose_plan_batch', proposed)).isError);
@@ -61,6 +61,13 @@ try {
   mode = 'conflict';
   assert((await invoke('save_daily_summary', summary)).isError);
   mode = 'ok';
+  const adjust = {requestId:uuid(6),batchId:uuid(7),groups:[{id:uuid(8),reason:'只预留明确可用时间',actions:[{kind:'reservation',taskId:uuid(4),stepId:uuid(9),expectedTaskRevision:1,expectedStepRevision:1,itemId:uuid(10),expectedItemRevision:1,durationMinutes:30}]}]};
+  assert(!(await invoke('propose_plan_adjustment',adjust)).isError);
+  assert.deepEqual(calls.at(-1).input,adjust);
+  const beforeForbidden=calls.length;
+  assert((await invoke('create_task',{requestId:uuid(11),taskId:uuid(12),title:'不应创建'})).isError);
+  assert((await invoke('adopt_plan_adjustment',{requestId:uuid(11)})).isError);
+  assert.equal(calls.length,beforeForbidden);
   await writeFile(connectionFile, JSON.stringify({ ...connection, app: 'inky' }));
   const beforeForeign = calls.length;
   assert((await invoke('get_plan_batch', { batchId: uuid(1) })).isError);

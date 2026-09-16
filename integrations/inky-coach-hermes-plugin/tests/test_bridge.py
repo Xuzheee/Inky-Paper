@@ -42,6 +42,8 @@ class BridgeTest(unittest.TestCase):
         self.response = (200, {"data": {"batch": {"id": "example"}}})
         self.connection = {"app": "inky-paper", "protocolVersion": 1, "url": f"http://127.0.0.1:{self.server.server_port}", "token": "fixture-secret-never-returned"}
         self.file.write_text(json.dumps(self.connection), encoding="utf-8")
+        self.user_file = self.file.with_name("paper-user-bridge.json")
+        self.user_file.write_text(json.dumps({**self.connection, "capability":"user-adoption", "token":"fixture-user-click-token"}), encoding="utf-8")
         self.env = patch.dict(os.environ, {"INKY_PAPER_CONNECTION_FILE": str(self.file)})
         self.env.start()
 
@@ -66,6 +68,12 @@ class BridgeTest(unittest.TestCase):
         api.adopt(payload)
         self.assertEqual(self.calls[0][2], payload)
         self.assertEqual(self.calls[1][2], payload)
+        self.assertEqual(self.calls[0][1]["Authorization"], "Bearer fixture-user-click-token")
+
+    def test_adoption_does_not_fall_back_to_model_token(self):
+        self.user_file.unlink()
+        self.assertFalse(api.adopt({"requestId":"request"})["ok"])
+        self.assertEqual(self.calls, [])
 
     def test_valid_large_chinese_card_batch_fits_bridge_limit(self):
         payload = {"requestId": "large-fixture", "batchId": "batch", "expectedRevision": 1, "date": "2026-09-13", "cardIds": [str(i) for i in range(30)], "cardOverrides": [{"cardId": str(i), "text": "动作" * 150, "expectedResult": "预期" * 1000} for i in range(30)]}

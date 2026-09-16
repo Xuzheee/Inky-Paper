@@ -78,10 +78,6 @@ const requestId = z
     "Unique operation UUID. Reuse with identical arguments only when retrying this operation.",
   );
 const title = z.string().trim().min(1).max(300);
-const category = z.enum(["work", "study", "life", "idea"]);
-const priority = z.enum(["high", "medium", "low"]);
-const due = z.string().max(100).nullable();
-const nextAction = z.string().max(300).nullable();
 function tool(name, description, inputSchema, write = false) {
   server.registerTool(
     "inky_paper_" + name,
@@ -108,41 +104,6 @@ tool(
   "get_task",
   "Read latest task revision and immutable active session snapshot. Task edits do not change the action already being timed.",
   { taskId },
-);
-tool(
-  "create_task",
-  "Create a task and optional concrete next action when the user asks to arrange it in Inky Paper. Empty due/action are allowed. Existing taskId returns current state without overwriting.",
-  {
-    requestId,
-    taskId,
-    title,
-    category: category.optional(),
-    priority: priority.optional(),
-    due: due.optional(),
-    nextAction: nextAction.optional(),
-  },
-  true,
-);
-tool(
-  "update_task",
-  "Update selected fields using fresh expectedRevision. nextAction creates a new action if text changes or old action was done. Parent completion must be explicit; completion during an active session is rejected. On conflict reread and discuss, do not blindly overwrite.",
-  {
-    requestId,
-    taskId,
-    expectedRevision: z.number().int().positive(),
-    patch: z
-      .object({
-        title: title.optional(),
-        category: category.optional(),
-        priority: priority.optional(),
-        due: due.optional(),
-        nextAction: nextAction.optional(),
-        completed: z.boolean().optional(),
-      })
-      .strict()
-      .refine((x) => Object.keys(x).length > 0),
-  },
-  true,
 );
 tool(
   "read_history",
@@ -183,6 +144,20 @@ tool(
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const revision = z.number().int().positive();
 const utcOffsetMinutes = z.number().int().min(-840).max(840).optional();
+const itemVersion = z.object({id:z.string().uuid(),revision}).strict();
+const target = {taskId,stepId:z.string().uuid(),expectedTaskRevision:revision,expectedStepRevision:revision};
+const reservation = z.number().int().min(1).max(1440).nullable();
+const adjustmentAction = z.discriminatedUnion("kind",[
+  z.object({kind:z.literal("continue"),...target,items:z.array(itemVersion).min(1).max(100),date}).strict(),
+  z.object({kind:z.literal("reschedule"),...target,itemId:z.string().uuid(),expectedItemRevision:revision,date,startMinute:z.number().int().min(0).max(1439).nullable().optional(),durationMinutes:reservation.optional()}).strict(),
+  z.object({kind:z.literal("reservation"),...target,itemId:z.string().uuid(),expectedItemRevision:revision,durationMinutes:reservation}).strict(),
+  z.object({kind:z.literal("reorder"),date,items:z.array(itemVersion).min(1).max(200)}).strict(),
+  z.object({kind:z.literal("narrow"),...target,text:title,expectedResult:z.string().max(2000).nullable().optional(),plannedSeconds:z.number().int().min(60).max(7200),date:date.nullable(),newStepId:z.string().uuid()}).strict(),
+]);
+tool("propose_plan_adjustment",
+  "Propose changes to EXISTING steps instead of duplicating tasks. Actions: continue original step; reschedule arrangement; reserve explicit minutes (not first-round duration); reorder complete day roster; narrow by ADDING a small step while retaining original goal/remainder. Combine dependent actions into one group; independent groups are user-selectable. Use fresh task/step/item revisions from get_daily_record/get_task. Backend computes before/after; proposal writes no formal task or plan. Render real batch id as ::inky-adjust{batchId=\"UUID\"}. Only the local user can adopt. UUIDs must be stable; identical retries reuse requestId.",
+  {requestId,batchId:z.string().uuid(),groups:z.array(z.object({id:z.string().uuid(),reason:z.string().trim().min(1).max(1000),actions:z.array(adjustmentAction).min(1).max(20)}).strict()).min(1).max(20)},true);
+tool("get_plan_adjustment","Read stored adjustment groups, computed before/after and adoption state. Does not adopt, revise, or start a clock.",{batchId:z.string().uuid()});
 tool(
   "propose_plan_batch",
   "Only after the user asks to plan or split work: save concise candidate action cards, without adopting them or creating formal tasks. Use one card for simple tasks; split only when distinct actions help. Keep action labels short and move useful completion details to expectedResult, not the title. Use stable UUIDs; sibling new-task cards share taskId and taskTitle, existing tasks/steps require freshly read revisions. Render the returned batch id as ::inky-plan{batchId=\"UUID\"} on a separate line so the user can choose/edit/reorder and click to adopt. Do not adopt on the user's behalf.",

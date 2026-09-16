@@ -65,6 +65,64 @@ export type Message = {
 };
 export const planDirective =
   /::inky-plan\{batchId="([0-9a-f-]{36})"(?: date="(\d{4}-\d{2}-\d{2})")?\}/gi;
+export const adjustmentDirective =
+  /::inky-adjust\{batchId="([0-9a-f-]{36})"\}/gi;
+type AdjustmentTarget = {
+  taskId: string;
+  stepId: string;
+  expectedTaskRevision: number;
+  expectedStepRevision: number;
+};
+export type AdjustmentAction =
+  | (AdjustmentTarget & {
+      kind: "continue";
+      items: { id: string; revision: number }[];
+      date: string;
+    })
+  | (AdjustmentTarget & {
+      kind: "reschedule";
+      itemId: string;
+      expectedItemRevision: number;
+      date: string;
+      startMinute?: number | null;
+      durationMinutes?: number | null;
+    })
+  | (AdjustmentTarget & {
+      kind: "reservation";
+      itemId: string;
+      expectedItemRevision: number;
+      durationMinutes: number | null;
+    })
+  | { kind: "reorder"; date: string; items: { id: string; revision: number }[] }
+  | (AdjustmentTarget & {
+      kind: "narrow";
+      text: string;
+      expectedResult: string | null;
+      plannedSeconds: number;
+      date: string | null;
+      newStepId: string;
+    });
+export type AdjustmentSnapshot = {
+  tasks: Task[];
+  steps: PlanStep[];
+  dayItems: DayItem[];
+};
+export type AdjustmentGroup = {
+  id: string;
+  reason: string;
+  actions: AdjustmentAction[];
+  before: AdjustmentSnapshot;
+  after: AdjustmentSnapshot;
+  adoptedAt: number | null;
+};
+export type AdjustmentData = {
+  batch: {
+    id: string;
+    revision: number;
+    createdAt: number;
+    groups: AdjustmentGroup[];
+  };
+};
 export const prepareStepInInky = (row: Row) =>
   invoke("workbench_prepare_step", {
     input: {

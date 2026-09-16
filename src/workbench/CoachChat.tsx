@@ -8,12 +8,14 @@ import {
   dateLabel,
   validDate,
   planDirective,
+  adjustmentDirective,
   DiscussionContext,
   getError,
   Message,
   Row,
 } from "./model";
 import PlanCards from "./PlanCards";
+import AdjustmentCards from "./AdjustmentCards";
 
 const directive = planDirective;
 const scopeLabel = (context: DiscussionContext) =>
@@ -413,7 +415,12 @@ export default function CoachChat({
                 {m.context && (
                   <p className="wk-message-scope">{scopeLabel(m.context)}</p>
                 )}
-                <RichText text={m.text.replace(directive, "").trim()} />
+                <RichText
+                  text={m.text
+                    .replace(directive, "")
+                    .replace(adjustmentDirective, "")
+                    .trim()}
+                />
                 {[...m.text.matchAll(directive)].map((match) => (
                   <PlanCards
                     key={match[1]}
@@ -422,6 +429,14 @@ export default function CoachChat({
                     defaultDate={
                       validDate(match[2]) ? match[2] : m.context?.date
                     }
+                    onSaved={onSaved}
+                  />
+                ))}
+                {[...m.text.matchAll(adjustmentDirective)].map((match) => (
+                  <AdjustmentCards
+                    key={match[1]}
+                    id={match[1]}
+                    streaming={m.status === "sending"}
                     onSaved={onSaved}
                   />
                 ))}

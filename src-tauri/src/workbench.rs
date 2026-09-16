@@ -316,6 +316,7 @@ fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
         .env("PYTHONUTF8", "1")
         .env("PYTHONIOENCODING", "utf-8")
         .env("INKY_PAPER_CONNECTION_FILE", &rt.bridge)
+        .env("INKY_WORKBENCH_STATE_DIR", &rt.dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());

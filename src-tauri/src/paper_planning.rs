@@ -21,6 +21,7 @@ pub struct PlanningState {
     pub manual_step_changes: Vec<ManualStepChange>,
     pub prepared: Option<PreparedStep>,
     pub plan_changes: Vec<PlanChange>,
+    pub adjustments: Vec<crate::plan_adjustments::Batch>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

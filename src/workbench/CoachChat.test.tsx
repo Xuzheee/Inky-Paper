@@ -404,3 +404,84 @@ it("does not let a late completed invoke reset a newer request or accept unrelat
   expect(requests[1].context).not.toHaveProperty("latestFacts");
   await act(async () => resolve[1](reply(requests[1], requests[1].context)));
 });
+
+it("renders adjustment directives from saved replies as read-only candidate previews", async () => {
+  const batchId = "11111111-1111-4111-8111-111111111111";
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "workbench_history")
+      return {
+        sessions: [{ id: "session", title: "调整计划", updated: 1 }],
+        messages: [
+          {
+            id: "reply",
+            role: "assistant",
+            created: 1,
+            status: "done",
+            text: `可以先做小一点。\n::inky-adjust{batchId="${batchId}"}`,
+          },
+        ],
+      };
+    if (
+      command === "paper_execute" &&
+      args &&
+      "action" in args &&
+      args.action === "get_plan_adjustment"
+    )
+      return {
+        batch: {
+          id: batchId,
+          revision: 1,
+          createdAt: 1,
+          groups: [
+            {
+              id: "group",
+              reason: "先验证最小部分",
+              adoptedAt: null,
+              actions: [
+                {
+                  kind: "narrow",
+                  taskId: "task",
+                  stepId: "step",
+                  expectedTaskRevision: 1,
+                  expectedStepRevision: 2,
+                  text: "核对第一行",
+                  expectedResult: "第一行与来源一致",
+                  plannedSeconds: 600,
+                  date: "2030-03-04",
+                  newStepId: "new-step",
+                },
+              ],
+              before: {
+                tasks: [selected.task],
+                steps: [selected.step],
+                dayItems: [],
+              },
+              after: {
+                tasks: [selected.task],
+                steps: [
+                  selected.step,
+                  { ...selected.step, id: "new-step", text: "核对第一行" },
+                ],
+                dayItems: [],
+              },
+            },
+          ],
+        },
+      };
+  });
+  render(<CoachChat {...props} date="2030-03-08" />);
+  await screen.findByText("新增：核对第一行");
+  expect(screen.getByText("2030-03-04 · 首轮 10 分钟")).toBeTruthy();
+  expect(screen.getByText("可以先做小一点。")).toBeTruthy();
+  expect(screen.getByLabelText("Coach 对话").textContent).not.toContain(
+    "::inky-adjust",
+  );
+  expect(
+    vi
+      .mocked(invoke)
+      .mock.calls.some(
+        ([, args]) =>
+          args && "action" in args && args.action === "adopt_plan_adjustment",
+      ),
+  ).toBe(false);
+});

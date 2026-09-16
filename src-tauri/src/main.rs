@@ -8,6 +8,8 @@ mod paper_bridge;
 mod paper_markdown;
 mod paper_migration;
 mod paper_planning;
+mod paper_permissions;
+mod plan_adjustments;
 mod workbench;
 mod workbench_context;
 mod workbench_plan;

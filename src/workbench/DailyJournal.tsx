@@ -1,9 +1,11 @@
 import { Check, FileText, RotateCcw } from "lucide-react";
-import { dailyStats, durationLabel } from "./dailyRecord";
+import { dailyStats, durationLabel, type DailySummary } from "./dailyRecord";
 import type { DayEntry } from "./useDailyRecords";
 import TaskMetadata from "./TaskMetadata";
 import type { DayItem, State } from "../paper/paperTypes";
 import { planItemLabel } from "./LeftoverPlans";
+import SummaryEvidence from "./SummaryEvidence";
+import type { Row } from "./model";
 
 const changeLabels: Record<string, string> = {
   workbench_save_step: "保存安排",
@@ -30,11 +32,17 @@ export default function DailyJournal({
   entry,
   openMarkdown,
   state,
+  blocked,
+  onContinue,
+  onPrepareToday,
 }: {
   date: string;
   entry?: DayEntry;
   openMarkdown: (kind?: string) => void;
   state?: State;
+  blocked?: boolean;
+  onContinue?: (row: Row) => void | Promise<void>;
+  onPrepareToday?: (summary: DailySummary) => void;
 }) {
   const record = entry?.record;
   if (entry?.error)
@@ -291,15 +299,19 @@ export default function DailyJournal({
       <section className="wk-record-section">
         <h3>每日总结</h3>
         {record.summaries.length ? (
-          [...record.summaries].reverse().map((summary) => (
-            <div className="wk-record-item" key={summary.id}>
-              <p>{summary.body}</p>
-              <p className="wk-record-time">
-                记录截至 {at(summary.sourceAsOf)}
-                {summary.hasNewRecords && " · 此后有新记录"}
-              </p>
-            </div>
-          ))
+          [...record.summaries]
+            .reverse()
+            .map((summary) => (
+              <SummaryEvidence
+                key={summary.id}
+                summary={summary}
+                date={date}
+                state={state}
+                blocked={blocked}
+                onContinue={onContinue}
+                onPrepareToday={onPrepareToday}
+              />
+            ))
         ) : (
           <p className="wk-record-empty">
             还没有这一天的总结。需要时，可以在右侧让 Coach 总结 {date} 的工作。

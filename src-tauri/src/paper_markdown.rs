@@ -469,16 +469,77 @@ fn render_day(day: &Value) -> String {
             },
             text(summary, "body")
         ));
+        let evidence = summary["evidence"].as_array().unwrap_or(&empty);
+        if evidence.is_empty() {
+            out.push_str("这份总结未附依据；旧总结不会补造来源。\n\n");
+        } else {
+            out.push_str("依据（保存时的快照，计时截至上方读取时间）：\n\n");
+            for item in evidence {
+                let snapshot = &item["snapshot"];
+                out.push_str(&format!(
+                    "- {} · {} / {}\n",
+                    cell(&text(item, "label")), cell(&text(item, "kind")), cell(&text(item, "id"))
+                ));
+                let detail = match item["kind"].as_str() {
+                    Some("session") => format!(
+                        "任务：{}；动作：{}；本日计时：{}秒；会话计时：{}秒；精度：{}",
+                        text(snapshot, "taskTitle"), text(&snapshot["action"], "text"),
+                        snapshot["dailySeconds"].as_u64().unwrap_or(0),
+                        snapshot["clockElapsedSeconds"].as_u64().unwrap_or(0),
+                        text(snapshot, "timePrecision")
+                    ),
+                    Some("step") => format!(
+                        "步骤：{}；完成：{}；预期结果：{}",
+                        text(snapshot, "text"), snapshot["completed"] == true, text(snapshot, "expectedResult")
+                    ),
+                    Some("manualChange") => format!(
+                        "任务：{}；步骤：{}；操作：{}；时间：{}",
+                        text(snapshot, "taskTitle"), text(snapshot, "stepText"),
+                        if snapshot["completed"] == true { "完成" } else { "撤销完成" },
+                        time_at(&snapshot["recordedAt"])
+                    ),
+                    Some("note") => format!("原文：{}；记录时间：{}", text(snapshot, "text"), time_at(&snapshot["createdAt"])),
+                    Some("planChange") => format!(
+                        "操作：{}；原日期：{}；现日期：{}；记录时间：{}",
+                        text(snapshot, "operation"), text(&snapshot["before"], "date"),
+                        text(&snapshot["after"], "date"), time_at(&snapshot["recordedAt"])
+                    ),
+                    Some("personalNote") => format!("原文：{}；笔记版本：{}", text(snapshot, "quote"), text(snapshot, "notesVersion")),
+                    _ => String::new(),
+                };
+                out.push_str(&format!("  - {}\n", cell(&detail)));
+            }
+            out.push('\n');
+        }
+        if let Some(next) = summary.get("nextStart").filter(|next| next.is_object()) {
+            out.push_str(&format!(
+                "下次起点（仅建议，未准备或启动）：任务 {} · 步骤 {} · 来源安排 {}\n\n{}\n\n",
+                cell(&text(next, "taskId")), cell(&text(next, "stepId")),
+                cell(&text(next, "dayItemId")), cell(&text(next, "cue"))
+            ));
+        }
     }
     out
 }
 
-pub fn personal_context(c: &Connection, date: &str) -> Result<(String, String), String> {
+pub(crate) struct PersonalEvidenceContext {
+    pub content: String,
+    pub version: String,
+    pub bodies: Vec<String>,
+}
+
+pub(crate) fn personal_evidence_context(
+    c: &Connection,
+    date: &str,
+) -> Result<PersonalEvidenceContext, String> {
     valid_date(date)?;
     let Some(dir) = root(c) else {
-        return Ok((String::new(), hash("")));
+        return Ok(PersonalEvidenceContext {
+            content: String::new(), version: hash(""), bodies: Vec::new(),
+        });
     };
     let mut content = String::new();
+    let mut bodies = Vec::new();
     for path in [
         dir.join("个人笔记.md"),
         dir.join("每日").join(format!("{date}.个人笔记.md")),
@@ -495,8 +556,14 @@ pub fn personal_context(c: &Connection, date: &str) -> Result<(String, String), 
             path.file_name().unwrap_or_default().to_string_lossy(),
             note
         ));
+        bodies.push(note);
     }
-    Ok((content.clone(), hash(&content)))
+    Ok(PersonalEvidenceContext { version: hash(&content), content, bodies })
+}
+
+pub fn personal_context(c: &Connection, date: &str) -> Result<(String, String), String> {
+    let notes = personal_evidence_context(c, date)?;
+    Ok((notes.content, notes.version))
 }
 
 /// Use the same note version for application/Agent reads and the Markdown summary.
@@ -512,6 +579,7 @@ pub fn enrich_day(c: &Connection, day: &mut Value) -> Result<(), String> {
             summary["hasNewRecords"] = json!(summary["hasNewRecords"] == true || changed);
         }
     }
+    crate::summary_evidence::register_read(c, day)?;
     Ok(())
 }
 
@@ -844,7 +912,7 @@ mod tests {
         let record = paper::execute(&mut c, "get_daily_record", json!({"date":date}), "hermes")
             .unwrap()
             .0;
-        paper::execute(&mut c,"save_daily_summary",json!({"requestId":uuid::Uuid::new_v4().to_string(),"date":date,"expectedDataVersion":record["dataVersion"],"expectedNotesVersion":record["notesVersion"],"sourceAsOf":record["sampledAt"],"body":"原总结保留"}),"hermes").unwrap();
+        paper::execute(&mut c,"save_daily_summary",json!({"requestId":uuid::Uuid::new_v4().to_string(),"date":date,"expectedDataVersion":record["dataVersion"],"expectedNotesVersion":record["notesVersion"],"sourceAsOf":record["sampledAt"],"body":"原总结保留","evidenceRefs":[]}),"hermes").unwrap();
         let day_path = root(&c).unwrap().join("每日").join(format!("{date}.md"));
         let before = fs::read_to_string(&day_path).unwrap();
         assert!(before.contains("原总结保留"));
@@ -887,7 +955,7 @@ mod tests {
         let record = paper::execute(&mut c, "get_daily_record", json!({"date":date}), "hermes")
             .unwrap()
             .0;
-        paper::execute(&mut c,"save_daily_summary",json!({"requestId":uuid::Uuid::new_v4().to_string(),"date":date,"expectedDataVersion":record["dataVersion"],"expectedNotesVersion":record["notesVersion"],"sourceAsOf":record["sampledAt"],"body":"空白保持未知"}),"hermes").unwrap();
+        paper::execute(&mut c,"save_daily_summary",json!({"requestId":uuid::Uuid::new_v4().to_string(),"date":date,"expectedDataVersion":record["dataVersion"],"expectedNotesVersion":record["notesVersion"],"sourceAsOf":record["sampledAt"],"body":"空白保持未知","evidenceRefs":[]}),"hermes").unwrap();
         let markdown =
             fs::read_to_string(root(&c).unwrap().join("每日").join(format!("{date}.md"))).unwrap();
         assert!(markdown.contains("空白保持未知"));

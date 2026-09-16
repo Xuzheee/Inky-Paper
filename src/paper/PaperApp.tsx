@@ -113,6 +113,7 @@ export default function PaperApp() {
     [draft, setDraft] = useState<Draft | null>(null),
     [conflict, setConflict] = useState(false);
   const [duration, setDuration] = useState(25),
+    [durationSource, setDurationSource] = useState<string | null>(null),
     [tick, setTick] = useState(Date.now()),
     [cue, setCue] = useState(""),
     [note, setNote] = useState(getStored<string>("paper-note", ""));
@@ -195,11 +196,20 @@ export default function PaperApp() {
       ? "下一步已保存，画面尚未读取最新结果，请重新读取后再开始。"
       : choice.issue;
   const completedTasks = data.tasks.filter((t) => t.completed);
-  useEffect(() => {
-    const step = choice.step;
-    if (step && !session)
-      setDuration(Math.max(1, Math.round(step.plannedSeconds / 60)));
-  }, [task?.id, task?.nextAction?.id, choice.step?.plannedSeconds]);
+  const nextDurationSource = choice.step
+    ? JSON.stringify([
+        choice.step.taskId,
+        choice.step.id,
+        choice.step.plannedSeconds,
+      ])
+    : null;
+  // Adjust before committing a different step, so its start button cannot use
+  // the previous step's duration while a passive effect is still pending.
+  if (durationSource !== nextDurationSource) {
+    setDurationSource(nextDurationSource);
+    if (choice.step && !session)
+      setDuration(Math.max(1, Math.round(choice.step.plannedSeconds / 60)));
+  }
   const resumeHint = task?.nextAction
     ? latestStepCue(data, task.id, task.nextAction.id)?.text
     : null;

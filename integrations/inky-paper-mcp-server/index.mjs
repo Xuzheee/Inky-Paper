@@ -190,13 +190,24 @@ tool(
 );
 tool(
   "save_daily_summary",
-  "Only after an explicit user request for summary/retrospective: save your summary of a fresh get_daily_record. Pass its dataVersion, notesVersion and sampledAt exactly. Reread and revise on conflict. Include actual progress, differences from the plan, reported blockers and suggested next starting point. Do not invent outcomes, overwrite personal notes or adopt future suggestions. Record updates never trigger this tool automatically.",
+  "Only after an explicit summary request: save a freshly read get_daily_record with its exact dataVersion, notesVersion and sampledAt. The server verifies that this read occurred; reread after restart/CONFLICT. Write four short sections: actual progress, plan differences, reported blockers or unknown reasons, suggested next start. Attach evidenceRefs for key facts using real IDs from that date: session=sessions.id (historical action/time), step=planItems.step.id (current plan only), manualChange=manualStepChanges.id, note=notes.id, planChange=planChanges.id. personalNote uses id=date and an exact 1-2000 character quote from actual personalNotes body (not generated filename headings). Do not provide snapshots; the server creates them. Empty evidence is allowed for an empty record, never invented progress. Optional nextStart references a real task/step involved that date, preserving its dayItemId or null; it only prepares a possible continuation, never starts a clock or adopts a plan. Do not overwrite personal notes. Record updates never trigger this tool automatically.",
   {
     requestId, date, utcOffsetMinutes,
     expectedDataVersion: z.string().min(1).max(200),
     expectedNotesVersion: z.string().min(1).max(200),
     sourceAsOf: z.number().int().positive(),
     body: z.string().trim().min(1).max(16000),
+    evidenceRefs: z.array(z.object({
+      kind: z.enum(["session", "step", "manualChange", "note", "planChange", "personalNote"]),
+      id: z.string().min(1).max(100),
+      quote: z.string().min(1).max(2000).optional(),
+    }).strict()).max(24),
+    nextStart: z.object({
+      taskId,
+      stepId: z.string().uuid(),
+      dayItemId: z.string().uuid().nullable(),
+      cue: z.string().max(500).nullable(),
+    }).strict().nullable().optional(),
   },
   true,
 );

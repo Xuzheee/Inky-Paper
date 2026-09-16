@@ -138,6 +138,10 @@ pub struct Summary {
     pub utc_offset_minutes: i32,
     #[serde(default)]
     pub source_notes_version: Option<String>,
+    #[serde(default)]
+    pub evidence: Vec<crate::summary_evidence::Evidence>,
+    #[serde(default)]
+    pub next_start: Option<crate::summary_evidence::NextStart>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -862,8 +866,9 @@ pub(crate) fn execute(
                                     && x.task_id == tid
                                     && x.step_id == sid
                                     && x.removed_at.is_none()
+                                    && x.resolved_at.is_none()
                             })
-                            .ok_or("CONFLICT: 这条安排已变化，请刷新后重试。")?
+                            .ok_or("CONFLICT: 这条安排已取消、继续到别日或变化，请重新选择当前安排。")?
                             .clone(),
                     ),
                     None if v["dayItemId"].is_null() => None,
@@ -915,43 +920,7 @@ pub(crate) fn execute(
             keys(v, &["date", "utcOffsetMinutes"])?;
             daily_record(s, &date(v)?, offset(v)?, t)
         }
-        "save_daily_summary" => {
-            keys(
-                v,
-                &[
-                    "date",
-                    "utcOffsetMinutes",
-                    "expectedDataVersion",
-                    "expectedNotesVersion",
-                    "sourceAsOf",
-                    "body",
-                ],
-            )?;
-            let date = date(v)?;
-            let offset = offset(v)?;
-            let record = daily_record(s, &date, offset, t)?;
-            let expected = text(v, "expectedDataVersion", 100)?;
-            if record["dataVersion"].as_str() != Some(expected.as_str()) {
-                return Err("CONFLICT: 当天记录已有更新，请重新读取后生成总结。".into());
-            }
-            let source_as_of = v["sourceAsOf"]
-                .as_i64()
-                .filter(|x| *x >= 0 && *x <= t)
-                .ok_or("INVALID_INPUT: sourceAsOf must be the read's sampledAt")?;
-            let summary = Summary {
-                id: id(),
-                date,
-                body: text(v, "body", 16000)?,
-                source_version: expected,
-                source_as_of,
-                created_at: t,
-                source: source.into(),
-                utc_offset_minutes: offset,
-                source_notes_version: optional(v, "expectedNotesVersion", 100)?,
-            };
-            s.planning.summaries.push(summary.clone());
-            Ok(json!({"summary":summary}))
-        }
+        "save_daily_summary" => crate::summary_evidence::save(s, v, source, t, None),
         _ => Err("UNKNOWN_ACTION".into()),
     }
 }

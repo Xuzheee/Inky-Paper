@@ -50,7 +50,7 @@ import {
   requestStorageKey,
   type EditorValues,
 } from "./editorDraft";
-import { dailyStats, datesWithRecords, durationLabel } from "./dailyRecord";
+import { dailyStats, datesWithRecords, durationLabel, summaryCandidatePrompt } from "./dailyRecord";
 import { useDailyRecords } from "./useDailyRecords";
 import {
   categories,
@@ -1553,6 +1553,17 @@ export default function Workbench() {
             date={day}
             state={state}
             entry={records[day]}
+            blocked={blocked}
+            onContinue={choose}
+            onPrepareToday={(summary) => {
+              const today = dateKey();
+              const text = summaryCandidatePrompt(day, summary, today);
+              goDay(today);
+              setProjectFilter("");
+              setFilter("");
+              setCoachCollapsed(false);
+              setCoachPrefill({ text, serial: Date.now() });
+            }}
             openMarkdown={(kind = "day") => {
               setDocumentKind(kind);
               setView("markdown");

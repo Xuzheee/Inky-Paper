@@ -129,7 +129,7 @@ ContextState.preferences 默认空，Preference `{id,text,scope:global|day|proje
 
 复用 `save_daily_summary` 和两个版本检查，不新建总结数据库。Summary 新增默认空 `evidence` 和默认空 `nextStart`。新 MCP 调用必须传 `evidenceRefs`，旧本地调用和旧库缺字段继续可读，但界面明确“旧总结未附依据”。正文依次为实际推进、与计划的差异、已报告卡点/未知、下次起点；模型建议不记为已发生事实。
 
-`evidenceRefs` 最多24项，每项 `{kind,id,quote?}`；kind 为 session、step、manualChange、note、planChange、personalNote。服务端只允许来自本次日期的日记录对象，重复引用拒绝；步骤引用只表示当前计划步骤，历史动作以会话/手动变更快照为准。personalNote 的 id 为日期，quote 必须是当前个人笔记中真实存在的1–2000字原句，由现有笔记版本检查一并核对。无记录时允许空引用，不把空记录编成产出。
+`evidenceRefs` 最多24项，每项 `{kind,id,quote?}`；kind 为 session、step、manualChange、note、planChange、personalNote。服务端只允许来自本次日期的日记录对象，重复引用拒绝（personalNote可引用同日不同原句，完全相同的原句不得重复）；步骤引用只表示当前计划步骤，历史动作以会话/手动变更快照为准。personalNote 的 id 为日期，quote 必须是当前个人笔记中真实存在的1–2000字原句，由现有笔记版本检查一并核对。无记录时允许空引用，不把空记录编成产出。
 
 服务端生成不可由调用方传入的 `{kind,id,label,snapshot}` 依据快照，跟总结一起保存。界面可展开查看，注明读取截至时间及后续记录变化；旧总结不凭当前对象补造当时依据。引用验证只证明来源存在，正文是否正确解释仍通过真实模型评测核查。
 

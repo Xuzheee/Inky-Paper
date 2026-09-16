@@ -51,7 +51,11 @@ Paper 是执行和共同状态入口，Hermes 是按需对话入口。只使用 
 1. 明确日期后调用 `inky_paper_get_daily_record`，读取计划、实际轮次、反馈、计时精度、`manualStepChanges`、`personalNotes`、`notesVersion`、`dataVersion` 和 `sampledAt`。计划外的真实工作也纳入。
 2. `manualStepChanges` 是用户手动完成或撤销步骤的真实反馈，按 `recordedAt` 发生日归入记录；即使没有日计划或 session，也要读取。每条记录是一次状态变更，不是一次计时，也不能累加为已完成步骤数；按同一 `stepId` 的最新状态理解完成与撤销，当前状态以最新读取的任务/步骤为准。历史回顾保留当日发生的反馈，不把后续撤销改写成此前从未完成。
 3. 围绕“实际推进、计划差异、卡点、下一次起点”给出简短总结。成果只来自记录或用户明确反馈；完成步骤不等于完成父任务。建议、推测和事实分别表达。不要编造未记录成果；不要把累计计时称作有效专注时间。
-4. 调用 `inky_paper_save_daily_summary`：传 `expectedDataVersion=dataVersion`、`expectedNotesVersion=notesVersion`、`sourceAsOf=sampledAt`，日期与时区保持和读取一致，body 写总结正文。
+4. 调用 `inky_paper_save_daily_summary`：传 `expectedDataVersion=dataVersion`、`expectedNotesVersion=notesVersion`、`sourceAsOf=sampledAt`，日期与时区保持和读取一致，body 用“实际推进、计划差异、已报告卡点／未知、下次起点”四个短段落。提供 `evidenceRefs`，引用刚读到的 session、planItems.step、manualStepChanges、notes、planChanges 的真实 id；历史动作使用会话或手动记录快照，不能把当前步骤改名套回过去。引用 personalNotes 时，kind 为 personalNote、id 为当天日期、quote 是真实正文中的原句，不引用拼接的文件名标题。没有记录时可传空引用，明确未知。不要自行编写 snapshot。
 5. 如保存冲突，重读变化后修订总结，再使用新的请求 id 保存；不要静默绕过版本校验。成功后可说已保存；失败只说目前仍未确认保存。
+
+应用会验证本次读取确实发生过，并把依据与总结一起保存；重启后若读取凭据失效，重新读取再保存。正文引用只能证明来源，仍需如实区分计时、状态、自报产出和推测。可用 `nextStart` 指向本日记录涉及的原任务／步骤和来源安排，cue 只写下次建议起点；保存它不会选择步骤或启动计时。没有明确原步骤就留空，先讨论或生成待采用候选。
+
+用户明确请求多日回顾时，分别读取各日 get_daily_record，说明哪一天发生了什么；同一跨午夜会话只按各日 dailySeconds 归属，完成按结束日，不把后续撤销改写成过去从未完成。用户要求保存时逐日保存并各自校验版本，不把多日事实伪装成单日依据。
 
 生成总结不自动采用明日安排；后续安排仍应生成候选让用户选择。个人笔记由用户维护，Coach 不覆盖它。新工作发生后不主动重写旧总结；等用户再次询问时读新事实。

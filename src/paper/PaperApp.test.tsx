@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Profiler } from "react";
 import {
   act,
   cleanup,
@@ -428,7 +429,32 @@ describe("Paper current flows", () => {
       dayItemId: "future-B",
     };
     localStorage.setItem("paper-selected", JSON.stringify("A"));
-    await open();
+    const committedDurations: string[] = [];
+    const openRestored = async () => {
+      render(
+        <Profiler
+          id="restored-step"
+          onRender={() => {
+            const card = screen.queryByRole("region", { name: "当前步骤" });
+            const duration =
+              card &&
+              (within(card).queryByLabelText(
+                "专注时长",
+              ) as HTMLSelectElement | null);
+            if (
+              duration &&
+              card &&
+              within(card).queryByRole("heading", { name: "步骤 B" })
+            )
+              committedDurations.push(duration.value);
+          }}
+        >
+          <PaperApp />
+        </Profiler>,
+      );
+      await screen.findByRole("heading", { name: "步骤 B" });
+    };
+    await openRestored();
     expect(
       within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
         "heading",
@@ -441,10 +467,12 @@ describe("Paper current flows", () => {
     expect(screen.getByText(/来自 2099-01-03 的安排/)).toBeTruthy();
     expect(mutations()).toHaveLength(0);
     cleanup();
-    await open();
+    await openRestored();
     expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
       "18",
     );
+    expect(committedDurations.length).toBeGreaterThan(0);
+    expect(new Set(committedDurations)).toEqual(new Set(["18"]));
     await act(async () => fireEvent.click(button("start")));
     expect(mutations().map(([, args]) => args.action)).toEqual([
       "start_session",
@@ -456,6 +484,25 @@ describe("Paper current flows", () => {
       plannedSeconds: 1080,
     });
     expect(state.planning!.dayItems[0].date).toBe("2099-01-03");
+  });
+
+  it("keeps the user's duration when the same step refreshes, and starts with that choice", async () => {
+    enableTaskSteps();
+    await open();
+    fireEvent.change(await screen.findByLabelText("专注时长"), {
+      target: { value: "45" },
+    });
+    state.tasks[0].title = "更新后的任务标题";
+    state.tasks[0].revision++;
+    state.planning!.steps[0].expectedResult = "新增完成标准";
+    state.planning!.steps[0].revision++;
+    await sync();
+    expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
+      "45",
+    );
+    expect(mutations()).toHaveLength(0);
+    await act(async () => fireEvent.click(button("start")));
+    expect(state.sessions[0].plannedSeconds).toBe(2700);
   });
 
   it("uses the exact first daily step for the note, row marker and clock even when the parent's next action is different", async () => {

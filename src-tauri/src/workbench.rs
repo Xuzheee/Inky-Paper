@@ -146,10 +146,11 @@ fn prepare_step(c: &mut Connection, mut input: Value, item_id: Option<String>) -
                         && item["taskId"] == input["taskId"]
                         && item["stepId"] == input["stepId"]
                         && item["removedAt"].is_null()
+                        && item["resolvedAt"].is_null()
                 })
             })
             .cloned()
-            .ok_or("这条安排已变化，请刷新工作台后重试。")?
+            .ok_or("这条安排已取消、继续到别日或变化，请重新选择当前安排。")?
     } else {
         Value::Null
     };
@@ -843,5 +844,29 @@ mod tests {
         let after = call(&mut c, "get_state", json!({}))["state"].clone();
         assert_eq!(before["tasks"], after["tasks"]);
         assert_eq!(before["sessions"], after["sessions"]);
+    }
+
+    #[test]
+    fn choosing_a_continued_old_arrangement_cannot_fall_back_to_unplanned_work() {
+        let mut c = crate::paper::open(Path::new(":memory:")).unwrap();
+        let original = call(&mut c, "workbench_save_step", json!({
+            "taskId":uuid::Uuid::new_v4().to_string(),"stepId":uuid::Uuid::new_v4().to_string(),
+            "title":"合成任务","text":"原步骤","date":"2020-03-04","plannedSeconds":900
+        }));
+        let target = call(&mut c, "continue_plan_items", json!({
+            "taskId":original["task"]["id"],"stepId":original["step"]["id"],
+            "expectedTaskRevision":original["task"]["revision"],"expectedStepRevision":original["step"]["revision"],
+            "items":[{"id":original["item"]["id"],"revision":original["item"]["revision"]}],"date":"2020-03-05"
+        }));
+        let input = json!({"requestId":uuid::Uuid::new_v4().to_string(),"taskId":original["task"]["id"],
+            "stepId":original["step"]["id"],"expectedRevision":original["task"]["revision"],
+            "expectedStepRevision":original["step"]["revision"]});
+        let before = json!(crate::paper::load(&c).unwrap());
+        assert!(prepare_step(&mut c, input.clone(), original["item"]["id"].as_str().map(String::from))
+            .unwrap_err().contains("继续到别日"));
+        assert_eq!(json!(crate::paper::load(&c).unwrap()), before);
+        let chosen = prepare_step(&mut c, input, target["item"]["id"].as_str().map(String::from)).unwrap();
+        assert_eq!(chosen["item"]["id"], target["item"]["id"]);
+        assert!(crate::paper::load(&c).unwrap().sessions.is_empty());
     }
 }

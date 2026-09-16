@@ -289,7 +289,7 @@ fn manual_completion_imports_legacy_steps_and_invalidates_daily_summary_without_
     assert_eq!(imported.planning.steps.len(), 1);
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let before = call(&mut c, "get_daily_record", json!({"date":date})).unwrap();
-    call(&mut c, "save_daily_summary", json!({"date":date,"expectedDataVersion":before["dataVersion"],"expectedNotesVersion":before["notesVersion"],"sourceAsOf":before["sampledAt"],"body":"尚无完成事实"})).unwrap();
+    call(&mut c, "save_daily_summary", json!({"date":date,"expectedDataVersion":before["dataVersion"],"expectedNotesVersion":before["notesVersion"],"sourceAsOf":before["sampledAt"],"body":"尚无完成事实","evidenceRefs":[]})).unwrap();
     call(
         &mut c,
         "set_step_completed",
@@ -569,7 +569,7 @@ fn daily_summary_is_versioned_without_invalidating_itself_or_creating_plans() {
         json!({"date":"2026-09-13","utcOffsetMinutes":480}),
     )
     .unwrap();
-    let input = json!({"date":"2026-09-13","utcOffsetMinutes":480,"expectedDataVersion":before["dataVersion"],"expectedNotesVersion":before["notesVersion"],"sourceAsOf":before["sampledAt"],"body":"今日没有已保存的工作记录。"});
+    let input = json!({"date":"2026-09-13","utcOffsetMinutes":480,"expectedDataVersion":before["dataVersion"],"expectedNotesVersion":before["notesVersion"],"sourceAsOf":before["sampledAt"],"body":"今日没有已保存的工作记录。","evidenceRefs":[]});
     call(&mut c, "save_daily_summary", input.clone()).unwrap();
     let after = call(
         &mut c,

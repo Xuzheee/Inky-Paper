@@ -195,32 +195,32 @@ pub fn execute(
     source: &str,
 ) -> Result<(Value, bool), String> {
     crate::paper_permissions::authorize(source, action)?;
-    if action == "save_daily_summary" {
+    let summary_input = if action == "save_daily_summary" {
         let cached = v["requestId"]
             .as_str()
             .map(|request_id| {
                 c.query_row(
-                    "SELECT 1 FROM paper_requests WHERE id=?1",
+                    "SELECT fingerprint FROM paper_requests WHERE id=?1",
                     [request_id],
-                    |_| Ok(()),
+                    |r| r.get::<_, String>(0),
                 )
                 .optional()
-                .map(|r| r.is_some())
             })
             .transpose()
             .map_err(err)?
-            .unwrap_or(false);
-        if !cached && c.path().is_some_and(|p| !p.is_empty() && p != ":memory:") {
-            let (_, notes_version) =
-                crate::paper_markdown::personal_context(c, v["date"].as_str().unwrap_or(""))?;
-            if v["expectedNotesVersion"].as_str() != Some(&notes_version) {
-                return Err(
-                    "CONFLICT: 个人笔记已有更新或未读取，请重新读取当天记录再生成总结。".into(),
-                );
+            .flatten();
+        if let Some(fingerprint) = cached {
+            if fingerprint != json!([action, &v, source]).to_string() {
+                return Err("REQUEST_ID_REUSED: use a new ID for a different operation".into());
             }
+            None
+        } else {
+            Some(crate::summary_evidence::prepare(c, &v, source)?)
         }
-    }
-    let (mut result, changed) = execute_inner(c, action, v, source, None)?;
+    } else {
+        None
+    };
+    let (mut result, changed) = execute_inner(c, action, v, source, None, summary_input.as_ref())?;
     let journal = crate::paper_markdown::sync(c, changed);
     if result.is_object() {
         result["journal"] = journal;
@@ -236,7 +236,7 @@ pub fn runtime_tick(
     sample: fn() -> Option<Value>,
 ) -> Result<(Value, bool), String> {
     let (mut result, changed) =
-        execute_inner(c, "runtime_tick", json!({}), "system", Some(sample))?;
+        execute_inner(c, "runtime_tick", json!({}), "system", Some(sample), None)?;
     result["journal"] = crate::paper_markdown::sync(c, false);
     Ok((result, changed))
 }
@@ -247,6 +247,7 @@ fn execute_inner(
     v: Value,
     source: &str,
     sample: Option<fn() -> Option<Value>>,
+    summary_input: Option<&crate::summary_evidence::PreparedInput>,
 ) -> Result<(Value, bool), String> {
     let tx = c.transaction().map_err(err)?;
     let fingerprint = json!([action, &v, source]).to_string();
@@ -898,9 +899,14 @@ fn execute_inner(
             changed = true;
             out
         }
+        "save_daily_summary" => {
+            let out = crate::summary_evidence::save(&mut s, &v, source, t, summary_input)?;
+            event(&tx, action, source, out.clone())?;
+            changed = true;
+            out
+        }
         "get_plan_batch" | "get_daily_record" | "propose_plan_batch" | "adopt_plan_cards"
-        | "select_step" | "prepare_step" | "set_step_completed" | "remove_plan_item"
-        | "save_daily_summary" => {
+        | "select_step" | "prepare_step" | "set_step_completed" | "remove_plan_item" => {
             let out = crate::paper_planning::execute(&mut s, action, &v, source, t)?;
             if !matches!(action, "get_plan_batch" | "get_daily_record") {
                 event(&tx, action, source, out.clone())?;
@@ -951,6 +957,9 @@ fn execute_inner(
     changed |= crate::paper_planning::reconcile_steps(&mut s);
     changed |= crate::paper_planning::reconcile_intervals(&operation_sessions, &mut s, t);
     crate::paper_planning::record_plan_changes(&mut s, &before_items, action, source, t);
+    if let Some(input) = summary_input {
+        input.recheck_notes(&tx)?;
+    }
     if changed {
         tx.execute(
             "UPDATE paper_state SET data=?1 WHERE id=1",

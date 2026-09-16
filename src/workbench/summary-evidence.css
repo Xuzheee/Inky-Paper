@@ -1,0 +1,72 @@
+.wk-summary-body {
+  white-space: pre-wrap;
+}
+.wk-summary .wk-summary-stale {
+  color: #896839;
+  font-size: 12px;
+  margin-top: 7px;
+}
+.wk-summary-sources {
+  margin-top: 10px;
+  border-top: 1px dashed var(--wk-line);
+  padding-top: 9px;
+}
+.wk-summary-sources summary {
+  cursor: pointer;
+  color: #52674a;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.wk-summary-sources > details {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--wk-line);
+}
+.wk-summary-sources dl {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.wk-summary-sources dl > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 9px;
+  padding: 3px 0;
+}
+.wk-summary-sources dt {
+  color: var(--wk-muted);
+}
+.wk-summary-sources dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-summary-next {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--wk-line);
+}
+.wk-summary-next strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.wk-summary-next > p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-summary-next button,
+.wk-summary-actions button {
+  color: #52674a;
+  font-size: 13px;
+  border: 1px solid var(--wk-line);
+  margin-top: 7px;
+}
+.wk-summary-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.wk-summary-actions small {
+  color: var(--wk-muted);
+  font-size: 11px;
+}

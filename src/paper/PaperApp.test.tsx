@@ -98,8 +98,10 @@ const allTasks = () => fireEvent.click(button("全部任务"));
 const outcome = (name: "还没完成" | "已完成") =>
   screen.getByRole("radio", { name }) as HTMLInputElement;
 const showFeedbackFields = () => {
-  if (!screen.queryByLabelText("产出"))
-    fireEvent.click(button("补充记录（可选）"));
+  const open = screen.queryByRole("button", { name: "补充记录（可选）" });
+  if (open) fireEvent.click(open);
+  const more = screen.queryByRole("button", { name: "其他记录（可选）" });
+  if (more) fireEvent.click(more);
 };
 const open = async () => {
   render(<PaperApp />);
@@ -784,6 +786,103 @@ describe("Paper current flows", () => {
     expect(screen.queryByRole("button", { name: "休息 5 分钟" })).toBeNull();
   });
 
+  it("prioritizes one optional question and only asks about a blocker after the user selects it", async () => {
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(button("补充记录（可选）"));
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    expect(screen.getByLabelText("下次起点")).toBeTruthy();
+    expect(screen.queryByLabelText("卡点")).toBeNull();
+    fireEvent.change(screen.getByLabelText("下次起点"), {
+      target: { value: "从第四项继续核对" },
+    });
+    fireEvent.click(outcome("已完成"));
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("产出"), {
+      target: { value: "三项已核对" },
+    });
+    fireEvent.click(button("这轮卡住了"));
+    expect(outcome("已完成").checked).toBe(true);
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("卡点"), {
+      target: { value: "最后一项的来源不清楚" },
+    });
+    fireEvent.click(outcome("还没完成"));
+    expect(screen.getByLabelText("卡点")).toBeTruthy();
+    fireEvent.click(button("按完成情况记录"));
+    expect(
+      (screen.getByLabelText("下次起点") as HTMLTextAreaElement).value,
+    ).toBe("从第四项继续核对");
+    showFeedbackFields();
+    expect(screen.getAllByRole("textbox")).toHaveLength(3);
+    expect((screen.getByLabelText("产出") as HTMLTextAreaElement).value).toBe(
+      "三项已核对",
+    );
+    expect((screen.getByLabelText("卡点") as HTMLTextAreaElement).value).toBe(
+      "最后一项的来源不清楚",
+    );
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it("keeps an explicit blocker question and its draft across navigation and restart", async () => {
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(button("补充记录（可选）"));
+    fireEvent.click(button("这轮卡住了"));
+    fireEvent.change(screen.getByLabelText("卡点"), {
+      target: { value: "还缺一份参考文件" },
+    });
+    fireEvent.click(button("返回任务列表"));
+    fireEvent.click(button("返回番茄钟"));
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    const expand = screen.queryByRole("button", { name: "补充记录（可选）" });
+    if (expand) fireEvent.click(expand);
+    expect((screen.getByLabelText("卡点") as HTMLTextAreaElement).value).toBe(
+      "还缺一份参考文件",
+    );
+    cleanup();
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(button("补充记录（可选）"));
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    expect((screen.getByLabelText("卡点") as HTMLTextAreaElement).value).toBe(
+      "还缺一份参考文件",
+    );
+    expect(button("按完成情况记录").getAttribute("aria-pressed")).toBe("true");
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it.each([false, true])(
+    "can skip every feedback field while completed is %s without inventing progress or starting another clock",
+    async (completed) => {
+      enableTaskSteps();
+      state.sessions = [session("waiting")];
+      render(<PaperApp />);
+      await screen.findByRole("heading", { name: "结束番茄钟" });
+      if (completed) fireEvent.click(outcome("已完成"));
+      else {
+        fireEvent.click(button("补充记录（可选）"));
+        fireEvent.click(button("这轮卡住了"));
+      }
+      await act(async () => fireEvent.click(button("保存并结束")));
+      expect(state.sessions[0].feedback).toEqual({
+        outcome: completed ? "step_completed" : "stopped",
+        output: null,
+        blocker: null,
+        nextCue: null,
+      });
+      expect(state.tasks[0].completed).toBe(false);
+      expect(state.planning!.steps[0].completed).toBe(completed);
+      expect(mutations().map(([, args]) => args.action)).toEqual([
+        "finish_session",
+      ]);
+      expect(state.sessions).toHaveLength(1);
+      expect(localStorage.getItem("paper-feedback-stuck-session")).toBeNull();
+    },
+  );
+
   it("preserves the chosen outcome and all feedback fields across navigation and reload", async () => {
     state.sessions = [session("waiting")];
     render(<PaperApp />);
@@ -827,6 +926,7 @@ describe("Paper current flows", () => {
     await screen.findByRole("heading", { name: "结束番茄钟" });
     fireEvent.click(outcome("已完成"));
     showFeedbackFields();
+    fireEvent.click(button("这轮卡住了"));
     fireEvent.change(screen.getByLabelText("产出"), {
       target: { value: "上一轮独有的草稿" },
     });
@@ -837,6 +937,7 @@ describe("Paper current flows", () => {
     expect(outcome("还没完成").checked).toBe(true);
     expect(outcome("已完成").checked).toBe(false);
     showFeedbackFields();
+    expect(button("这轮卡住了").getAttribute("aria-pressed")).toBe("false");
     for (const name of ["产出", "卡点", "下次起点"])
       expect((screen.getByLabelText(name) as HTMLTextAreaElement).value).toBe(
         "",
@@ -888,6 +989,7 @@ describe("Paper current flows", () => {
     await screen.findByRole("heading", { name: "结束番茄钟" });
     fireEvent.click(outcome("已完成"));
     showFeedbackFields();
+    fireEvent.click(button("这轮卡住了"));
     fireEvent.change(screen.getByLabelText("产出"), {
       target: { value: "需要重试但不能丢失的产出" },
     });
@@ -903,6 +1005,8 @@ describe("Paper current flows", () => {
       "需要重试但不能丢失的产出",
     );
     expect(localStorage.getItem("paper-outcome-session")).toBe("true");
+    expect(localStorage.getItem("paper-feedback-stuck-session")).toBe("true");
+    expect(button("按完成情况记录").getAttribute("aria-pressed")).toBe("true");
     await act(async () => fireEvent.click(button("保存并结束")));
     expect(state.sessions[0].feedback).toMatchObject({
       outcome: "step_completed",
@@ -912,6 +1016,7 @@ describe("Paper current flows", () => {
     expect(state.tasks[0].completed).toBe(false);
     expect(localStorage.getItem("paper-feedback-session")).toBeNull();
     expect(localStorage.getItem("paper-outcome-session")).toBeNull();
+    expect(localStorage.getItem("paper-feedback-stuck-session")).toBeNull();
     const saves = mutations().filter(
       ([, args]) => args.action === "finish_session",
     );
@@ -1719,6 +1824,7 @@ describe("Paper current flows", () => {
     expect(outcome("还没完成").checked).toBe(true);
     expect(screen.queryByLabelText("产出")).toBeNull();
     fireEvent.click(button("补充记录（可选）"));
+    fireEvent.click(button("其他记录（可选）"));
     fireEvent.change(screen.getByLabelText("产出"), {
       target: { value: "已整理两条证据" },
     });

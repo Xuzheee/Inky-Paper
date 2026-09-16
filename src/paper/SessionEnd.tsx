@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowLeft, Minus, Plus } from "lucide-react";
 import type { Session } from "./paperTypes";
 import { PencilShading } from "./PencilShading";
@@ -15,6 +15,8 @@ export function SessionEnd({
   setExpanded,
   feedback,
   setFeedback,
+  stuck,
+  setStuck,
   returnToTasks,
   returnToTimer,
   save,
@@ -29,12 +31,40 @@ export function SessionEnd({
   setExpanded: (expanded: boolean) => void;
   feedback: Feedback;
   setFeedback: (feedback: Feedback) => void;
+  stuck: boolean;
+  setStuck: (stuck: boolean) => void;
   returnToTasks: () => void;
   returnToTimer: () => void;
   save: () => void;
   workControls?: ReactNode;
   footer: ReactNode;
 }) {
+  const [moreRecords, setMoreRecords] = useState(false);
+  const primaryField: keyof Feedback = stuck
+    ? "blocker"
+    : completed
+      ? "output"
+      : "nextCue";
+  const questions: Record<keyof Feedback, { title: string; label: string }> = {
+    output: { title: "留下了什么？", label: "产出" },
+    blocker: { title: "主要卡在哪里？", label: "卡点" },
+    nextCue: { title: "下次从哪里开始？", label: "下次起点" },
+  };
+  const field = (key: keyof Feedback) => (
+    <label key={key}>
+      {questions[key].title}
+      <textarea
+        rows={1}
+        maxLength={key === "nextCue" ? 500 : 2000}
+        aria-label={questions[key].label}
+        disabled={busy}
+        value={feedback[key]}
+        onChange={(event) =>
+          setFeedback({ ...feedback, [key]: event.target.value })
+        }
+      />
+    </label>
+  );
   return (
     <>
       <nav className="focus-navigation" aria-label="结束页导航">
@@ -73,20 +103,33 @@ export function SessionEnd({
         </button>
         {expanded && (
           <div className="feedback-fields" id="session-end-fields">
-            {(["output", "blocker", "nextCue"] as const).map((key, index) => (
-              <label key={key}>
-                {["留下了什么？", "卡在哪里？", "下次从哪里开始？"][index]}
-                <textarea
-                  rows={1}
-                  maxLength={key === "nextCue" ? 500 : 2000}
-                  aria-label={["产出", "卡点", "下次起点"][index]}
-                  value={feedback[key]}
-                  onChange={(event) =>
-                    setFeedback({ ...feedback, [key]: event.target.value })
-                  }
-                />
-              </label>
-            ))}
+            {field(primaryField)}
+            <div className="end-record-options">
+              <button
+                className="text-button"
+                aria-pressed={stuck}
+                disabled={busy}
+                onClick={() => setStuck(!stuck)}
+              >
+                {stuck ? "按完成情况记录" : "这轮卡住了"}
+              </button>
+              <button
+                className="text-button"
+                aria-expanded={moreRecords}
+                aria-controls="session-end-more-fields"
+                onClick={() => setMoreRecords(!moreRecords)}
+              >
+                {moreRecords ? "收起其他记录" : "其他记录（可选）"}
+              </button>
+            </div>
+            {moreRecords && (
+              <div className="feedback-fields" id="session-end-more-fields">
+                {(["output", "blocker", "nextCue"] as const)
+                  .filter((key) => key !== primaryField)
+                  .map(field)}
+              </div>
+            )}
+            <p className="end-record-skip">都可以留空，直接保存。</p>
           </div>
         )}
       </section>

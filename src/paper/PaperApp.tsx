@@ -109,6 +109,7 @@ export default function PaperApp() {
     [cue, setCue] = useState(""),
     [note, setNote] = useState(getStored<string>("paper-note", ""));
   const [expanded, setExpanded] = useState(false),
+    [feedbackStuck, setFeedbackStuck] = useState(false),
     [feedback, setFeedback] = useState({
       output: "",
       blocker: "",
@@ -359,6 +360,10 @@ export default function PaperApp() {
           getStored<boolean>(`paper-outcome-${session.id}`, false) === true,
       });
       setCue(getStored(`paper-cue-${session.id}`, session.resumeCue || ""));
+      setFeedbackStuck(
+        getStored<boolean>(`paper-feedback-stuck-${session.id}`, false) ===
+          true,
+      );
       setFeedback(
         getStored(`paper-feedback-${session.id}`, {
           output: "",
@@ -593,6 +598,7 @@ export default function PaperApp() {
     });
     if (r) {
       setExpanded(false);
+      setFeedbackStuck(false);
       setQuickNote(false);
       setFeedback({ output: "", blocker: "", nextCue: "" });
       resetView("focus");
@@ -732,6 +738,7 @@ export default function PaperApp() {
         playCompletionSound(false);
       setReceipt(r.session as Session);
       localStorage.removeItem(`paper-feedback-${session?.id}`);
+      localStorage.removeItem(`paper-feedback-stuck-${session?.id}`);
       localStorage.removeItem(`paper-outcome-${session?.id}`);
       setOutcomeDraft(null);
       sessionRef.current = null;
@@ -1561,6 +1568,7 @@ export default function PaperApp() {
         </>
       ) : view === "feedback" && session ? (
         <SessionEnd
+          key={session.id}
           session={session}
           busy={busy}
           completed={
@@ -1577,6 +1585,14 @@ export default function PaperApp() {
           setExpanded={setExpanded}
           feedback={feedback}
           setFeedback={setFeedback}
+          stuck={feedbackStuck}
+          setStuck={(stuck) => {
+            setFeedbackStuck(stuck);
+            localStorage.setItem(
+              `paper-feedback-stuck-${session.id}`,
+              JSON.stringify(stuck),
+            );
+          }}
           returnToTasks={returnToTasks}
           returnToTimer={() => setView("focus")}
           save={() =>

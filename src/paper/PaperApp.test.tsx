@@ -15,6 +15,7 @@ import { WorkHistory } from "./CoachUI";
 import { SessionHistoryList } from "./SessionHistory";
 import { localDate } from "./DayPlan";
 import { PAPER_MOTTOS } from "./mottos";
+import { taskCompletionPrompt } from "../shared/planning";
 
 const native = vi.hoisted(() => {
   Object.defineProperty(window, "__TAURI_INTERNALS__", {
@@ -171,6 +172,26 @@ beforeEach(() => {
         current.revision += 1;
         return { task: structuredClone(current) };
       }
+      if (action === "acknowledge_task_completion") {
+        const prompt = taskCompletionPrompt(state, input.taskId);
+        if (
+          !prompt ||
+          prompt.task.revision !== input.expectedTaskRevision ||
+          JSON.stringify(input.steps) !==
+            JSON.stringify(
+              prompt.steps.map((s) => ({ id: s.id, revision: s.revision })),
+            )
+        )
+          throw new Error("CONFLICT: 步骤集合已有更新");
+        const acknowledgement = {
+          taskId: prompt.task.id,
+          completionKey: prompt.completionKey,
+          acknowledgedAt: Date.now(),
+        };
+        state.planning!.taskCompletionAcknowledgements ||= [];
+        state.planning!.taskCompletionAcknowledgements.push(acknowledgement);
+        return { acknowledgement };
+      }
       if (action === "prepare_step") {
         if (state.sessions.some((session) => session.status !== "finished"))
           throw new Error("ACTIVE_SESSION");
@@ -280,6 +301,19 @@ beforeEach(() => {
       if (action === "start_session") {
         if (state.sessions.some((s) => s.status !== "finished"))
           throw new Error("ACTIVE_SESSION");
+        if (input.kind === "rest") {
+          const current = {
+            ...session(),
+            id: "rest-session",
+            taskId: null,
+            taskTitle: "休息",
+            action: null,
+            kind: "rest",
+            plannedSeconds: input.plannedSeconds,
+          };
+          state.sessions.push(current);
+          return { session: structuredClone(current) };
+        }
         const selectedTask = state.tasks.find((t) => t.id === input.taskId)!;
         const selectedStep = state.planning?.steps.find(
           (s) => s.id === input.stepId,
@@ -1623,6 +1657,319 @@ describe("Paper current flows", () => {
     ]);
     await sync();
     expect(completed()?.classList.contains("is-done")).toBe(true);
+  });
+
+  it("continues the exact saved step and future source without starting a clock", async () => {
+    enableTaskSteps();
+    const original = state.planning!.steps[0];
+    state.planning!.steps.push({
+      ...original,
+      id: "step-A2",
+      text: "另一个步骤",
+      plannedSeconds: 600,
+    });
+    state.planning!.dayItems = [
+      {
+        id: "future-source",
+        taskId: "A",
+        stepId: original.id,
+        date: "2099-01-03",
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    state.planning!.sessionLinks = [
+      {
+        sessionId: "session",
+        dayItemId: "future-source",
+        planDate: "2099-01-03",
+      },
+    ];
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(button("补充记录（可选）"));
+    fireEvent.change(screen.getByLabelText("下次起点"), {
+      target: { value: "核对第三项" },
+    });
+    await act(async () => fireEvent.click(button("保存并结束")));
+    state.tasks[0].nextAction = {
+      id: "step-A2",
+      text: "另一个步骤",
+      completed: false,
+      source: "user",
+    };
+    state.tasks[0].revision += 1;
+    await sync();
+    const snapshots = structuredClone(state.sessions);
+    await act(async () => fireEvent.click(button("继续这一步")));
+    expect(state.planning!.prepared).toEqual({
+      taskId: "A",
+      stepId: original.id,
+      dayItemId: "future-source",
+    });
+    expect(mutations().map(([, a]) => a.action)).toEqual([
+      "finish_session",
+      "prepare_step",
+    ]);
+    expect(state.sessions).toEqual(snapshots);
+    expect(
+      screen.getByText("核对第三项", { selector: ".resume-hint" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/来自 2099-01-03 的安排/)).toBeTruthy();
+    expect(screen.queryByRole("timer")).toBeNull();
+  });
+
+  it("does not turn a cancelled continuation source into unplanned execution", async () => {
+    enableTaskSteps();
+    state.planning!.dayItems = [
+      {
+        id: "source",
+        taskId: "A",
+        stepId: "step-A",
+        date: localDate(),
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    state.planning!.sessionLinks = [
+      { sessionId: "session", dayItemId: "source", planDate: localDate() },
+    ];
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    await act(async () => fireEvent.click(button("保存并结束")));
+    state.planning!.dayItems[0].removedAt = Date.now();
+    state.planning!.dayItems[0].revision += 1;
+    await sync();
+    await act(async () => fireEvent.click(button("继续这一步")));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "不会自动改成计划外执行",
+    );
+    expect(mutations().map(([, a]) => a.action)).toEqual(["finish_session"]);
+    fireEvent.click(button("选择其他步骤"));
+    await act(async () => fireEvent.click(button("Do this：步骤 A")));
+    expect(state.planning!.prepared?.dayItemId).toBeNull();
+    expect(state.sessions).toHaveLength(1);
+  });
+
+  it("opens the parent's next steps and prepares a picked step without timing it", async () => {
+    enableTaskSteps();
+    state.planning!.steps.push({
+      ...state.planning!.steps[0],
+      id: "step-A2",
+      text: "核对下一项",
+      plannedSeconds: 600,
+    });
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(outcome("已完成"));
+    await act(async () => fireEvent.click(button("保存并结束")));
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    fireEvent.click(button("选择下一步"));
+    expect(
+      screen.getByRole("button", { name: "Do this：核对下一项" }),
+    ).toBeTruthy();
+    expect(mutations().map(([, a]) => a.action)).toEqual(["finish_session"]);
+    await act(async () => fireEvent.click(button("Do this：核对下一项")));
+    expect(state.planning!.prepared?.stepId).toBe("step-A2");
+    expect(mutations().map(([, a]) => a.action)).toEqual([
+      "finish_session",
+      "prepare_step",
+    ]);
+    expect(state.sessions).toHaveLength(1);
+    expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
+      "10",
+    );
+  });
+
+  it("keeps the parent's dismissal across restart and text edits but asks again after a completion cycle", async () => {
+    enableTaskSteps();
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(outcome("已完成"));
+    await act(async () => fireEvent.click(button("保存并结束")));
+    expect(screen.getByRole("region", { name: "父任务收尾" })).toBeTruthy();
+    expect(state.tasks[0].completed).toBe(false);
+    await act(async () => fireEvent.click(button("保留后续")));
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    expect(mutations()[1][1].input.steps).toEqual([
+      { id: "step-A", revision: 2 },
+    ]);
+    expect(state.tasks[0].completed).toBe(false);
+    cleanup();
+    await open();
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    state.tasks[0].title = "改过标题";
+    state.tasks[0].revision += 1;
+    state.planning!.steps[0].text = "改过文字";
+    state.planning!.steps[0].revision += 1;
+    await sync();
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    state.planning!.steps[0].completed = false;
+    state.planning!.manualStepChanges = [
+      {
+        id: "undo",
+        taskId: "A",
+        stepId: "step-A",
+        taskTitle: "改过标题",
+        stepText: "改过文字",
+        completed: false,
+        recordedAt: 100,
+      },
+    ];
+    await sync();
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    state.planning!.steps[0].completed = true;
+    state.planning!.steps[0].revision += 2;
+    state.planning!.manualStepChanges.push({
+      ...state.planning!.manualStepChanges[0],
+      id: "redo",
+      completed: true,
+      recordedAt: 101,
+    });
+    await sync();
+    expect(screen.getByRole("region", { name: "父任务收尾" })).toBeTruthy();
+    expect(state.tasks[0].completed).toBe(false);
+  });
+
+  it("only completes the parent after its explicit confirmation", async () => {
+    enableTaskSteps();
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(outcome("已完成"));
+    await act(async () => fireEvent.click(button("保存并结束")));
+    expect(state.tasks[0].completed).toBe(false);
+    await act(async () => fireEvent.click(button("整个任务已完成")));
+    expect(state.tasks[0].completed).toBe(true);
+    expect(mutations().map(([, a]) => a.action)).toEqual([
+      "finish_session",
+      "update_task",
+    ]);
+    expect(screen.getByRole("region", { name: "任务完成庆祝" })).toBeTruthy();
+    expect(state.sessions).toHaveLength(1);
+  });
+
+  it("retains a failed parent acknowledgement for a stable retry", async () => {
+    enableTaskSteps();
+    state.planning!.steps[0].completed = true;
+    state.tasks[0].nextAction!.completed = true;
+    const fallback = native.invoke.getMockImplementation()!;
+    let failed = false;
+    native.invoke.mockImplementation(async (command, args = {}) => {
+      if (
+        command === "paper_execute" &&
+        args.action === "acknowledge_task_completion" &&
+        !failed
+      ) {
+        failed = true;
+        throw new Error("暂时保存失败");
+      }
+      return fallback(command, args);
+    });
+    await open();
+    await act(async () => fireEvent.click(button("保留后续")));
+    expect(screen.getByRole("region", { name: "父任务收尾" })).toBeTruthy();
+    expect(state.planning!.taskCompletionAcknowledgements).toBeUndefined();
+    await act(async () => fireEvent.click(button("保留后续")));
+    expect(screen.queryByRole("region", { name: "父任务收尾" })).toBeNull();
+    const requests = mutations().filter(
+      ([, a]) => a.action === "acknowledge_task_completion",
+    );
+    expect(requests[0][1].input.requestId).toBe(requests[1][1].input.requestId);
+    expect(state.tasks[0].completed).toBe(false);
+  });
+
+  it("uses the shared exact-step cue after A to B to A and does not revive a cleared cue", async () => {
+    enableTaskSteps();
+    state.planning!.steps.push({
+      ...state.planning!.steps[0],
+      id: "step-A2",
+      text: "另一步",
+    });
+    state.sessions = [
+      {
+        ...session("finished"),
+        id: "a-old",
+        endedAt: 100,
+        feedback: {
+          outcome: "stopped",
+          output: null,
+          blocker: null,
+          nextCue: "A 的起点",
+        },
+      },
+      {
+        ...session("finished"),
+        id: "b",
+        endedAt: 200,
+        action: {
+          id: "step-A2",
+          text: "另一步",
+          completed: false,
+          source: "user",
+        },
+        feedback: {
+          outcome: "stopped",
+          output: null,
+          blocker: null,
+          nextCue: "B 的起点",
+        },
+      },
+    ];
+    state.planning!.prepared = {
+      taskId: "A",
+      stepId: "step-A",
+      dayItemId: null,
+    };
+    await open();
+    expect(
+      screen.getByText("A 的起点", { selector: ".resume-hint" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText("B 的起点", { selector: ".resume-hint" }),
+    ).toBeNull();
+    state.sessions.push({
+      ...session("finished"),
+      id: "a-latest",
+      endedAt: 300,
+      feedback: {
+        outcome: "stopped",
+        output: null,
+        blocker: null,
+        nextCue: null,
+      },
+    });
+    await sync();
+    expect(document.querySelector(".resume-hint")).toBeNull();
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it("starts only an explicitly chosen rest and does not start focus when rest ends", async () => {
+    enableTaskSteps();
+    state.sessions = [session("waiting")];
+    render(<PaperApp />);
+    await screen.findByRole("heading", { name: "结束番茄钟" });
+    fireEvent.click(outcome("已完成"));
+    await act(async () => fireEvent.click(button("保存并结束")));
+    expect(state.sessions).toHaveLength(1);
+    await act(async () => fireEvent.click(button("休息 5 分钟")));
+    expect(state.sessions).toHaveLength(2);
+    expect(state.sessions[1].kind).toBe("rest");
+    state.sessions[1].status = "waiting";
+    await sync();
+    await act(async () => fireEvent.click(button("结束休息")));
+    expect(state.sessions.every((s) => s.status === "finished")).toBe(true);
+    expect(
+      mutations()
+        .filter(([, a]) => a.action === "start_session")
+        .map(([, a]) => a.input.kind),
+    ).toEqual(["rest"]);
   });
 
   it("requires explicit unplanned reselection after the prepared source is removed", async () => {

@@ -13,7 +13,11 @@ import type {
 } from "./paperTypes";
 import { DayPlan, localDate } from "./DayPlan";
 import { TaskSheet } from "./TaskSheet";
-import { planningViews } from "../shared/planning";
+import {
+  latestStepCue,
+  planningViews,
+  taskCompletionPrompt,
+} from "../shared/planning";
 import { executionChoice } from "./executionChoice";
 import { PAPER_MOTTOS } from "./mottos";
 import { PaperFooter } from "./PaperFooter";
@@ -87,6 +91,10 @@ export default function PaperApp() {
   } = usePaperNavigation();
   const [workStartTask, setWorkStartTask] = useState<Task | null>(null);
   const [historyLimit, setHistoryLimit] = useState(20);
+  const [revealTask, setRevealTask] = useState<{
+    taskId: string;
+    request: number;
+  } | null>(null);
   const [today, setToday] = useState(localDate);
   useEffect(() => {
     const updateDay = () => setToday(localDate());
@@ -192,13 +200,18 @@ export default function PaperApp() {
     if (step && !session)
       setDuration(Math.max(1, Math.round(step.plannedSeconds / 60)));
   }, [task?.id, task?.nextAction?.id, choice.step?.plannedSeconds]);
-  const priorSession = [...data.sessions]
-    .reverse()
-    .find((s) => s.taskId === task?.id && s.kind === "focus");
-  // A personal cue belongs to the captured step, never silently to a new Agent plan.
-  const resumeHint =
-    priorSession && priorSession.action?.id === task?.nextAction?.id
-      ? priorSession.feedback?.nextCue || priorSession.resumeCue
+  const resumeHint = task?.nextAction
+    ? latestStepCue(data, task.id, task.nextAction.id)?.text
+    : null;
+  const completionTaskId = view === "receipt" ? receipt?.taskId : task?.id;
+  const completionPrompt = completionTaskId
+    ? taskCompletionPrompt(data, completionTaskId)
+    : null;
+  const unfinishedReceipt =
+    !session &&
+    receipt?.kind === "focus" &&
+    receipt.feedback?.outcome === "stopped"
+      ? receipt
       : null;
   const remaining = session
     ? session.plannedSeconds - elapsedSeconds(session, tick)
@@ -679,11 +692,65 @@ export default function PaperApp() {
   const chooseStep = async (step: PlanStep, item?: DayItem) => {
     const target = data.tasks.find((t) => t.id === step.taskId);
     if (!target || !(await prepareChoice(target, step, item))) return;
+    setReceipt(null);
+    setRevealTask(null);
     resetView("home");
     clearNotice();
     requestAnimationFrame(() => {
       if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
     });
+  };
+  const chooseNextStep = (taskId?: string | null) => {
+    if (taskId)
+      setRevealTask((previous) => ({
+        taskId,
+        request: (previous?.request || 0) + 1,
+      }));
+    resetView("home");
+    requestAnimationFrame(() => {
+      homeScrollRef.current
+        ?.querySelector(".task-sheet")
+        ?.scrollIntoView?.({ block: "start" });
+    });
+  };
+  const continueStep = async (previous: Session) => {
+    const current = latestState.current;
+    if (current.sessions.some(active)) {
+      setError("当前一轮还未保存，请先返回本轮。");
+      return;
+    }
+    const target = current.tasks.find((t) => t.id === previous.taskId);
+    const step = current.planning?.steps.find(
+      (s) => s.id === previous.action?.id && s.taskId === previous.taskId,
+    );
+    if (!target || target.completed || !step || step.completed) {
+      setError("原步骤已完成或不可用，请在清单选择下一步。");
+      return;
+    }
+    const source = current.planning?.sessionLinks?.find(
+      (link) => link.sessionId === previous.id,
+    );
+    const item = source
+      ? current.planning?.dayItems.find((item) => item.id === source.dayItemId)
+      : undefined;
+    if (
+      source &&
+      (!item ||
+        item.removedAt != null ||
+        item.taskId !== target.id ||
+        item.stepId !== step.id)
+    ) {
+      setError(
+        "原安排已取消或变化，请在清单重新选择这一步；不会自动改成计划外执行。",
+      );
+      return;
+    }
+    if (await prepareChoice(target, step, item)) {
+      setReceipt(null);
+      setRevealTask(null);
+      resetView("home");
+      showNotice("这一步已准备好，点击 start 再开始。");
+    }
   };
   const sessionAction = async (
     action: string,
@@ -728,10 +795,9 @@ export default function PaperApp() {
     setExpanded(false);
     setView("feedback");
   };
-  const finish = async (outcome: string, next?: "focus" | "rest") => {
+  const finish = async (outcome: string) => {
     if (completionSound && outcome === "step_completed")
       prepareCompletionSound();
-    const previous = session;
     const r = await sessionAction("finish_session", { outcome, ...feedback });
     if (r) {
       if (completionSound && outcome === "step_completed")
@@ -749,28 +815,6 @@ export default function PaperApp() {
             ? "休息结束，下一步由你决定。"
             : "番茄钟已结束，计时已保存，待办保持未完成。",
         );
-      if (next === "rest") await start("rest");
-      if (next === "focus") {
-        try {
-          const fresh = (await api<{ state: State }>("get_state")).state;
-          const target = fresh.tasks.find(
-            (t) => t.id === previous?.taskId && !t.completed,
-          );
-          if (
-            target &&
-            !target.nextAction?.completed &&
-            target.nextAction?.id === previous?.action?.id
-          ) {
-            await start("focus", target);
-          } else {
-            setSelected(previous?.taskId || "");
-            showNotice("这一轮已保存。下一步有变化，请看过后再开始。");
-            setView("home");
-          }
-        } catch (e) {
-          setError(`这一轮已保存，暂未开始下一轮：${String(e)}`);
-        }
-      }
     }
   };
   const completeTask = async (t: Task, stayOnSheet = false) => {
@@ -805,6 +849,40 @@ export default function PaperApp() {
       completed: !step.completed,
     });
   };
+  const keepTaskOpen = async () => {
+    if (!completionPrompt) return;
+    await mutate("acknowledge_task_completion", {
+      taskId: completionPrompt.task.id,
+      expectedTaskRevision: completionPrompt.task.revision,
+      steps: completionPrompt.steps.map((step) => ({
+        id: step.id,
+        revision: step.revision,
+      })),
+    });
+  };
+  const parentCompletion = () =>
+    completionPrompt && (
+      <section className="task-completion-prompt" aria-label="父任务收尾">
+        <p>整个任务也完成了吗？</p>
+        <small>{completionPrompt.task.title}</small>
+        <div>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => void completeTask(completionPrompt.task)}
+          >
+            整个任务已完成
+          </button>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => void keepTaskOpen()}
+          >
+            保留后续
+          </button>
+        </div>
+      </section>
+    );
   const changeDraft = (key: keyof Draft, value: string) =>
     setDraft((d) => (d ? { ...d, [key]: value } : d));
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -1132,6 +1210,31 @@ export default function PaperApp() {
                 </p>
               </section>
             )}
+            {parentCompletion()}
+            {unfinishedReceipt && (
+              <section className="step-continuation" aria-label="继续本轮步骤">
+                <p>
+                  刚才停在：
+                  {unfinishedReceipt.action?.text ||
+                    unfinishedReceipt.taskTitle}
+                </p>
+                <div>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => void continueStep(unfinishedReceipt)}
+                  >
+                    继续这一步
+                  </button>
+                  <button
+                    className="text-button"
+                    onClick={() => chooseNextStep(unfinishedReceipt.taskId)}
+                  >
+                    选择其他步骤
+                  </button>
+                </div>
+              </section>
+            )}
             {session && (
               <p className="session-browse-status" role="status">
                 {session.status === "running"
@@ -1146,6 +1249,7 @@ export default function PaperApp() {
               date={today}
               selectedTaskId={task?.id}
               selectedStepId={task?.nextAction?.id}
+              revealTask={revealTask}
               busy={busy}
               hasSession={!!session}
               choose={chooseStep}
@@ -1686,7 +1790,14 @@ export default function PaperApp() {
           {receipt.feedback?.nextCue && (
             <p className="cue-note">下次：{receipt.feedback.nextCue}</p>
           )}
-          <button className="primary" onClick={() => setView("home")}>
+          {parentCompletion()}
+          <button
+            className="primary"
+            onClick={() => chooseNextStep(receipt.taskId)}
+          >
+            选择下一步
+          </button>
+          <button className="text-button" onClick={() => setView("home")}>
             回到任务页
           </button>
           <button

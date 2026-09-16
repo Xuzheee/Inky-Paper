@@ -146,6 +146,19 @@
   font-size: 11px;
   line-height: 16px;
 }
+.task-completion-prompt,
+.step-continuation {
+  margin: 12px 0;
+  padding: 12px 0;
+  border-top: 1px dashed #b9bfb280;
+  border-bottom: 1px dashed #b9bfb280;
+  font-size: 12px;
+}
+.task-completion-prompt small { color: var(--paper-muted); }
+.task-completion-prompt > div,
+.step-continuation > div { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.task-completion-prompt .text-button,
+.step-continuation .text-button { padding: 4px 0; font-size: 12px; }
 .end-outcome {
   cursor: default;
   border: 0;

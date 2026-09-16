@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronDown, Pencil } from "lucide-react";
 import type { DayItem, PlanStep, State, Task } from "./paperTypes";
 import { localDate } from "./DayPlan";
@@ -9,6 +9,7 @@ export function TaskSheet({
   data,
   selectedTaskId,
   selectedStepId,
+  revealTask,
   busy,
   hasSession,
   choose,
@@ -21,6 +22,7 @@ export function TaskSheet({
   data: State;
   selectedTaskId?: string;
   selectedStepId?: string;
+  revealTask?: { taskId: string; request: number } | null;
   busy: boolean;
   hasSession: boolean;
   choose: (step: PlanStep, item?: DayItem) => Promise<void>;
@@ -33,6 +35,11 @@ export function TaskSheet({
   const [scope, setScope] = useState<"today" | "all">("today");
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  useEffect(() => {
+    if (!revealTask) return;
+    setScope("all");
+    setExpandedTask(revealTask.taskId);
+  }, [revealTask?.taskId, revealTask?.request]);
   const locked = busy || hasSession;
   const plans = planningViews(data, date);
   const itemFor = (step: PlanStep) =>

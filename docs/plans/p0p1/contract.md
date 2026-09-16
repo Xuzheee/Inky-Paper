@@ -136,3 +136,5 @@ ContextState.preferences 默认空，Preference `{id,text,scope:global|day|proje
 可选 `nextStart:{taskId,stepId,dayItemId:null|string,cue:null|string}` 只引用本日记录中真实涉及的步骤与匹配安排。保存不会准备或启动。界面“继续原步骤”使用现有版本化准备入口和当前数据检查；来源失效/步骤已完成时说明原因。另一按钮仅预填生成候选请求，用户发送后才调用 Coach，候选仍需采用。
 
 多日回顾由用户显式请求，逐日读取/引用各日事实；保存每一天的总结仍各自校验日期与版本，不新增自动报告或全量覆盖。
+
+读取凭据补充：新格式有依据的总结需匹配应用实际读取时登记的 `(date,utcOffsetMinutes,dataVersion,notesVersion,sampledAt)`。凭据只保留这些元数据，使用当前 SQLite 连接的 TEMP 表有界缓存（最多4096条）；不存笔记全文、不改变领域事件/状态版本，进程重启后新保存需重读。精确已提交请求仍优先返回原结果，不因凭据过期而重复写入。校验当前版本不变后，依据计时按原 sampledAt 截断，不能混入等待模型时增加的计时。笔记引用只校验真实文件正文，不匹配拼接的文件名说明。可信的读取/笔记数据由 Rust 私有参数传递，不接受调用方传入 snapshot 或内部可信标志。

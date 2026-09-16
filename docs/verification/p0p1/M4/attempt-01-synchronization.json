@@ -1,0 +1,12 @@
+{
+  "isolatedRun": "p0p1-m4-native-01",
+  "pid": 27748,
+  "checks": [],
+  "errors": [],
+  "referenceRequests": [],
+  "modelCalls": 0,
+  "desktopPassed": false,
+  "complete": false,
+  "today": "2026-09-16",
+  "failure": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /1 项未估计/. Input:\n\n'2026-09-16 · 全日预留 120 分钟 · 有时间冲突'\n"
+}

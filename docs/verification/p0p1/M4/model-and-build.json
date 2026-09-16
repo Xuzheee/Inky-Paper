@@ -1,0 +1,11 @@
+{
+  "provider": "openai-codex",
+  "name": "gpt-5.6-sol",
+  "settings": {
+    "reasoningEffort": "not explicitly configured",
+    "temperature": "not explicitly configured"
+  },
+  "source": "same installed Hermes load_config_readonly whitelist only",
+  "debugCodeCommit": "dc2609c",
+  "sha256": "8805157283de0f729bffcd8510557adf66ede2db4789dd9eea60b26846ef0c32"
+}

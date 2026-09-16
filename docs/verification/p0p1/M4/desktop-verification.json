@@ -1,0 +1,56 @@
+{
+  "isolatedRun": "p0p1-m4-native-07",
+  "pid": 18824,
+  "checks": [
+    "Unknown budget remains null; first-round timers do not estimate work; 120 reserved minutes and 90 calendar minutes remain distinct with one unknown estimate and one overlap",
+    "Visible daily editing preserves explicit zero separately from blank/unknown, saves unavailable intervals, and truthfully shows over-budget and unavailable-time conflicts",
+    "Native project create/edit persists goal, completion criteria and references through named transactions; links are explicitly marked unread and never automatically opened",
+    "Task association leaves category intact; project filtering shows only its task while the clearly labelled all-day capacity remains complete",
+    "Explicitly confirmed preference creation, edit to project scope, disable and delete persist versioned facts; the UI accurately preserves the historical-record boundary",
+    "Project archive retains its tasks and existing association, prevents new archived association, and explicit unlink leaves task categories, steps, plans and all clocks unchanged"
+  ],
+  "errors": [],
+  "referenceRequests": [],
+  "modelCalls": 0,
+  "desktopPassed": true,
+  "complete": false,
+  "today": "2026-09-16",
+  "finalFacts": {
+    "tasks": 3,
+    "sessions": 0,
+    "projects": 1,
+    "preferences": 1,
+    "preferencesRevision": 5,
+    "capacity": {
+      "availableMinutes": null,
+      "calendarOccupiedMinutes": 90,
+      "date": "2026-09-16",
+      "fullyEstimated": false,
+      "overBudget": null,
+      "overlapPairs": [
+        {
+          "first": "9c5ed172-699e-4738-9c8f-499e7070e989",
+          "second": "d3c01292-95d9-47ac-a485-4c6dc738fa7e"
+        }
+      ],
+      "reservedMinutes": 120,
+      "unavailableConflicts": [
+        {
+          "endMinute": 645,
+          "itemId": "9c5ed172-699e-4738-9c8f-499e7070e989",
+          "startMinute": 630
+        },
+        {
+          "endMinute": 645,
+          "itemId": "d3c01292-95d9-47ac-a485-4c6dc738fa7e",
+          "startMinute": 615
+        }
+      ],
+      "unestimatedCount": 1
+    }
+  },
+  "pending": [
+    "Real model context behavior is separate from this model-free native UI check",
+    "Overall M4 release remains with the root task"
+  ]
+}

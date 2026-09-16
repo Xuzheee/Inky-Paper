@@ -1,0 +1,15 @@
+{
+  "isolatedRun": "p0p1-m4-native-02",
+  "pid": 5288,
+  "checks": [
+    "Unknown budget remains null; first-round timers do not estimate work; 120 reserved minutes and 90 calendar minutes remain distinct with one unknown estimate and one overlap",
+    "Visible daily editing preserves explicit zero separately from blank/unknown, saves unavailable intervals, and truthfully shows over-budget and unavailable-time conflicts"
+  ],
+  "errors": [],
+  "referenceRequests": [],
+  "modelCalls": 0,
+  "desktopPassed": false,
+  "complete": false,
+  "today": "2026-09-16",
+  "failure": "TimeoutError: locator.fill: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: '项目管理', exact: true }).locator('[data-project-id=\"8fe67905-ff32-4370-91c9-1f950202a172\"]').getByLabel('项目目标（可不填）', { exact: true })\u001b[22m\n"
+}

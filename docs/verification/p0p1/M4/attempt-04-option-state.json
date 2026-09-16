@@ -1,0 +1,18 @@
+{
+  "isolatedRun": "p0p1-m4-native-04",
+  "pid": 34180,
+  "checks": [
+    "Unknown budget remains null; first-round timers do not estimate work; 120 reserved minutes and 90 calendar minutes remain distinct with one unknown estimate and one overlap",
+    "Visible daily editing preserves explicit zero separately from blank/unknown, saves unavailable intervals, and truthfully shows over-budget and unavailable-time conflicts",
+    "Native project create/edit persists goal, completion criteria and references through named transactions; links are explicitly marked unread and never automatically opened",
+    "Task association leaves category intact; project filtering shows only its task while the clearly labelled all-day capacity remains complete",
+    "Explicitly confirmed preference creation, edit to project scope, disable and delete persist versioned facts; the UI accurately preserves the historical-record boundary"
+  ],
+  "errors": [],
+  "referenceRequests": [],
+  "modelCalls": 0,
+  "desktopPassed": false,
+  "complete": false,
+  "today": "2026-09-16",
+  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert(\n"
+}

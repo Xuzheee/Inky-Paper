@@ -67,3 +67,11 @@ M0 提交 `e1196ce`。迁移模块由 Paper 子任务独立编写，主任务接
 - 新库与旧库完成升级后 `PRAGMA user_version=1`。旧库备份为 `<文件名>.pre-schema-1.sqlite`，已有备份不覆盖。
 
 P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退回无关联安排执行。本计划要求交接明确，因此现在保留原选择并说明来源已变化；用户重新选择无安排步骤后才可开始。其他浏览、计时和旧会话快照语义保留。
+
+## C-01 请求快照（M2）
+
+沿用 `workbench_send` 与 `message_context` JSON，不复制数据库。请求增加 `schemaVersion:2`、`viewDate`、`intent:auto|plan|stuck|review`、可空 `selectedDayItemId`。`date` 是本次讨论日期，`today`/`utcOffsetMinutes` 由后端按发送时真实本地时间校准。正文中的临时约束以本次原话保存于 `temporaryConstraints:{text,scope:"request"}`，没有明确输入的时间/精力不解析为事实。
+
+发送模型前后端从一个最新 Paper 快照生成 `sampledAt/resolvedIntent/latestFacts/versions/truncated` 并替换前端标题；校验选择的任务、步骤与安排对应关系。安排范围只包含所选日/所选对象和必要未安排项；卡住取选中步骤最近反馈；回顾复用该日记录及笔记版本；普通交流取简要选中事实。更广范围按需通过工具读取。历史缺失字段仍可显示。
+
+常驻三入口仅预填且标记意图，手动改写后回到 auto，只有发送才启动模型。生成中的消息、卡片与历史绑定本次快照，不随界面切日期改变。

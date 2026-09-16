@@ -1,0 +1,20 @@
+{
+  "run": "p0p1-m1-native-02",
+  "today": "2026-09-16",
+  "checks": [
+    "Native startup migrated the synthetic legacy database with a verified v0 backup and unchanged session snapshots",
+    "Synthetic old, today, future, unplanned and already-rescheduled steps created through named operations",
+    "Paper shows both planned steps of one task in the real native window",
+    "Manual step completion and undo retain queue position, keep the parent pending and create no clock",
+    "Collapsed leftovers distinguish already-rescheduled steps; continue reuses the step and unplan previews/cancels the complete unexecuted set",
+    "Native editor keeps deadline, free-text due note and arrangement date separate while sharing priority and completion criteria",
+    "Native handoff prepares without timing; explicit start records future plan origin, navigation preserves clock, active handoff is rejected and empty feedback saves",
+    "Actual execution and manual completion facts return to the correct daily record and generated Markdown",
+    "Native daily record and raw Markdown show execution; an external personal-note edit survives a subsequent task export",
+    "Full isolated native restart retains exact prepared task/step/day-item source and past session link without starting a clock"
+  ],
+  "errors": [],
+  "complete": false,
+  "modelCalls": 0,
+  "restartPassed": true
+}

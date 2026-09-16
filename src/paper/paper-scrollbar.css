@@ -1,0 +1,40 @@
+.paper-scrollbar {
+  position: absolute;
+  right: 4px;
+  width: 10px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  pointer-events: auto;
+  cursor: default;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.paper-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  width: 3px;
+  border-radius: 3px;
+  background: rgba(83, 90, 74, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.paper-scrollbar:hover .paper-scrollbar-thumb,
+.paper-scrollbar:focus-visible .paper-scrollbar-thumb,
+.paper-scrollbar[data-visible="true"] .paper-scrollbar-thumb {
+  opacity: 1;
+}
+
+.paper-scrollbar:focus-visible .paper-scrollbar-thumb {
+  background: rgba(67, 78, 59, 0.65);
+}
+
+.paper-scrollbar[data-dragging="true"] { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-scrollbar-thumb { transition: none; }
+}

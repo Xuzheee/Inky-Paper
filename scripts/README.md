@@ -27,6 +27,18 @@ corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-exe
 node scripts/desktop/verify-session-pages.mjs end-pages-check
 ```
 
+## 固定拖动边缘与浮动滚动条验收
+
+纸张边缘拖动与浮动滚动条专项使用纸面分支独立配置和新的空测试目录：
+
+```powershell
+corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-execution-dev.json
+./scripts/desktop/launch-focus-acceptance.ps1 -RunName paper-chrome-check
+node scripts/desktop/verify-paper-chrome.mjs paper-chrome-check
+```
+
+验证滚动前后的真实窗口位移、拖动 / 滚轮 / 键盘滚动、零占位与自动淡出、任务横划、记录与保存、页面切换、透明态及迷你宠物。结果和截图保存在 `output/paper-chrome-check/`；不会调用 Hermes。
+
 ## 独立操作提醒验收
 
 ```powershell

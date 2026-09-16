@@ -53,11 +53,13 @@ export default function CoachChat({
   date,
   onSaved,
   onClearSelection,
+  prefill,
 }: {
   selected?: Row;
   date: string;
   onSaved: () => void;
   onClearSelection: () => void;
+  prefill?: {text:string;serial:number};
 }) {
   const [session, setSession] = useState<string>();
   const [sessions, setSessions] = useState<Conversation[]>([]);
@@ -67,6 +69,7 @@ export default function CoachChat({
   );
   const [intent, setIntent] =
     useState<NonNullable<DiscussionContext["intent"]>>("auto");
+  useEffect(()=>{if(prefill){setText(prefill.text);setIntent("plan");}},[prefill]);
   const [busy, setBusy] = useState(false);
   const [replyContext, setReplyContext] = useState<DiscussionContext>();
   const currentContext: DiscussionContext = {

@@ -26,6 +26,7 @@ import {
 import type { DayItem, State } from "../paper/paperTypes";
 import { planningViews, type LeftoverPlan } from "../shared/planning";
 import CoachChat from "./CoachChat";
+import DayCapacity from "./DayCapacity";
 import DailyJournal from "./DailyJournal";
 import MarkdownJournal from "./MarkdownJournal";
 import TaskMetadata, { priorityLabels } from "./TaskMetadata";
@@ -650,6 +651,7 @@ export default function Workbench() {
     void loadScope();
   }, [loadScope]);
   const [day, setDay] = useState(dateKey);
+  const [coachPrefill,setCoachPrefill] = useState<{text:string;serial:number}>();
   const [month, setMonth] = useState(() => dateKey().slice(0, 7));
   const [view, setView] = useState<
     "tasks" | "calendar" | "record" | "markdown"
@@ -1326,6 +1328,7 @@ export default function Workbench() {
             </button>
           </div>
         )}
+        {state && storageScope && nav === "week" && !singleDay && <DayCapacity key={`${storageScope}-${day}`} state={state} date={day} scope={storageScope} onSaved={()=>void reload()} onDiscuss={text=>{setSelectedId("");setCoachPrefill({text,serial:Date.now()});}}/>}
         {state && nav === "week" && !singleDay && (
           <LeftoverPlans
             groups={plans.leftovers.filter(
@@ -1596,6 +1599,7 @@ export default function Workbench() {
       </section>
       {storageScope && (
         <CoachChat
+          prefill={coachPrefill}
           selected={singleDay ? undefined : selected}
           date={day}
           onClearSelection={() => setSelectedId("")}

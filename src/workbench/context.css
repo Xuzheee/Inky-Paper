@@ -1,0 +1,57 @@
+.wk-context {
+  border-block: 1px dashed var(--wk-line, #dce0d5);
+  padding: 12px 0;
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.wk-context summary {
+  cursor: pointer;
+  color: var(--wk-accent, #5a7250);
+}
+.wk-context p {
+  margin: 7px 0;
+}
+.wk-context-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.wk-context label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wk-context input,
+.wk-context textarea,
+.wk-context select {
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+  border: 1px solid #dce0d5;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.wk-context fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+.wk-context button {
+  font: inherit;
+  cursor: pointer;
+  padding: 5px 9px;
+}
+.wk-context button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.wk-context .muted {
+  color: #797f75;
+}

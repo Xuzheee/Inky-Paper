@@ -112,6 +112,7 @@ beforeEach(() => {
       input: Record<string, any>;
     };
     if (action === "get_state") return { state: structuredClone(data) };
+    if (action === "get_day_capacity") return {capacity:{availableMinutes:null,reservedMinutes:0,unestimatedCount:0,calendarOccupiedMinutes:0,overlapPairs:[],unavailableConflicts:[],overBudget:null,fullyEstimated:true}};
     writes.push({ action, input: structuredClone(input) });
     return handleWrite(action, input);
   });

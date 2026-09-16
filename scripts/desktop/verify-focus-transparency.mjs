@@ -6,13 +6,18 @@ import { chromium } from 'playwright';
 const runName = process.argv[2] || 'focus-strip-acceptance';
 assert(/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(runName));
 const out = path.resolve('output', runName);
-const shots = path.resolve('output/playwright/focus-strip');
+const shots = path.join(out, 'screenshots');
 await mkdir(shots, { recursive: true });
-const browser = await chromium.connectOverCDP('http://127.0.0.1:9252');
+let browser;
+for (let attempt = 0; attempt < 12; attempt++) {
+  try { browser = await chromium.connectOverCDP('http://127.0.0.1:9252'); break; }
+  catch (error) { if (attempt === 11) throw error; await new Promise(resolve => setTimeout(resolve, 1000)); }
+}
 const page = browser.contexts().flatMap(context => context.pages())
   .find(page => !/[?&](coachPrompt|paperNotice)=/.test(page.url()));
 assert(page, 'Isolated main webview required');
 page.setDefaultTimeout(15000);
+await page.locator('main.paper').waitFor();
 const checks = [], errors = [];
 page.on('pageerror', error => errors.push(error.message));
 const pass = message => { checks.push(message); console.log('PASS', message); };
@@ -31,7 +36,8 @@ const snapshot = () => page.evaluate(() => {
   const style = selector => getComputedStyle(document.querySelector(selector));
   const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height}; };
   return {
-    width: innerWidth, height: innerHeight,
+    width: innerWidth, height: innerHeight, sheetBounds: rect('main'),
+    zoom: Number(style('main').zoom),
     timer: rect('.timer'), progress: rect('.pencil-progress'), titleBounds: rect('.focus-heading'),
     taskFont: style('.focus-heading h2').fontFamily,
     taskSize: style('.focus-heading h2').fontSize,
@@ -55,6 +61,19 @@ try {
   assert.equal((await state()).tasks.length, 0, 'Fresh isolated fixture required');
   await writeFile(path.join(out, 'initial-ui.txt'), await page.locator('body').ariaSnapshot());
   const { task } = await api('create_task', { taskId: crypto.randomUUID(), title: '整理产品思路', nextAction: '整理产品思路' });
+  await page.reload();
+  await page.locator('.next-card h2').waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
+  const { root } = await cdp.send('DOM.getDocument');
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '.next-card h2' });
+  const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+  assert(fonts.some(font => font.isCustomFont && font.postScriptName.includes('Xiaolai')), JSON.stringify(fonts));
+  await writeFile(path.join(out, 'sticky-fonts.json'), JSON.stringify(fonts, null, 2));
+  await cdp.detach();
+  await page.screenshot({ path: path.join(shots, 'home-short.png') });
+  pass('Home sticky task uses the actual bundled Xiaolai handwriting font');
   await api('start_session', { taskId: task.id, expectedRevision: task.revision, kind: 'focus', plannedSeconds: 803 });
   await page.reload();
   await button('暂停').waitFor();
@@ -62,7 +81,11 @@ try {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForFunction(() => getComputedStyle(document.querySelector('main'), '::before').opacity === '1');
   const normal = await snapshot();
-  assert.equal(normal.width, 400); assert.equal(normal.height, 210);
+  assert.equal(normal.width, 360); assert(Math.abs(normal.height - 189) <= 1);
+  assert(normal.sheetBounds.width <= normal.width && normal.sheetBounds.height <= normal.height);
+  assert.equal(normal.zoom, 0.9);
+  assert(Math.abs(normal.timer.width - 140 * 0.9) < 1);
+  assert(Math.abs(normal.timer.height - 60 * 0.9) < 1);
   assert(normal.titleBounds.x + normal.titleBounds.width <= normal.timer.x);
   assert.equal(normal.taskSize, '24px'); assert(normal.taskFont.includes('Xiaolai'));
   assert.equal(normal.clockSize, '52px');
@@ -92,7 +115,7 @@ try {
   assert.deepEqual(transparent.timer, normal.timer); assert.deepEqual(transparent.progress, normal.progress);
   assert(Number(await page.getByRole('progressbar').getAttribute('aria-valuenow')) > elapsed);
   await page.screenshot({ path: path.join(shots, 'transparent.png'), omitBackground: true });
-  pass('Native 400x210 horizontal strip uses handwritten task left and time right; transparent mode keeps coordinates, timer progression and navigation');
+  pass('Native 360x189 horizontal strip scales the full 400x210 composition to 90%; transparent mode keeps coordinates, timer progression and navigation');
 
   // These temporary backgrounds exercise the real renderer only; no product or
   // desktop wallpaper setting is changed. Restored before testing interactions.
@@ -107,7 +130,7 @@ try {
   await page.mouse.move(156, 70);
   await button('暂停').click();
   await button('继续').waitFor();
-  await page.waitForFunction(() => innerWidth === 400 && innerHeight === 304);
+  await page.waitForFunction(() => innerWidth === 360 && Math.abs(innerHeight - 274) <= 1);
   await page.waitForFunction(() => !document.querySelector('.focus-toggle').disabled);
   assert.equal(await quiet(), false);
   assert.equal((await state()).sessions[0].status, 'paused');
@@ -117,7 +140,8 @@ try {
   await button('继续').click();
   await button('随手记').click();
   await page.getByRole('textbox', { name: '本轮随手记' }).fill('下次整理成三点');
-  await page.waitForFunction(() => innerWidth === 400 && innerHeight === 398);
+  await page.waitForFunction(() => innerWidth === 360 && Math.abs(innerHeight - 359) <= 1);
+  assert.equal((await snapshot()).overflow, false, 'Scaled note must fit without a scrollbar');
   await page.screenshot({ path: path.join(shots, 'note.png'), omitBackground: true });
   await page.waitForTimeout(10500);
   assert.equal(await quiet(), false);
@@ -147,7 +171,16 @@ try {
   pass('Return-to-list preserves the active timer; ending and saving still records time without completing the parent task');
 
   const { task: longTask } = await api('create_task', { taskId: crypto.randomUUID(), title: '整理复杂的产品需求与方案并写出下一次可以继续的三条关键结论', nextAction: '整理复杂的产品需求与方案并写出下一次可以继续的三条关键结论' });
-  await api('start_session', { taskId: longTask.id, expectedRevision: longTask.revision, kind: 'focus', plannedSeconds: 7200 });
+  await page.reload(); await page.getByRole('heading', { name: '就从这一步开始' }).waitFor();
+  const longRow = page.locator('.sheet-task').filter({ has: page.locator('.sheet-task-name', { hasText: longTask.title }) });
+  await longRow.locator('.sheet-task-toggle').click();
+  await button(`Do this：${longTask.nextAction.text}`).click();
+  await page.waitForFunction(text => document.querySelector('.next-card h2')?.textContent === text, longTask.nextAction.text);
+  await page.locator('.next-card').scrollIntoViewIfNeeded();
+  assert(await page.locator('.next-card h2').evaluate(el => el.scrollWidth <= el.clientWidth));
+  await page.screenshot({ path: path.join(shots, 'home-long.png') });
+  const latestLongTask = (await state()).tasks.find(item => item.id === longTask.id);
+  await api('start_session', { taskId: longTask.id, expectedRevision: latestLongTask.revision, kind: 'focus', plannedSeconds: 7200 });
   await page.reload();
   await button('暂停').waitFor();
   await page.evaluate(() => document.fonts.ready);
@@ -159,7 +192,7 @@ try {
   await button('切换迷你宠物').click();
   await page.waitForFunction(() => innerWidth === 160 && innerHeight === 160);
   await button('返回 Inky Paper').click();
-  await page.waitForFunction(() => innerWidth === 400 && innerHeight === 210);
+  await page.waitForFunction(() => innerWidth === 360 && Math.abs(innerHeight - 189) <= 1);
   assert.equal((await state()).sessions.find(session => session.taskId === longTask.id).status, 'running');
   pass('Two-line long task and three-digit minutes stay separate; mini pet returns to the horizontal timer without stopping it');
   assert.deepEqual(errors, []);

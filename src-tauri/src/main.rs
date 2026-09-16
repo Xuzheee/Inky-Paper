@@ -20,8 +20,10 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 const FULL_WIDTH: f64 = 320.0;
 const FULL_HEIGHT: f64 = 520.0;
-const FOCUS_WIDTH: f64 = 400.0;
-const FOCUS_HEIGHT: f64 = 210.0;
+// Match --focus-scale in focus-strip.css; end/rest/mini pages keep their own sizes.
+const FOCUS_SCALE: f64 = 0.9;
+const FOCUS_WIDTH: f64 = 400.0 * FOCUS_SCALE;
+const FOCUS_HEIGHT: f64 = 210.0 * FOCUS_SCALE;
 const FOCUS_COMPLETE_WIDTH: f64 = 320.0;
 const FOCUS_COMPLETE_HEIGHT: f64 = 528.0;
 const MINI_WIDTH: f64 = 160.0;
@@ -34,8 +36,8 @@ fn window_dimensions(layout: &str) -> Option<(f64, f64)> {
         "focus-complete" => Some((FOCUS_COMPLETE_WIDTH, FOCUS_COMPLETE_HEIGHT)),
         "rest" => Some((320.0, 430.0)),
         "mini" => Some((MINI_WIDTH, MINI_HEIGHT)),
-        "paused" => Some((FOCUS_WIDTH, 304.0)),
-        "focus-note" => Some((FOCUS_WIDTH, 398.0)),
+        "paused" => Some((FOCUS_WIDTH, (304.0 * FOCUS_SCALE).ceil())),
+        "focus-note" => Some((FOCUS_WIDTH, (398.0 * FOCUS_SCALE).ceil())),
         "receipt" => Some((320.0, 280.0)),
         "celebration" => Some((320.0, 420.0)),
         _ => None,

@@ -6,6 +6,7 @@ mod notice_window;
 mod paper;
 mod paper_bridge;
 mod paper_markdown;
+mod paper_migration;
 mod paper_planning;
 mod workbench;
 mod workbench_plan;

@@ -6,6 +6,7 @@ fn state() -> PaperState {
         id: "task".into(),
         title: "学习与开发".into(),
         due: None,
+        due_date: None,
         category: "work".into(),
         priority: "medium".into(),
         completed: false,

@@ -6,6 +6,9 @@ use tauri::Emitter;
 use uuid::Uuid;
 
 pub struct PaperDb(pub Mutex<Connection>);
+#[cfg(test)]
+#[path = "p0p1_data_tests.rs"]
+mod p0p1_data_tests;
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaperState {
@@ -23,6 +26,8 @@ pub struct Task {
     pub id: String,
     pub title: String,
     pub due: Option<String>,
+    #[serde(default)]
+    pub due_date: Option<String>,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default = "default_priority")]
@@ -95,7 +100,7 @@ fn text(v: &Value, k: &str, max: usize) -> Result<String, String> {
     }
     Ok(s.into())
 }
-fn optional(v: &Value, k: &str, max: usize) -> Result<Option<String>, String> {
+pub(crate) fn optional(v: &Value, k: &str, max: usize) -> Result<Option<String>, String> {
     if v.get(k).is_none() || v[k].is_null() {
         return Ok(None);
     }
@@ -104,6 +109,17 @@ fn optional(v: &Value, k: &str, max: usize) -> Result<Option<String>, String> {
         return Err(format!("INVALID_INPUT: {k} too long"));
     }
     Ok(if s.is_empty() { None } else { Some(s.into()) })
+}
+pub(crate) fn due_date(v: &Value) -> Result<Option<String>, String> {
+    let value = optional(v, "dueDate", 10)?;
+    if let Some(date) = &value {
+        let parsed = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d")
+            .map_err(|_| "INVALID_INPUT: 截止日期")?;
+        if parsed.format("%Y-%m-%d").to_string() != *date {
+            return Err("INVALID_INPUT: 截止日期需为 YYYY-MM-DD".into());
+        }
+    }
+    Ok(value)
 }
 fn keys(v: &Value, allowed: &[&str]) -> Result<(), String> {
     let o = v.as_object().ok_or("INVALID_INPUT: object required")?;
@@ -123,6 +139,7 @@ fn rev(input: &Value, current: u64) -> Result<(), String> {
 }
 pub fn open(path: &Path) -> Result<Connection, String> {
     let c = Connection::open(path).map_err(err)?;
+    crate::paper_migration::prepare(&c, path)?;
     c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS paper_state(id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS paper_events(seq INTEGER PRIMARY KEY AUTOINCREMENT,data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS paper_requests(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL);").map_err(err)?;
     c.execute(
         "INSERT OR IGNORE INTO paper_state VALUES(1,?1)",
@@ -317,6 +334,7 @@ fn execute_inner(
     }
     changed |= crate::paper_planning::reconcile_intervals(&before_sessions, &mut s, t);
     let operation_sessions = s.sessions.clone();
+    let before_items = s.planning.day_items.clone();
     let result = match action {
         "runtime_tick" => {
             let sample = sample.ok_or("FORBIDDEN: runtime only")?;
@@ -428,6 +446,7 @@ fn execute_inner(
                     "taskId",
                     "title",
                     "due",
+                    "dueDate",
                     "nextAction",
                     "category",
                     "priority",
@@ -457,6 +476,7 @@ fn execute_inner(
                     id: tid,
                     title: text(&v, "title", 300)?,
                     due: optional(&v, "due", 100)?,
+                    due_date: due_date(&v)?,
                     category: choice(&v, "category", "work", &["work", "study", "life", "idea"])?,
                     priority: choice(&v, "priority", "medium", &["high", "medium", "low"])?,
                     completed: false,
@@ -496,6 +516,7 @@ fn execute_inner(
                 &[
                     "title",
                     "due",
+                    "dueDate",
                     "nextAction",
                     "completed",
                     "category",
@@ -534,6 +555,9 @@ fn execute_inner(
             }
             if patch.get("due").is_some() {
                 task.due = optional(patch, "due", 100)?
+            }
+            if patch.get("dueDate").is_some() {
+                task.due_date = due_date(patch)?;
             }
             if patch.get("nextAction").is_some() {
                 let next = optional(patch, "nextAction", 300)?;
@@ -845,14 +869,14 @@ fn execute_inner(
             changed = true;
             json!({"note":note})
         }
-        "workbench_save_step" | "workbench_move_item" => {
+        "workbench_save_step" | "workbench_move_item" | "continue_plan_items" | "cancel_plan_items" => {
             let out = crate::workbench_plan::execute(&mut s, action, &v, source, t)?;
             event(&tx, action, source, out.clone())?;
             changed = true;
             out
         }
         "get_plan_batch" | "get_daily_record" | "propose_plan_batch" | "adopt_plan_cards"
-        | "select_step" | "set_step_completed" | "remove_plan_item" | "save_daily_summary" => {
+        | "select_step" | "prepare_step" | "set_step_completed" | "remove_plan_item" | "save_daily_summary" => {
             let out = crate::paper_planning::execute(&mut s, action, &v, source, t)?;
             if !matches!(action, "get_plan_batch" | "get_daily_record") {
                 event(&tx, action, source, out.clone())?;
@@ -894,6 +918,7 @@ fn execute_inner(
     }
     changed |= crate::paper_planning::reconcile_steps(&mut s);
     changed |= crate::paper_planning::reconcile_intervals(&operation_sessions, &mut s, t);
+    crate::paper_planning::record_plan_changes(&mut s, &before_items, action, source, t);
     if changed {
         tx.execute(
             "UPDATE paper_state SET data=?1 WHERE id=1",

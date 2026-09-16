@@ -19,6 +19,25 @@ pub struct PlanningState {
     pub intervals: Vec<Interval>,
     pub session_links: Vec<SessionLink>,
     pub manual_step_changes: Vec<ManualStepChange>,
+    pub prepared: Option<PreparedStep>,
+    pub plan_changes: Vec<PlanChange>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreparedStep {
+    pub task_id: String,
+    pub step_id: String,
+    pub day_item_id: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanChange {
+    pub id: String,
+    pub operation: String,
+    pub source: String,
+    pub recorded_at: i64,
+    pub before: Option<DayItem>,
+    pub after: Option<DayItem>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,7 +75,7 @@ pub struct Batch {
     pub cards: Vec<Card>,
     pub created_at: i64,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DayItem {
     pub id: String,
@@ -70,6 +89,23 @@ pub struct DayItem {
     pub start_minute: Option<u32>,
     #[serde(default)]
     pub duration_minutes: Option<u32>,
+    #[serde(default)]
+    pub resolved_at: Option<i64>,
+    #[serde(default)]
+    pub resolution: Option<String>,
+    #[serde(default)]
+    pub continued_to: Option<String>,
+}
+pub(crate) fn record_plan_changes(s: &mut PaperState, before: &[DayItem], operation: &str, source: &str, t: i64) {
+    for after in &s.planning.day_items {
+        let old = before.iter().find(|x| x.id == after.id);
+        if old != Some(after) {
+            s.planning.plan_changes.push(PlanChange {
+                id: id(), operation: operation.into(), source: source.into(), recorded_at: t,
+                before: old.cloned(), after: Some(after.clone()),
+            });
+        }
+    }
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -473,6 +509,11 @@ pub(crate) fn daily_record(
         .filter(|change| (start..end).contains(&change.recorded_at))
         .collect();
     let mut facts = json!({"date":date,"utcOffsetMinutes":offset,"plans":plans,"sessions":session_facts,"notes":notes,"workBlocks":work_blocks});
+    let plan_changes: Vec<_> = s.planning.plan_changes.iter().filter(|change|
+        change.before.as_ref().is_some_and(|x| x.date == date)
+        || change.after.as_ref().is_some_and(|x| x.date == date)
+        || (start..end).contains(&change.recorded_at)).collect();
+    if !plan_changes.is_empty() { facts["planChanges"] = json!(plan_changes); }
     // Keep existing summaries valid on days with no newly supported manual facts.
     if !manual_step_changes.is_empty() {
         facts["manualStepChanges"] = json!(manual_step_changes);
@@ -505,7 +546,7 @@ pub(crate) fn daily_record(
         })
         .collect();
     Ok(
-        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,
+        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"planChanges":plan_changes,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,
         "basis":"Clock intervals are recorded time, not verified attention. Pauses are excluded. New sessions split at the requested local midnight. Legacy sessions without intervals are assigned to their start date; exact legacy daily allocation is unavailable. Missing output and unrecorded time remain unknown."}),
     )
 }
@@ -707,7 +748,13 @@ pub(crate) fn execute(
             }
             Ok(out)
         }
-        "select_step" => {
+        "select_step" | "prepare_step" => {
+            if operation == "prepare_step" && source != "user" {
+                return Err("FORBIDDEN: 准备下一步仅由用户操作。".into());
+            }
+            if operation == "prepare_step" && s.sessions.iter().any(crate::paper::active) {
+                return Err("ACTIVE_SESSION: 本轮番茄钟还未结束，请先回到 Inky 保存本轮。".into());
+            }
             keys(
                 v,
                 &[
@@ -715,6 +762,7 @@ pub(crate) fn execute(
                     "stepId",
                     "expectedRevision",
                     "expectedStepRevision",
+                    "dayItemId",
                 ],
             )?;
             let tid = uuid(v, "taskId")?;
@@ -730,6 +778,15 @@ pub(crate) fn execute(
             if step.completed {
                 return Err("ACTION_COMPLETED".into());
             }
+            let item = if operation == "prepare_step" {
+                match v["dayItemId"].as_str() {
+                    Some(iid) => Some(s.planning.day_items.iter()
+                        .find(|x| x.id == iid && x.task_id == tid && x.step_id == sid && x.removed_at.is_none())
+                        .ok_or("CONFLICT: 这条安排已变化，请刷新后重试。")?.clone()),
+                    None if v["dayItemId"].is_null() => None,
+                    None => return Err("INVALID_INPUT: dayItemId".into()),
+                }
+            } else { None };
             let task = s
                 .tasks
                 .iter_mut()
@@ -744,7 +801,10 @@ pub(crate) fn execute(
                 task.revision += 1;
                 task.updated_at = t;
             }
-            Ok(json!({"task":task,"step":step}))
+            if operation == "prepare_step" {
+                s.planning.prepared = Some(PreparedStep { task_id: tid, step_id: sid, day_item_id: item.as_ref().map(|x| x.id.clone()) });
+            }
+            Ok(json!({"task":task,"step":step,"item":item,"prepared":s.planning.prepared}))
         }
         "remove_plan_item" => {
             keys(v, &["planItemId", "expectedRevision"])?;
@@ -932,6 +992,7 @@ fn adopt(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, S
                     .clone()
                     .ok_or("INVALID_INPUT: new task requires taskTitle")?,
                 due: None,
+                due_date: None,
                 category: "work".into(),
                 priority: "medium".into(),
                 completed: false,
@@ -1012,6 +1073,7 @@ fn adopt(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, S
                 removed_at: None,
                 start_minute: None,
                 duration_minutes: None,
+                ..DayItem::default()
             };
             order += 1;
             s.planning.day_items.push(item.clone());

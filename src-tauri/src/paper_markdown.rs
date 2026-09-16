@@ -237,8 +237,10 @@ fn render_tasks(s: &PaperState) -> String {
             t.id
         ));
         if let Some(due) = &t.due {
-            out.push_str(&format!("期限：{}\n\n", cell(due)));
+            out.push_str(&format!("截止备注：{}\n\n", cell(due)));
         }
+        out.push_str(&format!("分类：{} · 优先级：{}\n\n", cell(&t.category), cell(&t.priority)));
+        if let Some(due) = &t.due_date { out.push_str(&format!("截止日期：{}\n\n", cell(due))); }
         {
             for step in s.planning.steps.iter().filter(|step| step.task_id == t.id) {
                 out.push_str(&format!(
@@ -281,12 +283,25 @@ fn render_day(day: &Value) -> String {
             text(item, "id")
         ));
         let result = text(step, "expectedResult");
+        let task = &item["task"];
+        out.push_str(&format!("  - 优先级：{}；截止备注：{}；截止日期：{}\n", cell(&text(task, "priority")), cell(&text(task, "due")), cell(&text(task, "dueDate"))));
         if !result.is_empty() {
             out.push_str(&format!("  - 预期结果：{}\n", cell(&result)));
         }
     }
     if plans.is_empty() {
         out.push_str("今天尚未安排卡片，临时工作也会记在下方。\n");
+    }
+    let changes = day["planChanges"].as_array().unwrap_or(&empty);
+    if !changes.is_empty() {
+        out.push_str("\n### 安排变更\n\n以上为当前安排；下方保留修改前后的日期、预留和取消状态，不改写实际执行记录。\n\n");
+        for change in changes {
+            let show = |item: &Value| -> String {
+                if item.is_null() { return "未安排".into(); }
+                format!("{}（开始分钟 {}，预留分钟 {}，{}）", text(item,"date"), item["startMinute"], item["durationMinutes"], if item["removedAt"].is_null() { "有效" } else { "已取消" })
+            };
+            out.push_str(&format!("- {} · {}：{} → {} <!-- plan-change:{} -->\n", time_at(&change["recordedAt"]), cell(&text(change,"operation")), show(&change["before"]), show(&change["after"]), text(change,"id")));
+        }
     }
     out.push_str("\n## 实际记录\n\n| 起止时间 | 任务与动作 | 本日计时 | 结果与反馈 |\n| --- | --- | --- | --- |\n");
     let sessions = day["sessions"].as_array().unwrap_or(&empty);
@@ -515,6 +530,11 @@ pub fn sync(c: &Connection, force: bool) -> Value {
         }
         for change in &s.planning.manual_step_changes {
             days.insert(date_at(change.recorded_at));
+        }
+        for change in &s.planning.plan_changes {
+            days.insert(date_at(change.recorded_at));
+            if let Some(item) = &change.before { days.insert(item.date.clone()); }
+            if let Some(item) = &change.after { days.insert(item.date.clone()); }
         }
         for summary in &s.planning.summaries {
             days.insert(summary.date.clone());

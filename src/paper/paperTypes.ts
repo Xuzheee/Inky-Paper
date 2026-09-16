@@ -10,6 +10,7 @@ export type Task = {
   id: string;
   title: string;
   due: string | null;
+  dueDate?: string | null;
   category: string;
   priority: string;
   completed: boolean;
@@ -72,11 +73,22 @@ export type DayItem = {
   removedAt: number | null;
   startMinute?: number | null;
   durationMinutes?: number | null;
+  resolvedAt?: number | null;
+  resolution?: string | null;
+  continuedTo?: string | null;
+};
+export type PreparedStep = { taskId: string; stepId: string; dayItemId: string | null };
+export type PlanChange = {
+  id: string; operation: string; source: string; recordedAt: number;
+  before: DayItem | null; after: DayItem | null;
 };
 export type PlanningState = {
   steps: PlanStep[];
   dayItems: DayItem[];
   manualStepChanges?: ManualStepChange[];
+  prepared?: PreparedStep | null;
+  planChanges?: PlanChange[];
+  sessionLinks?: { sessionId: string; dayItemId: string; planDate: string }[];
 };
 export type ManualStepChange = {
   id: string;

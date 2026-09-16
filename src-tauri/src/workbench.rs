@@ -101,7 +101,7 @@ pub async fn open_workbench(app: AppHandle) -> Result<(), String> {
     open_window(app)
 }
 
-fn prepare_step(c: &mut Connection, input: Value, item_id: Option<String>) -> Reply {
+fn prepare_step(c: &mut Connection, mut input: Value, item_id: Option<String>) -> Reply {
     let (current, _) = crate::paper::execute(c, "get_state", json!({}), "user")?;
     if current["state"]["sessions"]
         .as_array()
@@ -129,7 +129,8 @@ fn prepare_step(c: &mut Connection, input: Value, item_id: Option<String>) -> Re
     } else {
         Value::Null
     };
-    let (result, _) = crate::paper::execute(c, "select_step", input, "user")?;
+    input["dayItemId"] = item["id"].clone();
+    let (result, _) = crate::paper::execute(c, "prepare_step", input, "user")?;
     Ok(
         json!({"taskId":result["task"]["id"],"stepId":result["step"]["id"],"plannedSeconds":result["step"]["plannedSeconds"],"item":item}),
     )

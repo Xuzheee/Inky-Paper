@@ -56,6 +56,9 @@ pub(crate) fn execute(
     if source != "user" {
         return Err("FORBIDDEN: 工作台编辑仅由用户操作。".into());
     }
+    if matches!(op, "continue_plan_items" | "cancel_plan_items") {
+        return resolve_items(s, op, v, now);
+    }
     let allowed = if op == "workbench_move_item" {
         vec![
             "requestId",
@@ -82,6 +85,10 @@ pub(crate) fn execute(
             "expectedItemRevision",
             "startMinute",
             "durationMinutes",
+            "priority",
+            "due",
+            "dueDate",
+            "expectedResult",
         ]
     };
     for k in v.as_object().ok_or("INVALID_INPUT: object")?.keys() {
@@ -142,6 +149,7 @@ pub(crate) fn execute(
                 .unwrap();
             if item.id == iid {
                 if let Some(d) = &date {
+                    if item.date != *d { item.resolved_at = None; item.resolution = None; item.continued_to = None; }
                     item.date = d.clone();
                 }
                 item.removed_at = if date.is_none() { Some(now) } else { None };
@@ -173,6 +181,7 @@ pub(crate) fn execute(
         revision(v, "expectedTaskRevision", task.revision)?;
         task.title = title;
         task.category = category.into();
+        metadata(task, v)?;
         task.revision += 1;
         task.updated_at = now;
     } else {
@@ -184,6 +193,7 @@ pub(crate) fn execute(
             title,
             category: category.into(),
             due: None,
+            due_date: None,
             priority: "medium".into(),
             completed: false,
             next_action: None,
@@ -193,6 +203,7 @@ pub(crate) fn execute(
             updated_at: now,
             completed_at: None,
         });
+        metadata(s.tasks.last_mut().unwrap(), v)?;
     }
     let step = if let Some(step) = s.planning.steps.iter_mut().find(|x| x.id == sid) {
         if step.task_id != tid {
@@ -201,6 +212,9 @@ pub(crate) fn execute(
         revision(v, "expectedStepRevision", step.revision)?;
         step.text = step_text;
         step.planned_seconds = seconds;
+        if v.get("expectedResult").is_some() {
+            step.expected_result = crate::paper::optional(v, "expectedResult", 1000)?;
+        }
         step.revision += 1;
         step.updated_at = now;
         step.clone()
@@ -212,7 +226,7 @@ pub(crate) fn execute(
             id: sid.clone(),
             task_id: tid.clone(),
             text: step_text,
-            expected_result: None,
+            expected_result: crate::paper::optional(v, "expectedResult", 1000)?,
             planned_seconds: seconds,
             completed: false,
             revision: 1,
@@ -256,6 +270,9 @@ pub(crate) fn execute(
             if let Some(d) = &date {
                 if item.date != *d {
                     item.order = order;
+                    item.resolved_at = None;
+                    item.resolution = None;
+                    item.continued_to = None;
                 }
                 item.date = d.clone();
             }
@@ -291,6 +308,7 @@ pub(crate) fn execute(
                 removed_at: None,
                 start_minute: start,
                 duration_minutes: duration,
+                ..DayItem::default()
             };
             s.planning.day_items.push(item.clone());
             Some(item)
@@ -298,6 +316,89 @@ pub(crate) fn execute(
             None
         };
     Ok(json!({"task":task_out,"step":step,"item":item_out}))
+}
+
+fn metadata(task: &mut Task, v: &Value) -> Result<(), String> {
+    if let Some(priority) = v.get("priority") {
+        let value = priority.as_str().ok_or("INVALID_INPUT: priority")?;
+        if !["high", "medium", "low"].contains(&value) {
+            return Err("INVALID_INPUT: priority".into());
+        }
+        task.priority = value.into();
+    }
+    if v.get("due").is_some() { task.due = crate::paper::optional(v, "due", 100)?; }
+    if v.get("dueDate").is_some() { task.due_date = crate::paper::due_date(v)?; }
+    Ok(())
+}
+
+// The complete inspected set is submitted; a changed/missing/new item rejects the whole operation.
+fn resolve_items(s: &mut PaperState, op: &str, v: &Value, now: i64) -> Result<Value, String> {
+    for key in v.as_object().ok_or("INVALID_INPUT: object")?.keys() {
+        if !["requestId", "taskId", "stepId", "expectedTaskRevision", "expectedStepRevision", "items", "date", "scope"].contains(&key.as_str()) {
+            return Err(format!("INVALID_INPUT: {key}"));
+        }
+    }
+    let tid = uuid(v, "taskId")?;
+    let sid = uuid(v, "stepId")?;
+    let task = s.tasks.iter().find(|x| x.id == tid).ok_or("NOT_FOUND: task")?;
+    let step = s.planning.steps.iter().find(|x| x.id == sid && x.task_id == tid).ok_or("NOT_FOUND: step")?;
+    revision(v, "expectedTaskRevision", task.revision)?;
+    revision(v, "expectedStepRevision", step.revision)?;
+    if task.completed || step.completed { return Err("CONFLICT: 任务或步骤已完成，请核对最新状态。".into()); }
+    let items = v["items"].as_array().filter(|x| !x.is_empty() && x.len() <= 366).ok_or("INVALID_INPUT: items")?;
+    let mut ids = std::collections::BTreeSet::new();
+    for input in items {
+        if input.as_object().is_none_or(|o| o.keys().any(|k| k != "id" && k != "revision")) {
+            return Err("INVALID_INPUT: item version".into());
+        }
+        let iid = uuid(input, "id")?;
+        if !ids.insert(iid.clone()) { return Err("INVALID_INPUT: duplicate item".into()); }
+        let item = s.planning.day_items.iter().find(|x| x.id == iid && x.task_id == tid && x.step_id == sid && x.removed_at.is_none()).ok_or("CONFLICT: 安排已变化。")?;
+        revision(input, "revision", item.revision)?;
+    }
+    if op == "cancel_plan_items" {
+        match v["scope"].as_str() {
+            Some("selected") => {},
+            Some("unexecuted") => {
+                let current: std::collections::BTreeSet<_> = s.planning.day_items.iter()
+                    .filter(|x| x.task_id == tid && x.step_id == sid && x.removed_at.is_none()
+                        && !s.planning.session_links.iter().any(|link| link.day_item_id == x.id))
+                    .map(|x| x.id.clone()).collect();
+                if current != ids { return Err("CONFLICT: 未执行安排已变化，请重新核对取消范围。".into()); }
+            },
+            _ => return Err("INVALID_INPUT: scope".into()),
+        }
+        for item in s.planning.day_items.iter_mut().filter(|x| ids.contains(&x.id)) {
+            item.removed_at = Some(now);
+            item.resolved_at = Some(now);
+            item.resolution = Some("cancelled".into());
+            item.revision += 1;
+        }
+        let remaining = s.planning.day_items.iter().filter(|x| x.task_id == tid && x.step_id == sid && x.removed_at.is_none()).count();
+        return Ok(json!({"cancelledItemIds":ids,"remainingActiveCount":remaining}));
+    }
+    let date = day(v)?.ok_or("INVALID_INPUT: target date")?;
+    if s.planning.day_items.iter().any(|x| ids.contains(&x.id) && (x.date >= date || x.resolved_at.is_some())) {
+        return Err("CONFLICT: 只能继续目标日之前尚未处理的安排。".into());
+    }
+    let target = if let Some(item) = s.planning.day_items.iter().find(|x| x.task_id == tid && x.step_id == sid && x.date == date && x.removed_at.is_none()) {
+        item.clone()
+    } else {
+        let item = DayItem {
+            id: uuid::Uuid::new_v4().to_string(), date: date.clone(), task_id: tid, step_id: sid,
+            order: s.planning.day_items.iter().filter(|x| x.date == date).map(|x| x.order).max().unwrap_or(0) + 1,
+            revision: 1, ..DayItem::default()
+        };
+        s.planning.day_items.push(item.clone());
+        item
+    };
+    for item in s.planning.day_items.iter_mut().filter(|x| ids.contains(&x.id)) {
+        item.resolved_at = Some(now);
+        item.resolution = Some("continued".into());
+        item.continued_to = Some(target.id.clone());
+        item.revision += 1;
+    }
+    Ok(json!({"item":target,"continuedItemIds":ids}))
 }
 
 #[cfg(test)]

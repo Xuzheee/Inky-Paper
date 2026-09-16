@@ -52,3 +52,15 @@ M0 生成合成旧格式 JSON 和独立 SQLite 副本，禁止从用户库复制
 已知旧版 0.6.4 不识别新版本标记，不能声称旧 exe 可安全继续写新库。回退必须先关闭应用，保存升级后的整套数据副本，再恢复升级前库和对应 exe；升级后新增数据只从保留副本人工迁移，不自动丢弃。测试覆盖备份可打开、内容一致、重复打开不重备份、备份失败不升级与高版本拒绝。
 
 每阶段先自动测试，再独立 Tauri/WebView2 与必要真实模型检查。没有真实证据写“已实现待验收”。最终交付只由本集成任务构建；若用户正在工作，先保留经过校验的新包和备份，正常保存结束当前工作后再切换运行实例，不能中断正式计时。
+
+## D-01 已落地接口
+
+M0 提交 `e1196ce`。迁移模块由 Paper 子任务独立编写，主任务接线；公共纯查询由 Coach 子任务编写，主任务核验。公开字段仍由主任务统一维护。
+
+- `planningViews(state,today)` 返回 `rows/today/unplanned/leftovers`，遗留组 `{task,step,items,rescheduled}`；`latestStepCue` 返回 `{text,sessionId}|null`。
+- `prepare_step` 输入 `taskId/stepId/expectedRevision/expectedStepRevision/dayItemId/requestId`。安排可空；返回 task、step、item、prepared。不开始时钟。
+- `continue_plan_items` 输入 `taskId/stepId/expectedTaskRevision/expectedStepRevision/items:[{id,revision}]/date/requestId`。只处理目标日前未处理旧安排，复用目标日安排，返回 item。
+- `cancel_plan_items` 输入同上但以 `scope:selected|unexecuted` 替代 date。后者校验全部未执行安排集合，返回 remainingActiveCount；使用 sessionLinks 判断执行来源。
+- `workbench_save_step` 新增可选 `priority/due/dueDate/expectedResult`，缺失保持原值，null 清空可空字段；分类与日期语义不变。
+- `get_daily_record.planChanges` 与 `planning.planChanges` 保留 before/after；生成 Markdown 包含来源日与目标日的变更。
+- 新库与旧库完成升级后 `PRAGMA user_version=1`。旧库备份为 `<文件名>.pre-schema-1.sqlite`，已有备份不覆盖。

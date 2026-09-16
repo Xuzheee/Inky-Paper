@@ -869,14 +869,18 @@ fn execute_inner(
             changed = true;
             json!({"note":note})
         }
-        "workbench_save_step" | "workbench_move_item" | "continue_plan_items" | "cancel_plan_items" => {
+        "workbench_save_step"
+        | "workbench_move_item"
+        | "continue_plan_items"
+        | "cancel_plan_items" => {
             let out = crate::workbench_plan::execute(&mut s, action, &v, source, t)?;
             event(&tx, action, source, out.clone())?;
             changed = true;
             out
         }
         "get_plan_batch" | "get_daily_record" | "propose_plan_batch" | "adopt_plan_cards"
-        | "select_step" | "prepare_step" | "set_step_completed" | "remove_plan_item" | "save_daily_summary" => {
+        | "select_step" | "prepare_step" | "set_step_completed" | "remove_plan_item"
+        | "save_daily_summary" => {
             let out = crate::paper_planning::execute(&mut s, action, &v, source, t)?;
             if !matches!(action, "get_plan_batch" | "get_daily_record") {
                 event(&tx, action, source, out.clone())?;

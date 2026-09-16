@@ -96,13 +96,23 @@ pub struct DayItem {
     #[serde(default)]
     pub continued_to: Option<String>,
 }
-pub(crate) fn record_plan_changes(s: &mut PaperState, before: &[DayItem], operation: &str, source: &str, t: i64) {
+pub(crate) fn record_plan_changes(
+    s: &mut PaperState,
+    before: &[DayItem],
+    operation: &str,
+    source: &str,
+    t: i64,
+) {
     for after in &s.planning.day_items {
         let old = before.iter().find(|x| x.id == after.id);
         if old != Some(after) {
             s.planning.plan_changes.push(PlanChange {
-                id: id(), operation: operation.into(), source: source.into(), recorded_at: t,
-                before: old.cloned(), after: Some(after.clone()),
+                id: id(),
+                operation: operation.into(),
+                source: source.into(),
+                recorded_at: t,
+                before: old.cloned(),
+                after: Some(after.clone()),
             });
         }
     }
@@ -509,11 +519,19 @@ pub(crate) fn daily_record(
         .filter(|change| (start..end).contains(&change.recorded_at))
         .collect();
     let mut facts = json!({"date":date,"utcOffsetMinutes":offset,"plans":plans,"sessions":session_facts,"notes":notes,"workBlocks":work_blocks});
-    let plan_changes: Vec<_> = s.planning.plan_changes.iter().filter(|change|
-        change.before.as_ref().is_some_and(|x| x.date == date)
-        || change.after.as_ref().is_some_and(|x| x.date == date)
-        || (start..end).contains(&change.recorded_at)).collect();
-    if !plan_changes.is_empty() { facts["planChanges"] = json!(plan_changes); }
+    let plan_changes: Vec<_> = s
+        .planning
+        .plan_changes
+        .iter()
+        .filter(|change| {
+            change.before.as_ref().is_some_and(|x| x.date == date)
+                || change.after.as_ref().is_some_and(|x| x.date == date)
+                || (start..end).contains(&change.recorded_at)
+        })
+        .collect();
+    if !plan_changes.is_empty() {
+        facts["planChanges"] = json!(plan_changes);
+    }
     // Keep existing summaries valid on days with no newly supported manual facts.
     if !manual_step_changes.is_empty() {
         facts["manualStepChanges"] = json!(manual_step_changes);
@@ -780,13 +798,25 @@ pub(crate) fn execute(
             }
             let item = if operation == "prepare_step" {
                 match v["dayItemId"].as_str() {
-                    Some(iid) => Some(s.planning.day_items.iter()
-                        .find(|x| x.id == iid && x.task_id == tid && x.step_id == sid && x.removed_at.is_none())
-                        .ok_or("CONFLICT: 这条安排已变化，请刷新后重试。")?.clone()),
+                    Some(iid) => Some(
+                        s.planning
+                            .day_items
+                            .iter()
+                            .find(|x| {
+                                x.id == iid
+                                    && x.task_id == tid
+                                    && x.step_id == sid
+                                    && x.removed_at.is_none()
+                            })
+                            .ok_or("CONFLICT: 这条安排已变化，请刷新后重试。")?
+                            .clone(),
+                    ),
                     None if v["dayItemId"].is_null() => None,
                     None => return Err("INVALID_INPUT: dayItemId".into()),
                 }
-            } else { None };
+            } else {
+                None
+            };
             let task = s
                 .tasks
                 .iter_mut()
@@ -802,7 +832,11 @@ pub(crate) fn execute(
                 task.updated_at = t;
             }
             if operation == "prepare_step" {
-                s.planning.prepared = Some(PreparedStep { task_id: tid, step_id: sid, day_item_id: item.as_ref().map(|x| x.id.clone()) });
+                s.planning.prepared = Some(PreparedStep {
+                    task_id: tid,
+                    step_id: sid,
+                    day_item_id: item.as_ref().map(|x| x.id.clone()),
+                });
             }
             Ok(json!({"task":task,"step":step,"item":item,"prepared":s.planning.prepared}))
         }

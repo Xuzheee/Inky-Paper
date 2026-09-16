@@ -27,6 +27,7 @@ import type { State } from "../paper/paperTypes";
 import CoachChat from "./CoachChat";
 import DailyJournal from "./DailyJournal";
 import MarkdownJournal from "./MarkdownJournal";
+import TaskMetadata, { priorityLabels } from "./TaskMetadata";
 import { dailyStats, datesWithRecords, durationLabel } from "./dailyRecord";
 import { useDailyRecords } from "./useDailyRecords";
 import {
@@ -42,6 +43,7 @@ import {
   parseDate,
   Row,
   shiftDay,
+  validDate,
 } from "./model";
 import "./workbench.css";
 import "./journal.css";
@@ -79,7 +81,7 @@ function Dialog({
     </dialog>
   );
 }
-function StepEditor({
+export function StepEditor({
   row,
   date,
   onClose,
@@ -97,6 +99,12 @@ function StepEditor({
   const [title, setTitle] = useState(row?.task.title || "");
   const [text, setText] = useState(row?.step?.text || "");
   const [category, setCategory] = useState(row?.task.category || "work");
+  const [priority, setPriority] = useState(row?.task.priority || "medium");
+  const [due, setDue] = useState(row?.task.due || "");
+  const [dueDate, setDueDate] = useState(row?.task.dueDate || "");
+  const [expectedResult, setExpectedResult] = useState(
+    row?.step?.expectedResult || "",
+  );
   const [day, setDay] = useState(row?.item?.date || date || "");
   const [time, setTime] = useState(
     row?.item?.startMinute != null
@@ -124,6 +132,8 @@ function StepEditor({
     setBusy(true);
     setError("");
     try {
+      if (day && !validDate(day)) throw Error("请选择有效的安排日期。");
+      if (dueDate && !validDate(dueDate)) throw Error("请选择有效的截止日期。");
       await mutate("workbench_save_step", {
         ...ids.current,
         expectedTaskRevision: base?.task.revision ?? null,
@@ -131,6 +141,17 @@ function StepEditor({
         title: title.trim(),
         text: text.trim() || title.trim(),
         category,
+        // Omitted metadata keeps shared values intact, including older long criteria.
+        ...(!row || priority !== row.task.priority ? { priority } : {}),
+        ...(!row || due !== (row.task.due || "")
+          ? { due: due.trim() || null }
+          : {}),
+        ...(!row || dueDate !== (row.task.dueDate || "")
+          ? { dueDate: dueDate || null }
+          : {}),
+        ...(!row || expectedResult !== (row.step?.expectedResult || "")
+          ? { expectedResult: expectedResult.trim() || null }
+          : {}),
         plannedSeconds: round * 60,
         date: day || null,
         itemId: base?.item?.id ?? null,
@@ -195,7 +216,7 @@ function StepEditor({
         </label>
         <div className="wk-form-row">
           <label>
-            项目
+            分类
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -219,6 +240,71 @@ function StepEditor({
             />
           </label>
         </div>
+        <details
+          className="wk-editor-metadata"
+          open={
+            !!row &&
+            !!(
+              row.task.due ||
+              row.task.dueDate ||
+              row.step?.expectedResult ||
+              row.task.priority !== "medium"
+            )
+          }
+        >
+          <summary>
+            优先级与完成要求 <small>按需补充</small>
+          </summary>
+          <div className="wk-form-row">
+            <label>
+              优先级
+              <select
+                aria-label="优先级"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+              >
+                {Object.entries(priorityLabels).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              截止日期 <small>可选</small>
+              <input
+                aria-label="截止日期"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </label>
+          </div>
+          <p className="muted">
+            截止日期是最晚完成日，与下面的安排日期分开保存。
+          </p>
+          <label>
+            截止备注 <small>保留原有说明</small>
+            <input
+              aria-label="截止备注"
+              maxLength={100}
+              value={due}
+              placeholder="例如：等对方回复后再确认"
+              onChange={(e) => setDue(e.target.value)}
+            />
+          </label>
+          <label>
+            步骤完成标准 <small>可选</small>
+            <textarea
+              aria-label="步骤完成标准"
+              rows={2}
+              maxLength={2000}
+              value={expectedResult}
+              placeholder="做到什么就算这一步完成？"
+              onChange={(e) => setExpectedResult(e.target.value)}
+            />
+          </label>
+        </details>
         <div className="wk-form-row">
           <label>
             安排日期
@@ -272,6 +358,7 @@ function StepEditor({
           <div className="wk-stale">
             <p>最新任务：{latest?.title}</p>
             <p>最新步骤：{latestStep?.text}</p>
+            <TaskMetadata task={latest!} step={latestStep} />
             <label>
               <input
                 type="checkbox"
@@ -541,6 +628,7 @@ export default function Workbench() {
             <Pencil size={14} />
           </button>
         </div>
+        {!expanded && <TaskMetadata task={r.task} compact />}
         {expanded && (
           <div className="wk-task-detail">
             {r.step?.text !== r.task.title && <small>{r.task.title}</small>}
@@ -560,9 +648,7 @@ export default function Workbench() {
                   </span>
                 </div>
               ))}
-            {r.step?.expectedResult && (
-              <p className="muted">{r.step.expectedResult}</p>
-            )}
+            <TaskMetadata task={r.task} step={r.step} />
             <div className="wk-detail-actions">
               {r.step && !r.step.completed && !r.task.completed && (
                 <button disabled={busy} onClick={() => void choose(r)}>

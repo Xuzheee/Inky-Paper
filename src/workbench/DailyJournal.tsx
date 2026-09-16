@@ -1,6 +1,7 @@
 import { Check, FileText, RotateCcw } from "lucide-react";
 import { dailyStats, durationLabel } from "./dailyRecord";
 import type { DayEntry } from "./useDailyRecords";
+import TaskMetadata from "./TaskMetadata";
 
 const at = (value: number) =>
   new Date(value).toLocaleString("zh-CN", {
@@ -92,6 +93,12 @@ export default function DailyJournal({
                 {item.task?.title}
                 {item.task?.completed && " · 整件事已完成"}
               </p>
+              {item.task && (
+                <details className="wk-record-metadata">
+                  <summary>当前任务信息</summary>
+                  <TaskMetadata task={item.task} step={item.step} />
+                </details>
+              )}
             </div>
             <span>{item.step?.completed ? "当前已完成" : "未完成"}</span>
           </div>

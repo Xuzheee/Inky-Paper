@@ -484,6 +484,45 @@
   display: block;
   margin-bottom: 10px;
 }
+.wk-metadata-brief {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  padding: 3px 0 0 47px;
+  color: #7f857e;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.wk-priority.high {
+  color: #88623d;
+}
+.wk-task-metadata {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.wk-task-metadata > div {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.wk-task-metadata dt {
+  color: #7f857e;
+}
+.wk-task-metadata dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wk-record-metadata {
+  margin-top: 6px;
+}
+.wk-record-metadata > summary {
+  color: #6c7d61;
+  cursor: pointer;
+  font-size: 12px;
+}
 .wk-child {
   display: flex;
   gap: 12px;
@@ -1113,7 +1152,8 @@
   font-size: 11px;
 }
 .wk-editor input,
-.wk-editor select {
+.wk-editor select,
+.wk-editor textarea {
   display: block;
   width: 100%;
   border: 1px solid #dfe3d8;
@@ -1123,6 +1163,35 @@
   background: #ffffff55;
   font: 15px/1.5 inherit;
   color: #292e29;
+}
+.wk-editor textarea {
+  min-height: 74px;
+  max-height: 220px;
+  resize: vertical;
+  font: inherit;
+}
+.wk-editor-metadata {
+  border-top: 1px dashed #dfe3d8;
+  border-bottom: 1px dashed #dfe3d8;
+  padding: 10px 0;
+}
+.wk-editor-metadata > summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: #5d6c54;
+}
+.wk-editor-metadata > summary small {
+  margin-left: 8px;
+  color: #90968a;
+  font-size: 11px;
+}
+.wk-editor-metadata > .wk-form-row,
+.wk-editor-metadata > label {
+  margin-top: 12px;
+}
+.wk-editor-metadata > .muted {
+  margin-top: 6px;
+  font-size: 12px;
 }
 .wk-form-row {
   display: flex;

@@ -59,8 +59,11 @@ M0 提交 `e1196ce`。迁移模块由 Paper 子任务独立编写，主任务接
 
 - `planningViews(state,today)` 返回 `rows/today/unplanned/leftovers`，遗留组 `{task,step,items,rescheduled}`；`latestStepCue` 返回 `{text,sessionId}|null`。
 - `prepare_step` 输入 `taskId/stepId/expectedRevision/expectedStepRevision/dayItemId/requestId`。安排可空；返回 task、step、item、prepared。不开始时钟。
+  P-02 兼容仅有标题的旧任务：用户显式选择时允许 `stepId/expectedStepRevision/dayItemId` 均为 null；只有该任务尚无步骤时，在同一事务补标题步骤（首轮默认 25 分钟）并准备。已有步骤则冲突，不重复生成。自动刷新不调用写入。
 - `continue_plan_items` 输入 `taskId/stepId/expectedTaskRevision/expectedStepRevision/items:[{id,revision}]/date/requestId`。只处理目标日前未处理旧安排，复用目标日安排，返回 item。
 - `cancel_plan_items` 输入同上但以 `scope:selected|unexecuted` 替代 date。后者校验全部未执行安排集合，返回 remainingActiveCount；使用 sessionLinks 判断执行来源。
 - `workbench_save_step` 新增可选 `priority/due/dueDate/expectedResult`，缺失保持原值，null 清空可空字段；分类与日期语义不变。
 - `get_daily_record.planChanges` 与 `planning.planChanges` 保留 before/after；生成 Markdown 包含来源日与目标日的变更。
 - 新库与旧库完成升级后 `PRAGMA user_version=1`。旧库备份为 `<文件名>.pre-schema-1.sqlite`，已有备份不覆盖。
+
+P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退回无关联安排执行。本计划要求交接明确，因此现在保留原选择并说明来源已变化；用户重新选择无安排步骤后才可开始。其他浏览、计时和旧会话快照语义保留。

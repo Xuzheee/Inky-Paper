@@ -169,16 +169,45 @@ beforeEach(() => {
         current.revision += 1;
         return { task: structuredClone(current) };
       }
-      if (action === "select_step") {
+      if (action === "prepare_step") {
+        if (state.sessions.some((session) => session.status !== "finished"))
+          throw new Error("ACTIVE_SESSION");
         const selectedTask = state.tasks.find((t) => t.id === input.taskId)!;
-        const selectedStep = state.planning!.steps.find(
+        state.planning ||= { steps: [], dayItems: [] };
+        let selectedStep = state.planning!.steps.find(
           (s) => s.id === input.stepId && s.taskId === selectedTask.id,
-        )!;
+        );
+        if (
+          !input.stepId &&
+          !state.planning.steps.some((step) => step.taskId === selectedTask.id)
+        ) {
+          selectedStep = {
+            id: `prepared-${selectedTask.id}`,
+            taskId: selectedTask.id,
+            text: selectedTask.nextAction?.text || selectedTask.title,
+            expectedResult: null,
+            plannedSeconds: 1500,
+            completed: false,
+            revision: 1,
+          };
+          state.planning.steps.push(selectedStep);
+        }
+        if (!selectedStep) throw new Error("NOT_FOUND: step");
         if (
           selectedTask.revision !== input.expectedRevision ||
-          selectedStep.revision !== input.expectedStepRevision
+          (input.stepId && selectedStep.revision !== input.expectedStepRevision)
         )
           throw new Error("CONFLICT: 步骤已有更新");
+        const item = input.dayItemId
+          ? state.planning.dayItems.find(
+              (item) =>
+                item.id === input.dayItemId &&
+                item.removedAt === null &&
+                item.taskId === selectedTask.id &&
+                item.stepId === selectedStep!.id,
+            )
+          : null;
+        if (input.dayItemId && !item) throw new Error("CONFLICT: 原安排已变化");
         if (selectedTask.nextAction?.id !== selectedStep.id) {
           selectedTask.nextAction = {
             id: selectedStep.id,
@@ -188,9 +217,16 @@ beforeEach(() => {
           };
           selectedTask.revision += 1;
         }
+        state.planning.prepared = {
+          taskId: selectedTask.id,
+          stepId: selectedStep.id,
+          dayItemId: item?.id || null,
+        };
         return {
           task: structuredClone(selectedTask),
           step: structuredClone(selectedStep),
+          item: structuredClone(item),
+          prepared: structuredClone(state.planning.prepared),
         };
       }
       if (action === "set_step_completed") {
@@ -256,6 +292,13 @@ beforeEach(() => {
         );
         if (currentBlock && currentBlock.taskId !== selectedTask.id)
           throw new Error("WORK_TARGET_MISMATCH");
+        if (selectedStep)
+          selectedTask.nextAction = {
+            id: selectedStep.id,
+            text: selectedStep.text,
+            completed: selectedStep.completed,
+            source: "user",
+          };
         const current = {
           ...session(),
           taskId: selectedTask.id,
@@ -328,6 +371,344 @@ afterEach(() => {
 });
 
 describe("Paper current flows", () => {
+  it("restores the persisted future step and its duration after restart without relying on a window event", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    state.planning!.steps[1].plannedSeconds = 1080;
+    state.planning!.dayItems = [
+      {
+        id: "future-B",
+        date: "2099-01-03",
+        taskId: "B",
+        stepId: "step-B",
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    state.planning!.prepared = {
+      taskId: "B",
+      stepId: "step-B",
+      dayItemId: "future-B",
+    };
+    localStorage.setItem("paper-selected", JSON.stringify("A"));
+    await open();
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 B" },
+      ),
+    ).toBeTruthy();
+    expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
+      "18",
+    );
+    expect(screen.getByText(/来自 2099-01-03 的安排/)).toBeTruthy();
+    expect(mutations()).toHaveLength(0);
+    cleanup();
+    await open();
+    expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
+      "18",
+    );
+    await act(async () => fireEvent.click(button("start")));
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "start_session",
+    ]);
+    expect(mutations()[0][1].input).toMatchObject({
+      taskId: "B",
+      stepId: "step-B",
+      dayItemId: "future-B",
+      plannedSeconds: 1080,
+    });
+    expect(state.planning!.dayItems[0].date).toBe("2099-01-03");
+  });
+
+  it("uses the exact first daily step for the note, row marker and clock even when the parent's next action is different", async () => {
+    enableTaskSteps();
+    state.planning!.steps.push({
+      ...state.planning!.steps[0],
+      id: "step-A2",
+      text: "今日先核对来源",
+      plannedSeconds: 600,
+    });
+    state.planning!.dayItems = [
+      {
+        id: "today-A2",
+        date: localDate(),
+        taskId: "A",
+        stepId: "step-A2",
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    await open();
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "今日先核对来源" },
+      ),
+    ).toBeTruthy();
+    expect(
+      document
+        .querySelector('[data-plan-item-id="today-A2"]')
+        ?.getAttribute("data-current"),
+    ).toBe("true");
+    expect(state.tasks[0].nextAction?.id).toBe("step-A");
+    expect(mutations()).toHaveLength(0);
+    await act(async () => fireEvent.click(button("start")));
+    expect(mutations()[0][1].input).toMatchObject({
+      taskId: "A",
+      stepId: "step-A2",
+      dayItemId: "today-A2",
+      plannedSeconds: 600,
+    });
+    expect(state.sessions[0].action?.text).toBe("今日先核对来源");
+  });
+
+  it("preserves a future source when editing the prepared task and entering the work-block confirmation page", async () => {
+    enableTaskSteps();
+    state.planning!.dayItems = [
+      {
+        id: "future-A",
+        date: "2099-01-03",
+        taskId: "A",
+        stepId: "step-A",
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    state.planning!.prepared = {
+      taskId: "A",
+      stepId: "step-A",
+      dayItemId: "future-A",
+    };
+    await open();
+    fireEvent.click(button("修改下一步"));
+    await act(async () => fireEvent.click(button("保存")));
+    expect(state.planning!.prepared.dayItemId).toBe("future-A");
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "update_task",
+      "prepare_step",
+    ]);
+    expect(state.sessions).toHaveLength(0);
+    await act(async () => fireEvent.click(button("安排一个工作时段")));
+    expect(state.planning!.prepared.dayItemId).toBe("future-A");
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "update_task",
+      "prepare_step",
+      "prepare_step",
+    ]);
+    expect(state.sessions).toHaveLength(0);
+    await act(async () => fireEvent.click(button("开始工作并计时")));
+    expect(mutations()[mutations().length - 1]?.[1]).toMatchObject({
+      action: "start_work",
+      input: { taskId: "A", expectedRevision: 2, goal: "步骤 A" },
+    });
+    expect(state.planning!.dayItems[0].date).toBe("2099-01-03");
+  });
+
+  it("keeps the user's previous explicit task ahead of automatic daily suggestions", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    state.planning!.dayItems = [
+      {
+        id: "today-B",
+        date: localDate(),
+        taskId: "B",
+        stepId: "step-B",
+        order: 0,
+        revision: 1,
+        removedAt: null,
+      },
+    ];
+    localStorage.setItem("paper-selected", JSON.stringify("A"));
+    await open();
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 A" },
+      ),
+    ).toBeTruthy();
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it.each(["task missing", "step missing", "task completed", "step completed"])(
+    "does not fall back silently when the prepared %s",
+    async (condition) => {
+      state.tasks.push(task("B"));
+      enableTaskSteps();
+      state.planning!.prepared = {
+        taskId: "A",
+        stepId: "step-A",
+        dayItemId: null,
+      };
+      if (condition === "task missing") state.tasks.shift();
+      if (condition === "step missing") state.planning!.steps.shift();
+      if (condition === "task completed") state.tasks[0].completed = true;
+      if (condition === "step completed")
+        state.planning!.steps[0].completed = true;
+      await open();
+      expect(screen.getByRole("alert").textContent).toContain(
+        "请重新选择下一步",
+      );
+      expect(screen.queryByRole("heading", { name: "步骤 B" })).toBeNull();
+      const start = screen.queryByRole("button", {
+        name: "start",
+      }) as HTMLButtonElement | null;
+      expect(!start || start.disabled).toBe(true);
+      expect(mutations()).toHaveLength(0);
+    },
+  );
+
+  it("prepares a legacy task without a formal step through one named operation and no clock", async () => {
+    state.tasks[0].nextAction = null;
+    await open();
+    allTasks();
+    fireEvent.click(screen.getByRole("button", { name: /^任务 A/ }));
+    await act(async () => fireEvent.click(button("Do this：任务 A")));
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "prepare_step",
+    ]);
+    expect(mutations()[0][1].input).toMatchObject({
+      taskId: "A",
+      stepId: null,
+      expectedStepRevision: null,
+      dayItemId: null,
+    });
+    expect(state.planning!.prepared).toEqual({
+      taskId: "A",
+      stepId: "prepared-A",
+      dayItemId: null,
+    });
+    expect(state.sessions).toHaveLength(0);
+  });
+
+  it("rejects a late workbench event when its pending refresh discovers an active session", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    await open();
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fallback = native.invoke.getMockImplementation()!;
+    native.invoke.mockImplementation(async (command, args = {}) => {
+      if (command === "paper_execute" && args.action === "get_state")
+        await waiting;
+      return fallback(command, args);
+    });
+    await act(async () => {
+      native.listeners.get("workbench:select")?.({
+        payload: {
+          taskId: "B",
+          stepId: "step-B",
+          plannedSeconds: 1200,
+          item: null,
+        },
+      });
+    });
+    state.planning!.prepared = {
+      taskId: "B",
+      stepId: "step-B",
+      dayItemId: null,
+    };
+    state.sessions = [session()];
+    const snapshot = structuredClone(state.sessions[0]);
+    await act(async () => {
+      release();
+      await waiting;
+    });
+    expect(screen.getByRole("timer")).toBeTruthy();
+    fireEvent.click(button("返回任务列表"));
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 A" },
+      ),
+    ).toBeTruthy();
+    expect(state.sessions[0]).toEqual(snapshot);
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it("ignores an obsolete workbench event instead of replacing the newer persisted choice", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    state.planning!.prepared = {
+      taskId: "B",
+      stepId: "step-B",
+      dayItemId: null,
+    };
+    await open();
+    fireEvent.click(button("设置"));
+    await act(async () =>
+      native.listeners.get("workbench:select")?.({
+        payload: {
+          taskId: "A",
+          stepId: "step-A",
+          plannedSeconds: 900,
+          item: null,
+        },
+      }),
+    );
+    expect(
+      screen.queryByRole("heading", { name: "就从这一步开始" }),
+    ).toBeNull();
+    fireEvent.click(button("返回上一页"));
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 B" },
+      ),
+    ).toBeTruthy();
+    expect(mutations()).toHaveLength(0);
+  });
+
+  it("blocks the old note after preparation succeeds but refresh fails and recovers by reading without a second write", async () => {
+    state.tasks.push(task("B"));
+    enableTaskSteps();
+    state.planning!.prepared = {
+      taskId: "A",
+      stepId: "step-A",
+      dayItemId: null,
+    };
+    await open();
+    const fallback = native.invoke.getMockImplementation()!;
+    let prepared = false;
+    let failRead = true;
+    native.invoke.mockImplementation(async (command, args = {}) => {
+      if (
+        command === "paper_execute" &&
+        args.action === "get_state" &&
+        prepared &&
+        failRead
+      )
+        throw new Error("读取中断");
+      const result = await fallback(command, args);
+      if (command === "paper_execute" && args.action === "prepare_step")
+        prepared = true;
+      return result;
+    });
+    await selectTaskStep("B");
+    expect((button("start") as HTMLButtonElement).disabled).toBe(true);
+    expect(state.planning!.prepared?.taskId).toBe("B");
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "prepare_step",
+    ]);
+    failRead = false;
+    await act(async () => fireEvent.click(button("重新读取")));
+    expect(
+      within(screen.getByRole("region", { name: "当前步骤" })).getByRole(
+        "heading",
+        { name: "步骤 B" },
+      ),
+    ).toBeTruthy();
+    expect((button("start") as HTMLButtonElement).disabled).toBe(false);
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "prepare_step",
+    ]);
+  });
+
   it("shows the shared daily queue by default and refreshes external order without changing the selected note", async () => {
     state.tasks.push(task("B"));
     enableTaskSteps();
@@ -936,7 +1317,9 @@ describe("Paper current flows", () => {
     expect((screen.getByLabelText("专注时长") as HTMLSelectElement).value).toBe(
       "20",
     );
-    expect(mutations().map(([, args]) => args.action)).toEqual(["select_step"]);
+    expect(mutations().map(([, args]) => args.action)).toEqual([
+      "prepare_step",
+    ]);
     expect(state.sessions).toHaveLength(0);
     expect(mutations()[0][1].input).toMatchObject({
       taskId: "B",
@@ -946,7 +1329,7 @@ describe("Paper current flows", () => {
     });
     await act(async () => fireEvent.click(button("start")));
     expect(mutations().map(([, args]) => args.action)).toEqual([
-      "select_step",
+      "prepare_step",
       "start_session",
     ]);
     expect(mutations()[1][1].input).toMatchObject({
@@ -969,7 +1352,7 @@ describe("Paper current flows", () => {
     expect(state.coach.blocks[0].taskId).toBe("A");
     await act(async () => fireEvent.click(button("start")));
     expect(mutations().map(([, args]) => args.action)).toEqual([
-      "select_step",
+      "prepare_step",
       "switch_work_task",
       "start_session",
     ]);
@@ -1000,7 +1383,7 @@ describe("Paper current flows", () => {
     await selectTaskStep("B");
     await act(async () => fireEvent.click(button("start")));
     expect(mutations().map(([, args]) => args.action)).toEqual([
-      "select_step",
+      "prepare_step",
       "switch_work_task",
     ]);
     expect(state.coach.blocks[0].taskId).toBe("A");
@@ -1045,7 +1428,7 @@ describe("Paper current flows", () => {
     await selectTaskStep("B");
     await act(async () => fireEvent.click(button("start")));
     expect(mutations().map(([, args]) => args.action)).toEqual([
-      "select_step",
+      "prepare_step",
       "start_session",
     ]);
     expect(state.coach.blocks[0].taskId).toBe("A");
@@ -1137,7 +1520,7 @@ describe("Paper current flows", () => {
     expect(completed()?.classList.contains("is-done")).toBe(true);
   });
 
-  it("starts the prepared step after removing its daily plan item", async () => {
+  it("requires explicit unplanned reselection after the prepared source is removed", async () => {
     state.planning = {
       steps: [
         {
@@ -1173,11 +1556,6 @@ describe("Paper current flows", () => {
             summaries: [],
             personalNotes: "",
           };
-        if (action === "select_step")
-          return {
-            task: structuredClone(state.tasks[0]),
-            step: structuredClone(state.planning!.steps[0]),
-          };
         if (action === "remove_plan_item") {
           state.planning!.dayItems[0].removedAt = Date.now();
           state.planning!.dayItems[0].revision += 1;
@@ -1204,6 +1582,15 @@ describe("Paper current flows", () => {
     );
     await act(async () => fireEvent.click(button("移出这一天")));
     fireEvent.click(button("返回上一页"));
+    expect(screen.getByRole("alert").textContent).toContain(
+      "原来的安排已取消或变化",
+    );
+    expect((button("start") as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      mutations().some(([, args]) => args.action === "start_session"),
+    ).toBe(false);
+    await selectTaskStep("A");
+    expect(state.planning!.prepared!.dayItemId).toBeNull();
     await act(async () => fireEvent.click(button("start")));
     const startCall = native.invoke.mock.calls.find(
       ([, args]) => args?.action === "start_session",
@@ -1257,7 +1644,7 @@ describe("Paper current flows", () => {
   });
   it("keeps the chosen start task when an Agent inserts a newer task", async () => {
     await open();
-    fireEvent.click(button("安排一个工作时段"));
+    await act(async () => fireEvent.click(button("安排一个工作时段")));
     state.tasks.unshift(task("B"));
     await sync();
     expect(screen.getByRole("heading", { name: "步骤 A" })).toBeTruthy();
@@ -1270,14 +1657,14 @@ describe("Paper current flows", () => {
     );
     expect(call?.[1].input).toMatchObject({
       taskId: "A",
-      expectedRevision: 1,
+      expectedRevision: 2,
       goal: "步骤 A",
     });
   });
   it("requires reviewing the latest chosen task before starting after an external edit", async () => {
     await open();
-    fireEvent.click(button("安排一个工作时段"));
-    state.tasks[0].revision = 2;
+    await act(async () => fireEvent.click(button("安排一个工作时段")));
+    state.tasks[0].revision += 1;
     state.tasks[0].nextAction!.text = "新的步骤";
     await sync();
     expect((button("开始工作并计时") as HTMLButtonElement).disabled).toBe(true);

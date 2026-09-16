@@ -353,6 +353,14 @@ fn render_day(day: &Value) -> String {
             },
             outcome
         );
+        if session["kind"] != "rest" {
+            let plan_date = text(session, "planDate");
+            notes.push_str(&if plan_date.is_empty() {
+                "；未关联安排".to_string()
+            } else {
+                format!("；原安排：{}", cell(&plan_date))
+            });
+        }
         for (key, label) in [
             ("output", "产出"),
             ("blocker", "卡点"),

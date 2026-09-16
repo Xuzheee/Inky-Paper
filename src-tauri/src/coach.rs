@@ -376,6 +376,41 @@ pub fn execute(
             }
             let tid = text(v, "taskId", 100)?;
             let energy = choice(v, "energy", &["high", "medium", "low"])?;
+            let prepared_item =
+                if let Some(prepared) = s.planning.prepared.as_ref().filter(|p| p.task_id == tid) {
+                    let step = s
+                        .planning
+                        .steps
+                        .iter()
+                        .find(|step| {
+                            step.id == prepared.step_id && step.task_id == tid && !step.completed
+                        })
+                        .ok_or("CONFLICT: 原来准备的步骤已变化，请重新选择。")?;
+                    if !s.tasks.iter().any(|task| {
+                        task.id == tid && task.next_action.as_ref().is_some_and(|a| a.id == step.id)
+                    }) {
+                        return Err("CONFLICT: 当前下一步已变化，请重新选择后开始工作。".into());
+                    }
+                    if let Some(iid) = &prepared.day_item_id {
+                        Some(
+                            s.planning
+                                .day_items
+                                .iter()
+                                .find(|item| {
+                                    item.id == *iid
+                                        && item.task_id == tid
+                                        && item.step_id == step.id
+                                        && item.removed_at.is_none()
+                                })
+                                .ok_or("CONFLICT: 原来的安排已变化，请重新选择后开始工作。")?
+                                .clone(),
+                        )
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
             let task = s
                 .tasks
                 .iter_mut()
@@ -447,6 +482,9 @@ pub fn execute(
                     feedback: None,
                 };
                 b.session_ids.push(session.id.clone());
+                if let Some(item) = prepared_item {
+                    crate::paper_planning::link_session(s, &session, &json!({"dayItemId":item.id}));
+                }
                 paper::event(c, "start_session", source, json!({"session":session}))?;
                 s.sessions.push(session);
             }

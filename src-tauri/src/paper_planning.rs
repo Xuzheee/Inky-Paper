@@ -103,8 +103,13 @@ pub(crate) fn record_plan_changes(
     source: &str,
     t: i64,
 ) {
+    if before == s.planning.day_items.as_slice() {
+        return;
+    }
+    let previous: std::collections::HashMap<_, _> =
+        before.iter().map(|item| (item.id.as_str(), item)).collect();
     for after in &s.planning.day_items {
-        let old = before.iter().find(|x| x.id == after.id);
+        let old = previous.get(after.id.as_str()).copied();
         if old != Some(after) {
             s.planning.plan_changes.push(PlanChange {
                 id: id(),
@@ -334,6 +339,13 @@ pub(crate) fn reconcile_intervals(before: &[Session], s: &mut PaperState, t: i64
                 .session_links
                 .iter()
                 .any(|x| x.session_id == session.id)
+            && !s.planning.prepared.as_ref().is_some_and(|prepared| {
+                session.task_id.as_ref() == Some(&prepared.task_id)
+                    && session
+                        .action
+                        .as_ref()
+                        .is_some_and(|action| action.id == prepared.step_id)
+            })
         {
             let day = chrono::Local
                 .timestamp_millis_opt(session.started_at)
@@ -784,7 +796,40 @@ pub(crate) fn execute(
                 ],
             )?;
             let tid = uuid(v, "taskId")?;
-            let sid = uuid(v, "stepId")?;
+            let create_first = operation == "prepare_step" && v["stepId"].is_null();
+            let sid = if create_first {
+                let task = s
+                    .tasks
+                    .iter()
+                    .find(|x| x.id == tid)
+                    .ok_or("NOT_FOUND: task")?;
+                check_revision(task.revision, v["expectedRevision"].as_u64(), "任务")?;
+                if task.completed {
+                    return Err("TASK_COMPLETED".into());
+                }
+                if s.planning.steps.iter().any(|x| x.task_id == tid) {
+                    return Err("CONFLICT: 此任务已有步骤，请刷新后选择。".into());
+                }
+                if !v["expectedStepRevision"].is_null() || !v["dayItemId"].is_null() {
+                    return Err("INVALID_INPUT: 首个步骤尚无版本或安排。".into());
+                }
+                let sid = id();
+                s.planning.steps.push(Step {
+                    id: sid.clone(),
+                    task_id: tid.clone(),
+                    text: task.title.clone(),
+                    expected_result: None,
+                    planned_seconds: 1500,
+                    completed: false,
+                    revision: 1,
+                    source: "user".into(),
+                    created_at: t,
+                    updated_at: t,
+                });
+                sid
+            } else {
+                uuid(v, "stepId")?
+            };
             let step = s
                 .planning
                 .steps
@@ -792,7 +837,9 @@ pub(crate) fn execute(
                 .find(|x| x.id == sid && x.task_id == tid)
                 .ok_or("NOT_FOUND: step")?
                 .clone();
-            check_revision(step.revision, v["expectedStepRevision"].as_u64(), "步骤")?;
+            if !create_first {
+                check_revision(step.revision, v["expectedStepRevision"].as_u64(), "步骤")?;
+            }
             if step.completed {
                 return Err("ACTION_COMPLETED".into());
             }

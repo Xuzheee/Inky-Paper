@@ -8,6 +8,7 @@ import { planningViews, type PlanRow } from "../shared/planning";
 export function TaskSheet({
   data,
   selectedTaskId,
+  selectedStepId,
   busy,
   hasSession,
   choose,
@@ -19,6 +20,7 @@ export function TaskSheet({
 }: {
   data: State;
   selectedTaskId?: string;
+  selectedStepId?: string;
   busy: boolean;
   hasSession: boolean;
   choose: (step: PlanStep, item?: DayItem) => Promise<void>;
@@ -52,7 +54,8 @@ export function TaskSheet({
     const key = item?.id || step.id;
     const expanded = expandedItem === key;
     const current =
-      selectedTaskId === task.id && task.nextAction?.id === step.id;
+      selectedTaskId === task.id &&
+      (selectedStepId ?? task.nextAction?.id) === step.id;
     return (
       <article
         key={key}
@@ -151,7 +154,8 @@ export function TaskSheet({
   };
   const stepRow = (task: Task, step: PlanStep) => {
     const current =
-      selectedTaskId === task.id && task.nextAction?.id === step.id;
+      selectedTaskId === task.id &&
+      (selectedStepId ?? task.nextAction?.id) === step.id;
     return (
       <div
         key={step.id}

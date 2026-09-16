@@ -155,4 +155,73 @@ fn prepared_source_persists_without_clock_and_active_clock_rejects_replacement()
     assert!(std::fs::read_to_string(dir.path().join("工作记录/任务.md"))
         .unwrap()
         .contains("截止日期：2030-03-08"));
+    let actual_day = chrono::Local::now().format("%Y-%m-%d").to_string();
+    assert!(
+        std::fs::read_to_string(dir.path().join(format!("工作记录/每日/{actual_day}.md")))
+            .unwrap()
+            .contains("原安排：2030-03-06")
+    );
+}
+
+#[test]
+fn title_only_preparation_creates_a_stable_step_atomically_and_never_a_clock() {
+    let mut c = open(Path::new(":memory:")).unwrap();
+    let task = call(
+        &mut c,
+        "create_task",
+        json!({"taskId":id(),"title":"只有标题的旧任务"}),
+    );
+    let value = json!({"taskId":task["task"]["id"],"stepId":null,"expectedRevision":1,"expectedStepRevision":null,"dayItemId":null});
+    let before = serde_json::to_value(load(&c).unwrap()).unwrap();
+    let mut bad = value.clone();
+    bad["dayItemId"] = json!(id());
+    assert!(execute(&mut c, "prepare_step", request(bad), "user").is_err());
+    assert_eq!(serde_json::to_value(load(&c).unwrap()).unwrap(), before);
+    let input = request(value);
+    let out = execute(&mut c, "prepare_step", input.clone(), "user")
+        .unwrap()
+        .0;
+    assert_eq!(out["step"]["text"], "只有标题的旧任务");
+    assert_eq!(out["prepared"]["stepId"], out["step"]["id"]);
+    assert_eq!(out["task"]["nextAction"]["id"], out["step"]["id"]);
+    assert_eq!(out["task"]["revision"], 2);
+    assert!(!execute(&mut c, "prepare_step", input, "user").unwrap().1);
+    let state = load(&c).unwrap();
+    assert_eq!(state.planning.steps.len(), 1);
+    assert!(state.sessions.is_empty());
+}
+
+#[test]
+fn work_block_clock_keeps_prepared_future_origin_and_rejects_cancelled_origin() {
+    let mut c = open(Path::new(":memory:")).unwrap();
+    let task = save(&mut c, "2030-03-08");
+    call(
+        &mut c,
+        "prepare_step",
+        json!({"taskId":task["task"]["id"],"stepId":task["step"]["id"],"expectedRevision":1,"expectedStepRevision":1,"dayItemId":task["item"]["id"]}),
+    );
+    let start = json!({"taskId":task["task"]["id"],"expectedRevision":1,"plannedEndAt":now()+3_600_000,"plannedSeconds":900});
+    call(&mut c, "start_work", start.clone());
+    assert_eq!(
+        load(&c).unwrap().planning.session_links[0].plan_date,
+        "2030-03-08"
+    );
+    let mut c = open(Path::new(":memory:")).unwrap();
+    let task = save(&mut c, "2030-03-08");
+    call(
+        &mut c,
+        "prepare_step",
+        json!({"taskId":task["task"]["id"],"stepId":task["step"]["id"],"expectedRevision":1,"expectedStepRevision":1,"dayItemId":task["item"]["id"]}),
+    );
+    call(
+        &mut c,
+        "remove_plan_item",
+        json!({"planItemId":task["item"]["id"],"expectedRevision":1}),
+    );
+    let before = json!(load(&c).unwrap());
+    let start = json!({"taskId":task["task"]["id"],"expectedRevision":1,"plannedEndAt":now()+3_600_000,"plannedSeconds":900});
+    assert!(execute(&mut c, "start_work", request(start), "user")
+        .unwrap_err()
+        .contains("CONFLICT"));
+    assert_eq!(json!(load(&c).unwrap()), before);
 }

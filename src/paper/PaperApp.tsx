@@ -14,6 +14,7 @@ import type {
 import { DayPlan, localDate } from "./DayPlan";
 import { TaskSheet } from "./TaskSheet";
 import { planningViews } from "../shared/planning";
+import { executionChoice } from "./executionChoice";
 import { PAPER_MOTTOS } from "./mottos";
 import { PaperFooter } from "./PaperFooter";
 import { SessionEnd } from "./SessionEnd";
@@ -133,7 +134,8 @@ export default function PaperApp() {
   } = usePaperNotice();
   const paperRef = useRef<HTMLElement | null>(null);
   const homeScrollRef = useRef<HTMLDivElement | null>(null);
-  const [preparedItem, setPreparedItem] = useState<DayItem | null>(null);
+  const latestState = useRef<State>(blank);
+  const [prepareRefreshBlocked, setPrepareRefreshBlocked] = useState(false);
   const [journal, setJournal] = useState<{
     synced: boolean;
     directory?: string;
@@ -171,17 +173,24 @@ export default function PaperApp() {
       !error &&
       !busy,
   );
-  const task =
-    data.tasks.find((t) => t.id === selected && !t.completed) ||
-    data.tasks.find((t) => !t.completed);
+  const choice = executionChoice(data, today, selected);
+  const activeTask =
+    session?.kind === "focus" &&
+    data.tasks.find((task) => task.id === session.taskId);
+  const task = activeTask
+    ? { ...activeTask, title: session!.taskTitle, nextAction: session!.action }
+    : choice.task;
+  const preparationIssue = session
+    ? undefined
+    : prepareRefreshBlocked
+      ? "下一步已保存，画面尚未读取最新结果，请重新读取后再开始。"
+      : choice.issue;
   const completedTasks = data.tasks.filter((t) => t.completed);
   useEffect(() => {
-    const step = data.planning?.steps.find(
-      (step) => step.id === task?.nextAction?.id && step.taskId === task?.id,
-    );
+    const step = choice.step;
     if (step && !session)
       setDuration(Math.max(1, Math.round(step.plannedSeconds / 60)));
-  }, [task?.id, task?.nextAction?.id]);
+  }, [task?.id, task?.nextAction?.id, choice.step?.plannedSeconds]);
   const priorSession = [...data.sessions]
     .reverse()
     .find((s) => s.taskId === task?.id && s.kind === "focus");
@@ -210,6 +219,8 @@ export default function PaperApp() {
             "get_state",
           );
           if (r.journal) setJournal(r.journal);
+          latestState.current = r.state;
+          setPrepareRefreshBlocked(false);
           const signature = JSON.stringify(r.state);
           if (signature !== stateSignature.current) {
             stateSignature.current = signature;
@@ -275,17 +286,29 @@ export default function PaperApp() {
     if (!native) return;
     let cancelled = false;
     let off: (() => void) | undefined;
+    let serial = 0;
     void listen<{
       taskId: string;
       stepId: string;
       plannedSeconds: number;
       item: DayItem | null;
     }>("workbench:select", (e) => {
+      const request = ++serial;
       void refresh().then(() => {
-        if (cancelled) return;
+        if (cancelled || request !== serial) return;
+        const current = latestState.current;
+        if (current.sessions.some(active)) {
+          setError("本轮番茄钟还未结束，请先返回本轮保存，再选择下一步。");
+          return;
+        }
+        const prepared = current.planning?.prepared;
+        if (
+          prepared?.taskId !== e.payload.taskId ||
+          prepared.stepId !== e.payload.stepId ||
+          prepared.dayItemId !== (e.payload.item?.id || null)
+        )
+          return;
         setSelected(e.payload.taskId);
-        setPreparedItem(e.payload.item);
-        setDuration(Math.max(1, Math.round(e.payload.plannedSeconds / 60)));
         setMini(false);
         setWorkMenu(false);
         setQuickNote(false);
@@ -397,9 +420,11 @@ export default function PaperApp() {
         return !["receipt", "celebration", "edit"].includes(candidate);
       },
     );
-  const openWorkStart = () => {
-    if (!task) return;
-    setWorkStartTask(structuredClone(task));
+  const openWorkStart = async () => {
+    if (!task || preparationIssue) return;
+    const prepared = await prepareChoice(task, choice.step, choice.item);
+    if (!prepared) return;
+    setWorkStartTask(structuredClone(prepared));
     setView("work-start");
   };
   const layout = mini
@@ -499,7 +524,32 @@ export default function PaperApp() {
           nextAction: draft.nextAction || null,
         });
     if (r) {
-      setSelected((r.task as Task).id);
+      const saved = r.task as Task;
+      if (!session) {
+        const latest =
+          latestState.current.tasks.find((task) => task.id === saved.id) ||
+          saved;
+        const step = latestState.current.planning?.steps.find(
+          (step) =>
+            step.taskId === latest.id && step.id === latest.nextAction?.id,
+        );
+        const savedPreparation = latestState.current.planning?.prepared;
+        const keepsSource =
+          savedPreparation?.taskId === latest.id &&
+          savedPreparation.stepId === step?.id;
+        const source =
+          keepsSource && savedPreparation.dayItemId
+            ? latestState.current.planning?.dayItems.find(
+                (item) => item.id === savedPreparation.dayItemId,
+              )
+            : undefined;
+        if (keepsSource && savedPreparation.dayItemId && !source) {
+          setError("任务已保存，原安排已不可用，请重新选择下一步。");
+          return;
+        }
+        if (!(await prepareChoice(latest, step, source))) return;
+      }
+      setSelected(saved.id);
       localStorage.removeItem("paper-edit-draft");
       localStorage.removeItem(
         `paper-draft-${draft.id || draft.originNoteId || "new"}`,
@@ -510,16 +560,23 @@ export default function PaperApp() {
   };
   const start = async (kind = "focus", target = task) => {
     if (kind === "focus" && !target) return false;
+    if (
+      kind === "focus" &&
+      target?.id === choice.task?.id &&
+      preparationIssue
+    ) {
+      setError(preparationIssue);
+      return false;
+    }
     const step = data.planning?.steps.find(
       (s) => s.id === target?.nextAction?.id && s.taskId === target?.id,
     );
-    const dayItems = data.planning?.dayItems || [];
-    const planItem = step
-      ? [
-          dayItems.find((item) => item.id === preparedItem?.id),
-          ...dayItems.filter((i) => i.date === localDate()),
-        ].find((i) => i?.stepId === step.id && !i.removedAt)
-      : null;
+    const planItem =
+      target?.id === choice.task?.id && step?.id === choice.step?.id
+        ? choice.item
+        : planningViews(data, today).today.find(
+            (row) => row.task.id === target?.id && row.step?.id === step?.id,
+          )?.item;
     const r = await mutate("start_session", {
       kind,
       plannedSeconds: kind === "rest" ? 300 : duration * 60,
@@ -548,6 +605,10 @@ export default function PaperApp() {
       return;
     }
     if (!task || starting.current) return;
+    if (preparationIssue) {
+      setError(preparationIssue);
+      return;
+    }
     starting.current = true;
     try {
       let switched = false;
@@ -570,26 +631,53 @@ export default function PaperApp() {
       starting.current = false;
     }
   };
-  const chooseStep = async (step: PlanStep, item?: DayItem) => {
-    if (session || step.completed) return;
-    const target = data.tasks.find((t) => t.id === step.taskId);
-    if (!target) return;
-    const result = await mutate("select_step", {
+  const prepareChoice = async (
+    target: Task,
+    step?: PlanStep,
+    item?: DayItem,
+  ): Promise<Task | null> => {
+    if (latestState.current.sessions.some(active) || step?.completed)
+      return null;
+    const result = await mutate("prepare_step", {
       taskId: target.id,
-      stepId: step.id,
+      stepId: step?.id || null,
       expectedRevision: target.revision,
-      expectedStepRevision: step.revision,
+      expectedStepRevision: step?.revision ?? null,
+      dayItemId: item?.id || null,
     });
     if (result) {
-      setPreparedItem(item || null);
+      if (latestState.current.sessions.some(active)) {
+        setError(
+          "当前一轮已经开始，请先返回本轮；便签不会替换正在执行的步骤。",
+        );
+        return null;
+      }
+      const persisted = latestState.current.planning?.prepared;
+      if (
+        persisted?.taskId !== target.id ||
+        persisted.stepId !== (result.step as PlanStep).id ||
+        persisted.dayItemId !== (item?.id || null)
+      ) {
+        setPrepareRefreshBlocked(true);
+        setError("下一步已保存，画面尚未读取最新结果，请重新读取后再开始。");
+        return null;
+      }
       setSelected(target.id);
-      setDuration(Math.max(1, Math.round(step.plannedSeconds / 60)));
-      resetView("home");
-      clearNotice();
-      requestAnimationFrame(() => {
-        if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
-      });
+      setDuration(
+        Math.max(1, Math.round((result.step as PlanStep).plannedSeconds / 60)),
+      );
+      return result.task as Task;
     }
+    return null;
+  };
+  const chooseStep = async (step: PlanStep, item?: DayItem) => {
+    const target = data.tasks.find((t) => t.id === step.taskId);
+    if (!target || !(await prepareChoice(target, step, item))) return;
+    resetView("home");
+    clearNotice();
+    requestAnimationFrame(() => {
+      if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
+    });
   };
   const sessionAction = async (
     action: string,
@@ -968,6 +1056,19 @@ export default function PaperApp() {
                     {resumeHint}
                   </p>
                 )}
+                {preparationIssue && (
+                  <p className="error" role="alert">
+                    {preparationIssue}
+                  </p>
+                )}
+                {!preparationIssue &&
+                  choice.item &&
+                  choice.item.date !== today &&
+                  !session && (
+                    <p className="caption">
+                      来自 {choice.item.date} 的安排；计时按实际发生日记录。
+                    </p>
+                  )}
                 {task.nextAction?.completed && !session ? (
                   <p className="muted">这一步已划掉，去下面选下一步。</p>
                 ) : (
@@ -989,7 +1090,7 @@ export default function PaperApp() {
                     )}
                     <button
                       className={`primary${session ? " return-to-round" : ""}`}
-                      disabled={busy}
+                      disabled={busy || !!preparationIssue}
                       onClick={() => void startSelected()}
                     >
                       {session
@@ -1003,6 +1104,11 @@ export default function PaperApp() {
               </section>
             ) : (
               <section className="blank-note">
+                {preparationIssue && (
+                  <p className="error" role="alert">
+                    {preparationIssue}
+                  </p>
+                )}
                 <img
                   className="empty-pet"
                   src={pet}
@@ -1032,14 +1138,16 @@ export default function PaperApp() {
               data={data}
               date={today}
               selectedTaskId={task?.id}
+              selectedStepId={task?.nextAction?.id}
               busy={busy}
               hasSession={!!session}
               choose={chooseStep}
               selectTask={(target) => {
                 if (session) return;
-                setSelected(target.id);
-                setPreparedItem(null);
-                if (homeScrollRef.current) homeScrollRef.current.scrollTop = 0;
+                void prepareChoice(target).then((prepared) => {
+                  if (prepared && homeScrollRef.current)
+                    homeScrollRef.current.scrollTop = 0;
+                });
               }}
               edit={edit}
               complete={(target) => completeTask(target, true)}
@@ -1077,7 +1185,10 @@ export default function PaperApp() {
             </button>
             {work ? (
               <WorkCard block={work} open={() => setView("work")} />
-            ) : !session && task && !task.nextAction?.completed ? (
+            ) : !session &&
+              task &&
+              !task.nextAction?.completed &&
+              !preparationIssue ? (
               <button
                 className="text-button work-start-link"
                 onClick={openWorkStart}
@@ -1617,8 +1728,19 @@ export default function PaperApp() {
                   className="text-button"
                   onClick={() => {
                     if (n.convertedTaskId) {
-                      setSelected(n.convertedTaskId);
-                      setView("home");
+                      const target = data.tasks.find(
+                        (task) => task.id === n.convertedTaskId,
+                      );
+                      if (target && !session) {
+                        const step = data.planning?.steps.find(
+                          (step) =>
+                            step.taskId === target.id &&
+                            step.id === target.nextAction?.id,
+                        );
+                        void prepareChoice(target, step).then((prepared) => {
+                          if (prepared) setView("home");
+                        });
+                      } else setView("home");
                     } else {
                       draftBaseline.current = taskDraft();
                       setDraft(

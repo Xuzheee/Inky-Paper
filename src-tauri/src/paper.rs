@@ -441,7 +441,7 @@ fn execute_inner(
                 .prepare("SELECT seq,data FROM paper_events WHERE seq>?1 ORDER BY seq LIMIT ?2")
                 .map_err(err)?;
             let items=stmt.query_map(params![after,limit],|r|Ok((r.get::<_,u64>(0)?,r.get::<_,String>(1)?))).map_err(err)?.map(|r|{let (seq,d)=r.map_err(err)?;Ok(json!({"cursor":seq,"event":serde_json::from_str::<Value>(&d).map_err(err)?}))}).collect::<Result<Vec<Value>,String>>()?;
-            json!({"nextCursor":items.last().map(|x|x["cursor"].clone()).unwrap_or(json!(after)),"items":items})
+            json!({"nextCursor":items.last().map(|x|x["cursor"].clone()).unwrap_or(json!(after)),"items":items,"preferencesRevision":s.planning.context.preferences_revision,"basis":"历史事件不代表当前偏好。只使用本次请求的当前适用偏好；不得从旧事件恢复已停用、删除或不适用的偏好。"})
         }
         "create_task" => {
             keys(
@@ -878,7 +878,7 @@ fn execute_inner(
             changed = true;
             json!({"note":note})
         }
-        "get_day_capacity" | "save_day_constraints" | "save_project" | "set_task_project" => {
+        "get_day_capacity" | "save_day_constraints" | "save_project" | "set_task_project" | "save_preference" | "delete_preference" => {
             let out = crate::planning_context::execute(&mut s, action, &v, source, t)?;
             if action != "get_day_capacity" { event(&tx, action, source, out.clone())?; changed = true; }
             out

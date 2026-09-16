@@ -329,6 +329,7 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
     counts["projects"]=json!(projects.len()); truncated["projects"]=json!(projects.len()>20);
     facts["projects"]=json!(projects.into_iter().take(20).collect::<Vec<_>>());
     facts["referenceLinksRule"]=json!("参考链接仅由用户填写保存，系统尚未读取其网页内容。");
+    facts["currentPreferences"] = json!({"revision":state.planning.context.preferences_revision,"sampledAt":sampled_at,"items":crate::planning_context::active_preferences(&state,&date,&project_ids.iter().map(|id|id.to_string()).collect::<Vec<_>>())?,"rule":"这是本次适用偏好的完整当前集合，空数组表示没有适用偏好。不得沿用旧对话/事件中缺席、停用、删除或过期的偏好。当前用户原话优先，临时疲劳不自动保存为长期特征。"});
     Ok(json!({
         "schemaVersion":2,"date":date,"viewDate":view_date,
         "today":now.format("%Y-%m-%d").to_string(),"utcOffsetMinutes":offset,
@@ -346,6 +347,23 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn preferences_are_fresh_scoped_and_removed_from_the_next_request() {
+        let mut c = crate::paper::open(std::path::Path::new(":memory:")).unwrap();
+        let save = |c:&mut Connection,id:&str,rev:u64,text:&str,scope:&str,date:Value| crate::paper::execute(c,"save_preference",json!({"requestId":uuid::Uuid::new_v4().to_string(),"preferenceId":id,"expectedRevision":rev,"text":text,"scope":scope,"date":date,"projectId":null,"enabled":true}),"user").unwrap();
+        save(&mut c,"global",0,"首轮15分钟","global",Value::Null);
+        save(&mut c,"other-date",0,"这天只有10分钟","day",json!("2030-03-05"));
+        let scope=json!({"date":"2030-03-04"});
+        let first=build(&c,scope.clone(),"本次先做5分钟").unwrap();
+        assert_eq!(first["latestFacts"]["currentPreferences"]["items"].as_array().unwrap().len(),1);
+        assert_eq!(first["temporaryConstraints"]["text"],"本次先做5分钟");
+        save(&mut c,"global",1,"首轮10分钟","global",Value::Null);
+        assert_eq!(build(&c,scope.clone(),"继续").unwrap()["latestFacts"]["currentPreferences"]["items"][0]["text"],"首轮10分钟");
+        crate::paper::execute(&mut c,"delete_preference",json!({"requestId":uuid::Uuid::new_v4().to_string(),"preferenceId":"global","expectedRevision":2}),"user").unwrap();
+        let last=build(&c,scope,"继续").unwrap();
+        assert_eq!(last["latestFacts"]["currentPreferences"]["items"],json!([]));
+        assert!(last["latestFacts"]["currentPreferences"]["revision"].as_u64().unwrap()>first["latestFacts"]["currentPreferences"]["revision"].as_u64().unwrap());
+    }
     const DATE: &str = "2030-03-04";
     fn db() -> Connection {
         let c = crate::paper::open(std::path::Path::new(":memory:")).unwrap();

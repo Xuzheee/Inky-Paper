@@ -632,3 +632,303 @@ fn project_named_transactions_retry_exact_payloads_without_duplicate_events_or_r
         .starts_with("REQUEST_ID_REUSED:"));
     assert_eq!(snapshot(&crate::paper::load(&c).unwrap()), snapshot(&state));
 }
+
+fn preference_input(id: &str, revision: u64, scope: &str) -> Value {
+    json!({"preferenceId":id,"expectedRevision":revision,"text":"我希望每轮先做一个小步骤","scope":scope,
+        "date":if scope=="day" {Some(DATE)} else {None},
+        "projectId":if scope=="project" {Some("project-one")} else {None},"enabled":true})
+}
+
+fn preference_save(s: &mut PaperState, input: Value) -> Value {
+    execute(s, "save_preference", &input, "user", 300).unwrap()
+}
+
+fn active_ids(s: &PaperState, date: &str, projects: &[String]) -> Vec<String> {
+    active_preferences(s, date, projects)
+        .unwrap()
+        .into_iter()
+        .map(|preference| preference.id.clone())
+        .collect()
+}
+
+#[test]
+fn preferences_default_empty_and_are_not_inferred_from_notes_or_feedback() {
+    let mut old: PaperState = serde_json::from_value(
+        json!({"tasks":[],"sessions":[],"notes":[{"id":"n","text":"今天有点累"}],
+        "planning":{"context":{"days":[],"projects":[]}}}),
+    )
+    .unwrap();
+    assert!(old.planning.context.preferences.is_empty());
+    assert_eq!(old.planning.context.preferences_revision, 0);
+    assert!(active_preferences(&old, DATE, &[]).unwrap().is_empty());
+    let saved = preference_save(&mut old, preference_input("global-one", 0, "global"));
+    assert_eq!(saved["preference"]["confirmedAt"], 300);
+    assert_eq!(saved["preference"]["source"], "user");
+    assert_eq!(saved["preference"]["revision"], 1);
+    assert_eq!(saved["preferencesRevision"], 1);
+    assert_eq!(old.notes.len(), 1);
+}
+
+#[test]
+fn active_preferences_only_include_enabled_current_date_and_related_active_projects() {
+    let mut s = PaperState::default();
+    project_save(&mut s, project_input("project-one", 0));
+    project_save(&mut s, project_input("project-two", 0));
+    preference_save(&mut s, preference_input("global-one", 0, "global"));
+    preference_save(&mut s, preference_input("day-one", 0, "day"));
+    preference_save(&mut s, preference_input("project-one-pref", 0, "project"));
+    let mut other = preference_input("other-date", 0, "day");
+    other["date"] = json!(OTHER_DATE);
+    preference_save(&mut s, other);
+    let mut other = preference_input("other-project", 0, "project");
+    other["projectId"] = json!("project-two");
+    preference_save(&mut s, other);
+    let mut disabled = preference_input("disabled", 0, "global");
+    disabled["enabled"] = json!(false);
+    preference_save(&mut s, disabled);
+    assert_eq!(
+        active_ids(&s, DATE, &["project-one".into()]),
+        vec!["day-one", "global-one", "project-one-pref"]
+    );
+    assert_eq!(
+        active_ids(&s, OTHER_DATE, &[]),
+        vec!["global-one", "other-date"]
+    );
+    let mut archive = project_input("project-one", 1);
+    archive["archived"] = json!(true);
+    project_save(&mut s, archive);
+    assert_eq!(
+        active_ids(&s, DATE, &["project-one".into()]),
+        vec!["day-one", "global-one"]
+    );
+    assert_eq!(s.planning.context.preferences.len(), 6);
+    assert!(active_preferences(&s, "bad-date", &[]).is_err());
+    s.planning
+        .context
+        .preferences
+        .iter_mut()
+        .find(|preference| preference.id == "global-one")
+        .unwrap()
+        .source = "agent".into();
+    assert_eq!(active_ids(&s, DATE, &[]), vec!["day-one"]);
+}
+
+#[test]
+fn preference_scope_requires_exact_fields_and_active_project() {
+    let mut s = PaperState::default();
+    for (scope, field, value) in [
+        ("global", "date", json!(DATE)),
+        ("global", "projectId", json!("project-one")),
+        ("day", "date", Value::Null),
+        ("day", "date", json!("2030-02-29")),
+        ("day", "projectId", json!("project-one")),
+        ("project", "date", json!(DATE)),
+        ("project", "projectId", Value::Null),
+        ("unknown", "date", Value::Null),
+    ] {
+        let mut v = preference_input("preference-one", 0, scope);
+        v[field] = value;
+        project_failure(&mut s, "save_preference", v, "INVALID_INPUT:");
+    }
+    let mut missing = preference_input("preference-one", 0, "global");
+    missing.as_object_mut().unwrap().remove("projectId");
+    project_failure(&mut s, "save_preference", missing, "INVALID_INPUT:");
+    project_failure(
+        &mut s,
+        "save_preference",
+        preference_input("preference-one", 0, "project"),
+        "NOT_FOUND:",
+    );
+    let mut archived = project_input("project-one", 0);
+    archived["archived"] = json!(true);
+    project_save(&mut s, archived);
+    project_failure(
+        &mut s,
+        "save_preference",
+        preference_input("preference-one", 0, "project"),
+        "CONFLICT:",
+    );
+}
+
+#[test]
+fn preference_corrections_require_current_object_revision_and_only_real_changes_increment_set_revision(
+) {
+    let mut s = PaperState::default();
+    let first = preference_save(&mut s, preference_input("preference-one", 0, "global"));
+    project_failure(
+        &mut s,
+        "save_preference",
+        preference_input("preference-one", 0, "global"),
+        "CONFLICT:",
+    );
+    let reused = execute(
+        &mut s,
+        "save_preference",
+        &preference_input("preference-one", 1, "global"),
+        "user",
+        400,
+    )
+    .unwrap();
+    assert_eq!(reused["reused"], true);
+    assert_eq!(reused["preference"], first["preference"]);
+    assert_eq!(reused["preferencesRevision"], 1);
+    let mut correction = preference_input("preference-one", 1, "global");
+    correction["text"] = json!("现在我更喜欢先列出全部选择");
+    let saved = execute(&mut s, "save_preference", &correction, "user", 500).unwrap();
+    assert_eq!(saved["preference"]["text"], "现在我更喜欢先列出全部选择");
+    assert_eq!(saved["preference"]["revision"], 2);
+    assert_eq!(saved["preference"]["confirmedAt"], 500);
+    assert_eq!(saved["preferencesRevision"], 2);
+    preference_save(&mut s, preference_input("other", 0, "day"));
+    correction["expectedRevision"] = json!(2);
+    correction["enabled"] = json!(false);
+    preference_save(&mut s, correction);
+    assert_eq!(s.planning.context.preferences_revision, 4);
+    assert_eq!(active_ids(&s, DATE, &[]), vec!["other"]);
+}
+
+#[test]
+fn disabling_and_deleting_stop_injection_and_delete_response_has_no_old_text() {
+    let mut s = PaperState::default();
+    preference_save(&mut s, preference_input("preference-one", 0, "global"));
+    let mut disabled = preference_input("preference-one", 1, "global");
+    disabled["enabled"] = json!(false);
+    preference_save(&mut s, disabled);
+    assert!(active_ids(&s, DATE, &[]).is_empty());
+    preference_save(&mut s, preference_input("preference-one", 2, "global"));
+    assert_eq!(active_ids(&s, DATE, &[]), vec!["preference-one"]);
+    let old = json!({"preferenceId":"preference-one","expectedRevision":2});
+    project_failure(&mut s, "delete_preference", old, "CONFLICT:");
+    let delete = json!({"preferenceId":"preference-one","expectedRevision":3});
+    let result = execute(&mut s, "delete_preference", &delete, "user", 500).unwrap();
+    assert_eq!(
+        result,
+        json!({"deletedId":"preference-one","preferencesRevision":4})
+    );
+    assert!(active_ids(&s, DATE, &[]).is_empty());
+    assert!(s.planning.context.preferences.is_empty());
+    project_failure(&mut s, "delete_preference", delete, "NOT_FOUND:");
+    project_failure(
+        &mut s,
+        "save_preference",
+        preference_input("preference-one", 3, "global"),
+        "CONFLICT:",
+    );
+}
+
+#[test]
+fn preference_text_limits_and_revision_overflow_are_atomic() {
+    let mut s = PaperState::default();
+    for bad in [json!(" "), json!("字".repeat(1001)), Value::Null, json!(1)] {
+        let mut v = preference_input("preference-one", 0, "global");
+        v["text"] = bad;
+        project_failure(&mut s, "save_preference", v, "INVALID_INPUT:");
+    }
+    let mut v = preference_input("preference-one", 0, "global");
+    v["text"] = json!("字".repeat(1000));
+    preference_save(&mut s, v);
+    s.planning.context.preferences_revision = u64::MAX;
+    let mut change = preference_input("preference-one", 1, "global");
+    change["enabled"] = json!(false);
+    project_failure(&mut s, "save_preference", change, "INVALID_STATE:");
+    project_failure(
+        &mut s,
+        "delete_preference",
+        json!({"preferenceId":"preference-one","expectedRevision":1}),
+        "INVALID_STATE:",
+    );
+}
+
+#[test]
+fn preference_writes_require_user_before_lookup() {
+    let mut s = PaperState::default();
+    let before = snapshot(&s);
+    for source in ["agent", "hermes", "system", ""] {
+        for action in ["save_preference", "delete_preference"] {
+            assert!(execute(&mut s, action, &json!({}), source, 300)
+                .unwrap_err()
+                .starts_with("FORBIDDEN:"));
+        }
+    }
+    assert_eq!(snapshot(&s), before);
+}
+
+#[test]
+fn an_existing_archived_project_preference_can_be_disabled_but_not_newly_created_or_enabled() {
+    let mut s = PaperState::default();
+    project_save(&mut s, project_input("project-one", 0));
+    preference_save(&mut s, preference_input("existing", 0, "project"));
+    let mut archive = project_input("project-one", 1);
+    archive["archived"] = json!(true);
+    project_save(&mut s, archive);
+    let mut disabled = preference_input("existing", 1, "project");
+    disabled["enabled"] = json!(false);
+    preference_save(&mut s, disabled);
+    assert!(!s.planning.context.preferences[0].enabled);
+    assert!(active_ids(&s, DATE, &["project-one".into()]).is_empty());
+    project_failure(
+        &mut s,
+        "save_preference",
+        preference_input("existing", 2, "project"),
+        "CONFLICT:",
+    );
+    let mut new_disabled = preference_input("new", 0, "project");
+    new_disabled["enabled"] = json!(false);
+    project_failure(&mut s, "save_preference", new_disabled, "CONFLICT:");
+    preference_save(&mut s, preference_input("global-one", 0, "global"));
+    let mut change_scope = preference_input("global-one", 1, "project");
+    change_scope["enabled"] = json!(false);
+    project_failure(&mut s, "save_preference", change_scope, "CONFLICT:");
+}
+
+#[test]
+fn preference_public_transactions_cache_exact_retries_and_preserve_historical_events() {
+    let mut c = crate::paper::open(std::path::Path::new(":memory:")).unwrap();
+    let mut create = preference_input("preference-one", 0, "global");
+    create["requestId"] = json!(uuid::Uuid::new_v4().to_string());
+    let (first, changed) =
+        crate::paper::execute(&mut c, "save_preference", create.clone(), "user").unwrap();
+    assert!(changed);
+    let (retry, changed) =
+        crate::paper::execute(&mut c, "save_preference", create.clone(), "user").unwrap();
+    assert!(!changed);
+    assert_eq!(first, retry);
+    let delete = json!({"preferenceId":"preference-one","expectedRevision":1,"requestId":uuid::Uuid::new_v4().to_string()});
+    let (first, changed) =
+        crate::paper::execute(&mut c, "delete_preference", delete.clone(), "user").unwrap();
+    assert!(changed);
+    let (retry, changed) =
+        crate::paper::execute(&mut c, "delete_preference", delete, "user").unwrap();
+    assert!(!changed);
+    assert_eq!(first, retry);
+    assert_eq!(first["deletedId"], "preference-one");
+    assert_eq!(first["preferencesRevision"], 2);
+    assert!(first.get("text").is_none());
+    assert!(first.get("preference").is_none());
+    let state = crate::paper::load(&c).unwrap();
+    assert!(active_preferences(&state, DATE, &[]).unwrap().is_empty());
+    let saved_event: String = c
+        .query_row(
+            "SELECT data FROM paper_events WHERE json_extract(data,'$.kind')='save_preference'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(saved_event.contains("我希望每轮先做一个小步骤"));
+    let deletion_event: String = c
+        .query_row(
+            "SELECT data FROM paper_events WHERE json_extract(data,'$.kind')='delete_preference'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(!deletion_event.contains("我希望每轮先做一个小步骤"));
+    assert_eq!(c.query_row("SELECT COUNT(*) FROM paper_events WHERE json_extract(data,'$.kind') IN ('save_preference','delete_preference')",[],|r|r.get::<_,i64>(0)).unwrap(),2);
+    create["text"] = json!("复用旧requestId不得重新创建偏好");
+    assert!(
+        crate::paper::execute(&mut c, "save_preference", create, "user")
+            .unwrap_err()
+            .starts_with("REQUEST_ID_REUSED:")
+    );
+    assert_eq!(snapshot(&state), snapshot(&crate::paper::load(&c).unwrap()));
+}

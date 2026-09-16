@@ -262,6 +262,7 @@ fn main() {
             workbench::workbench_history,
             workbench::workbench_storage_scope,
             workbench::workbench_diagnostics,
+            workbench::workbench_open_reference,
             workbench::workbench_send,
             workbench::workbench_cancel,
             workbench::workbench_permission,

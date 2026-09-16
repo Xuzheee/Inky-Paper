@@ -122,3 +122,5 @@ Task 新增可空 projectId，不改变 category。ContextState 增加 projects 
 ContextState.preferences 默认空，Preference `{id,text,scope:global|day|project,date:null|string,projectId:null|string,enabled,revision,confirmedAt,updatedAt,source}`；同时有 preferencesRevision 默认0，每次实际变更递增。`save_preference` 用户专用输入 preferenceId/expectedRevision（首次0）/text（1–1000字）/scope/date/projectId/enabled/requestId；scope day 必须日期，project 必须有效未归档项目，其余字段须 null，显式保存即确认。`delete_preference` 输入 preferenceId/expectedRevision/requestId，仅从可用偏好集合删除，返回 deletedId，历史事件与对话不冒称已清除。
 
 每次请求注入当前适用且 enabled 的偏好：global、当天匹配、相关未归档项目匹配；已停用/删除/其他日期不注入。当前用户原话优先于已保存偏好，最新偏好快照优先于聊天中的旧版本；文本不会自动变为长期偏好。只复用 Hermes 的模型/账户，不另建通用记忆提供方。UI 明示删除只影响后续 Inky 请求，不删除已有对话/历史。
+
+兼容例外：归档项目的既有偏好仍可明确停用；不能新建、启用或改关联到归档项目。

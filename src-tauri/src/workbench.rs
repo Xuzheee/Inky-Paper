@@ -24,6 +24,17 @@ pub fn workbench_storage_scope(app: AppHandle) -> Reply {
     let scope = format!("{:x}", Sha256::digest(path.to_string_lossy().to_lowercase().as_bytes()));
     Ok(json!({"scopeId": scope}))
 }
+#[tauri::command]
+pub fn workbench_open_reference(url: String) -> Result<(), String> {
+    let parsed = reqwest::Url::parse(&url).map_err(|_| "INVALID_INPUT: 参考链接无效")?;
+    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() { return Err("INVALID_INPUT: 参考链接只支持 http/https".into()); }
+    #[cfg(windows)]
+    let mut command = Command::new("explorer.exe");
+    #[cfg(not(windows))]
+    let mut command = Command::new("xdg-open");
+    command.arg(parsed.as_str()).spawn().map_err(|_| "无法打开参考链接，请检查默认浏览器".to_string())?;
+    Ok(())
+}
 struct Turn {
     request: String,
     session: String,

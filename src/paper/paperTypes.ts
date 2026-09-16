@@ -102,7 +102,8 @@ export type PlanningState = {
 };
 export type DayConstraint = { date:string; revision:number; availableMinutes:number|null; unavailable:{startMinute:number;endMinute:number}[]; updatedAt:number; source:string };
 export type Project = {id:string;title:string;goal:string;criteria:string;referenceLinks:string[];archived:boolean;revision:number;updatedAt:number;source:string};
-export type PlanningContext = { days:DayConstraint[]; projects?:Project[] };
+export type Preference = {id:string;text:string;scope:"global"|"day"|"project";date:string|null;projectId:string|null;enabled:boolean;revision:number;confirmedAt:number;updatedAt:number;source:string};
+export type PlanningContext = { days:DayConstraint[]; projects?:Project[]; preferences?:Preference[]; preferencesRevision?:number };
 export type ManualStepChange = {
   id: string;
   taskId: string;

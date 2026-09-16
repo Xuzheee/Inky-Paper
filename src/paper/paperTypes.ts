@@ -11,6 +11,7 @@ export type Task = {
   title: string;
   due: string | null;
   dueDate?: string | null;
+  projectId?: string | null;
   category: string;
   priority: string;
   completed: boolean;
@@ -100,7 +101,8 @@ export type PlanningState = {
   sessionLinks?: { sessionId: string; dayItemId: string; planDate: string }[];
 };
 export type DayConstraint = { date:string; revision:number; availableMinutes:number|null; unavailable:{startMinute:number;endMinute:number}[]; updatedAt:number; source:string };
-export type PlanningContext = { days:DayConstraint[] };
+export type Project = {id:string;title:string;goal:string;criteria:string;referenceLinks:string[];archived:boolean;revision:number;updatedAt:number;source:string};
+export type PlanningContext = { days:DayConstraint[]; projects?:Project[] };
 export type ManualStepChange = {
   id: string;
   taskId: string;

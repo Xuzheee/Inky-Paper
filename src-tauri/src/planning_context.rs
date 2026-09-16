@@ -12,6 +12,21 @@ mod tests;
 #[serde(rename_all = "camelCase", default)]
 pub struct ContextState {
     pub days: Vec<DayConstraint>,
+    pub projects: Vec<Project>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub id: String,
+    pub title: String,
+    pub goal: String,
+    pub criteria: String,
+    pub reference_links: Vec<String>,
+    pub archived: bool,
+    pub revision: u64,
+    pub updated_at: i64,
+    pub source: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -197,6 +212,159 @@ fn response(s: &PaperState, for_date: &str) -> Result<Value, String> {
     Ok(json!({"constraints":constraint(s, for_date)?,"capacity":day_capacity(s, for_date)?}))
 }
 
+fn text(v: &Value, key: &str, max: usize, allow_empty: bool) -> Result<String, String> {
+    let value = v[key]
+        .as_str()
+        .ok_or(format!("INVALID_INPUT: {key}"))?
+        .trim();
+    if (!allow_empty && value.is_empty()) || value.chars().count() > max {
+        return Err(format!("INVALID_INPUT: {key}"));
+    }
+    Ok(value.into())
+}
+
+fn project<'a>(s: &'a PaperState, id: &str) -> Result<Option<&'a Project>, String> {
+    let mut matching = s
+        .planning
+        .context
+        .projects
+        .iter()
+        .filter(|project| project.id == id);
+    let found = matching.next();
+    if matching.next().is_some() {
+        return Err("INVALID_STATE: duplicate project id".into());
+    }
+    Ok(found)
+}
+
+fn save_project(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, String> {
+    if source != "user" {
+        return Err("FORBIDDEN: 项目由用户编辑。".into());
+    }
+    keys(
+        v,
+        &[
+            "projectId",
+            "expectedRevision",
+            "title",
+            "goal",
+            "criteria",
+            "referenceLinks",
+            "archived",
+            "requestId",
+        ],
+    )?;
+    let id = text(v, "projectId", 100, false)?;
+    let previous_revision = project(s, &id)?
+        .map(|project| project.revision)
+        .unwrap_or(0);
+    if v["expectedRevision"].as_u64() != Some(previous_revision) {
+        return Err("CONFLICT: 项目已有更新，请核对后重试。".into());
+    }
+    let title = text(v, "title", 100, false)?;
+    let goal = text(v, "goal", 2000, true)?;
+    let criteria = text(v, "criteria", 2000, true)?;
+    let links = v["referenceLinks"]
+        .as_array()
+        .ok_or("INVALID_INPUT: referenceLinks")?;
+    if links.len() > 10 {
+        return Err("INVALID_INPUT: referenceLinks 最多10条。".into());
+    }
+    let mut reference_links = Vec::new();
+    for link in links {
+        let value = link.as_str().ok_or("INVALID_INPUT: reference link")?.trim();
+        // Parse only: reference links are untrusted, unread context and never fetched here.
+        let url = reqwest::Url::parse(value).map_err(|_| "INVALID_INPUT: reference link URL")?;
+        if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+            return Err("INVALID_INPUT: reference links must use http or https".into());
+        }
+        reference_links.push(value.to_owned());
+    }
+    let archived = v["archived"]
+        .as_bool()
+        .ok_or("INVALID_INPUT: archived must be boolean")?;
+    let revision = previous_revision
+        .checked_add(1)
+        .ok_or("INVALID_STATE: project revision overflow")?;
+    let next = Project {
+        id: id.clone(),
+        title,
+        goal,
+        criteria,
+        reference_links,
+        archived,
+        revision,
+        updated_at: t,
+        source: source.into(),
+    };
+    let mut draft = s.clone();
+    match draft
+        .planning
+        .context
+        .projects
+        .iter_mut()
+        .find(|project| project.id == id)
+    {
+        Some(project) => *project = next.clone(),
+        None => draft.planning.context.projects.push(next.clone()),
+    }
+    *s = draft;
+    Ok(json!({"project":next}))
+}
+
+fn set_task_project(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, String> {
+    if source != "user" {
+        return Err("FORBIDDEN: 任务归属由用户编辑。".into());
+    }
+    keys(
+        v,
+        &[
+            "taskId",
+            "expectedTaskRevision",
+            "projectId",
+            "expectedProjectRevision",
+            "requestId",
+        ],
+    )?;
+    let task_id = text(v, "taskId", 100, false)?;
+    let task_index = s
+        .tasks
+        .iter()
+        .position(|task| task.id == task_id)
+        .ok_or("NOT_FOUND: task")?;
+    let previous_revision = s.tasks[task_index].revision;
+    if v["expectedTaskRevision"].as_u64() != Some(previous_revision) {
+        return Err("CONFLICT: 任务已有更新，请核对后重试。".into());
+    }
+    let target = match v.get("projectId") {
+        Some(Value::Null) => None,
+        Some(_) => {
+            let project_id = text(v, "projectId", 100, false)?;
+            let target = project(s, &project_id)?.ok_or("NOT_FOUND: project")?;
+            if v["expectedProjectRevision"].as_u64() != Some(target.revision) {
+                return Err("CONFLICT: 项目已有更新，请核对后重试。".into());
+            }
+            if target.archived {
+                return Err("CONFLICT: 项目已归档，请先恢复项目再关联。".into());
+            }
+            Some(target.clone())
+        }
+        None => return Err("INVALID_INPUT: projectId required (null clears association)".into()),
+    };
+    let revision = previous_revision
+        .checked_add(1)
+        .ok_or("INVALID_STATE: task revision overflow")?;
+    let mut draft = s.clone();
+    let task = &mut draft.tasks[task_index];
+    task.project_id = target.as_ref().map(|project| project.id.clone());
+    task.revision = revision;
+    task.updated_at = t;
+    task.source = source.into();
+    let out = json!({"task":task,"project":target});
+    *s = draft;
+    Ok(out)
+}
+
 pub fn execute(
     s: &mut PaperState,
     action: &str,
@@ -205,6 +373,8 @@ pub fn execute(
     t: i64,
 ) -> Result<Value, String> {
     match action {
+        "save_project" => save_project(s, v, source, t),
+        "set_task_project" => set_task_project(s, v, source, t),
         "get_day_capacity" => {
             keys(v, &["date"])?;
             let for_date = v["date"].as_str().ok_or("INVALID_INPUT: date")?;

@@ -247,6 +247,10 @@ fn render_tasks(s: &PaperState) -> String {
         if let Some(due) = &t.due_date {
             out.push_str(&format!("截止日期：{}\n\n", cell(due)));
         }
+        if let Some(project_id)=&t.project_id {
+            let project=s.planning.context.projects.iter().find(|p|p.id==*project_id);
+            out.push_str(&format!("项目：{}{} <!-- project:{} -->\n\n",cell(project.map(|p|p.title.as_str()).unwrap_or("未找到项目")),if project.is_some_and(|p|p.archived){"（已归档）"}else{""},cell(project_id)));
+        }
         {
             for step in s.planning.steps.iter().filter(|step| step.task_id == t.id) {
                 out.push_str(&format!(

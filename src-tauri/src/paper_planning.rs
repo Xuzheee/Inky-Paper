@@ -536,6 +536,9 @@ pub(crate) fn daily_record(
     let mut facts = json!({"date":date,"utcOffsetMinutes":offset,"plans":plans,"sessions":session_facts,"notes":notes,"workBlocks":work_blocks});
     let constraints = s.planning.context.days.iter().find(|d| d.date == date);
     if constraints.is_some() { facts["dayConstraints"] = json!(constraints); }
+    let project_ids:std::collections::HashSet<_>=s.tasks.iter().filter(|task| plans.iter().any(|p| p["task"]["id"]==task.id) || sessions.iter().any(|session|session["taskId"]==task.id)).filter_map(|task|task.project_id.as_deref()).collect();
+    let projects:Vec<_>=s.planning.context.projects.iter().filter(|project|project_ids.contains(project.id.as_str())).collect();
+    if !projects.is_empty() { facts["currentProjects"] = json!(projects); }
     let plan_changes: Vec<_> = s
         .planning
         .plan_changes
@@ -581,7 +584,7 @@ pub(crate) fn daily_record(
         })
         .collect();
     Ok(
-        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"planChanges":plan_changes,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,"dayConstraints":constraints,"capacity":crate::planning_context::day_capacity(s,date)?,
+        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"planChanges":plan_changes,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,"dayConstraints":constraints,"capacity":crate::planning_context::day_capacity(s,date)?,"currentProjects":projects,"projectsRule":"项目字段为当前背景，不代表旧会话发生时的项目内容；参考链接仅保存，尚未读取。",
         "basis":"Clock intervals are recorded time, not verified attention. Pauses are excluded. New sessions split at the requested local midnight. Legacy sessions without intervals are assigned to their start date; exact legacy daily allocation is unavailable. Missing output and unrecorded time remain unknown."}),
     )
 }
@@ -1079,6 +1082,7 @@ fn adopt(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value, S
                     .ok_or("INVALID_INPUT: new task requires taskTitle")?,
                 due: None,
                 due_date: None,
+                project_id: None,
                 category: "work".into(),
                 priority: "medium".into(),
                 completed: false,

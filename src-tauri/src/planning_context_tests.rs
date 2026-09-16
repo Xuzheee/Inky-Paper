@@ -362,3 +362,273 @@ fn public_named_transaction_retries_once_and_read_has_no_mutation_event() {
         snapshot(&crate::paper::load(&c).unwrap())
     );
 }
+
+fn project_input(id: &str, revision: u64) -> Value {
+    json!({"projectId":id,"expectedRevision":revision,"title":"合成项目","goal":"","criteria":"",
+        "referenceLinks":[],"archived":false})
+}
+
+fn project_save(s: &mut PaperState, v: Value) -> Value {
+    execute(s, "save_project", &v, "user", 200).unwrap()
+}
+
+fn project_failure(s: &mut PaperState, operation: &str, v: Value, prefix: &str) {
+    let before = snapshot(s);
+    let error = execute(s, operation, &v, "user", 200).unwrap_err();
+    assert!(error.starts_with(prefix), "{error}");
+    assert_eq!(snapshot(s), before);
+}
+
+#[test]
+fn projects_default_empty_and_save_explicit_goal_criteria_and_unread_links() {
+    let old: PaperState = serde_json::from_value(
+        json!({"tasks":[],"sessions":[],"notes":[],"planning":{"context":{"days":[]}}}),
+    )
+    .unwrap();
+    assert!(old.planning.context.projects.is_empty());
+    let mut s = old;
+    let mut input = project_input("project-one", 0);
+    input["title"] = json!("  新产品原型  ");
+    input["goal"] = json!("验证最短操作路径");
+    input["criteria"] = json!("用户能从笔记回到当前步骤");
+    input["referenceLinks"] = json!([
+        "https://reference.example.test/path?q=1#section",
+        "http://reference.example.test/说明"
+    ]);
+    let result = project_save(&mut s, input);
+    assert_eq!(result["project"]["title"], "新产品原型");
+    assert_eq!(result["project"]["goal"], "验证最短操作路径");
+    assert_eq!(result["project"]["criteria"], "用户能从笔记回到当前步骤");
+    assert_eq!(
+        result["project"]["referenceLinks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(result["project"]["revision"], 1);
+    assert_eq!(result["project"]["source"], "user");
+    assert_eq!(result["project"]["updatedAt"], 200);
+    assert!(result["project"].get("referenceContent").is_none());
+    assert!(s.tasks.is_empty());
+    assert!(s.sessions.is_empty());
+    assert!(s.planning.day_items.is_empty());
+}
+
+#[test]
+fn project_save_enforces_text_limits_and_http_url_only_without_partial_write() {
+    let mut s = PaperState::default();
+    for (field, value) in [
+        ("title", json!("")),
+        ("title", json!("长".repeat(101))),
+        ("goal", json!("长".repeat(2001))),
+        ("criteria", json!("长".repeat(2001))),
+        ("goal", Value::Null),
+        ("archived", json!("false")),
+    ] {
+        let mut v = project_input("project-one", 0);
+        v[field] = value;
+        project_failure(&mut s, "save_project", v, "INVALID_INPUT:");
+    }
+    for invalid in [
+        "javascript:alert(1)",
+        "file:///C:/Users/private.txt",
+        "ftp://example.test",
+        "/relative",
+        "",
+        "https://",
+    ] {
+        let mut v = project_input("project-one", 0);
+        v["referenceLinks"] = json!([invalid]);
+        project_failure(&mut s, "save_project", v, "INVALID_INPUT:");
+    }
+    let mut v = project_input("project-one", 0);
+    v["referenceLinks"] = json!((0..11).map(|_| "https://example.test/").collect::<Vec<_>>());
+    project_failure(&mut s, "save_project", v, "INVALID_INPUT:");
+    let mut v = project_input("project-one", 0);
+    v["referenceLinks"] = json!([false]);
+    project_failure(&mut s, "save_project", v, "INVALID_INPUT:");
+    let mut v = project_input("project-one", 0);
+    v["title"] = json!("字".repeat(100));
+    v["goal"] = json!("字".repeat(2000));
+    v["criteria"] = json!("字".repeat(2000));
+    v["referenceLinks"] = json!((0..10).map(|_| "https://example.test/").collect::<Vec<_>>());
+    assert_eq!(project_save(&mut s, v)["project"]["revision"], 1);
+}
+
+#[test]
+fn project_revision_rejects_stale_save_and_empty_fields_can_be_cleared() {
+    let mut s = PaperState::default();
+    project_failure(
+        &mut s,
+        "save_project",
+        project_input("project-one", 1),
+        "CONFLICT:",
+    );
+    let mut v = project_input("project-one", 0);
+    v["goal"] = json!("原目标");
+    v["criteria"] = json!("原标准");
+    v["referenceLinks"] = json!(["https://example.test/"]);
+    project_save(&mut s, v.clone());
+    project_failure(&mut s, "save_project", v, "CONFLICT:");
+    let result = project_save(&mut s, project_input("project-one", 1));
+    assert_eq!(result["project"]["revision"], 2);
+    assert_eq!(result["project"]["goal"], "");
+    assert_eq!(result["project"]["criteria"], "");
+    assert_eq!(result["project"]["referenceLinks"], json!([]));
+    assert_eq!(s.planning.context.projects.len(), 1);
+}
+
+#[test]
+fn task_project_assignment_checks_both_revisions_and_preserves_category_and_next_action() {
+    let mut s = PaperState::default();
+    add_item(&mut s, "task-one", Some(30), Some(20));
+    s.tasks[0].category = "study".into();
+    s.tasks[0].next_action = Some(crate::paper::Action {
+        id: "action-one".into(),
+        text: "当前一步".into(),
+        completed: false,
+        source: "user".into(),
+    });
+    let before_action = serde_json::to_value(&s.tasks[0].next_action).unwrap();
+    let before_items = serde_json::to_value(&s.planning.day_items).unwrap();
+    project_save(&mut s, project_input("project-one", 0));
+    let mut v = json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":"project-one","expectedProjectRevision":1});
+    v["expectedTaskRevision"] = json!(0);
+    project_failure(&mut s, "set_task_project", v.clone(), "CONFLICT:");
+    v["expectedTaskRevision"] = json!(1);
+    v["expectedProjectRevision"] = json!(0);
+    project_failure(&mut s, "set_task_project", v.clone(), "CONFLICT:");
+    v["expectedProjectRevision"] = json!(1);
+    let assigned = execute(&mut s, "set_task_project", &v, "user", 300).unwrap();
+    assert_eq!(assigned["task"]["projectId"], "project-one");
+    assert_eq!(assigned["task"]["category"], "study");
+    assert_eq!(assigned["task"]["revision"], 2);
+    assert_eq!(assigned["task"]["nextAction"], before_action);
+    assert_eq!(
+        serde_json::to_value(&s.planning.day_items).unwrap(),
+        before_items
+    );
+    let clear = execute(
+        &mut s,
+        "set_task_project",
+        &json!({"taskId":"task-one","expectedTaskRevision":2,"projectId":null}),
+        "user",
+        400,
+    )
+    .unwrap();
+    assert_eq!(clear["task"]["projectId"], Value::Null);
+    assert_eq!(clear["task"]["revision"], 3);
+    assert_eq!(clear["task"]["category"], "study");
+    assert_eq!(clear["project"], Value::Null);
+    assert_eq!(s.planning.context.projects[0].revision, 1);
+}
+
+#[test]
+fn archiving_preserves_existing_task_associations_plans_and_execution_snapshots() {
+    let mut s = PaperState::default();
+    add_item(&mut s, "task-one", Some(30), Some(20));
+    project_save(&mut s, project_input("project-one", 0));
+    s.tasks[0].project_id = Some("project-one".into());
+    let historical = json!({"id":"past-session","taskId":"task-one","taskTitle":"执行当时的任务名",
+        "action":{"id":"step-task-one","text":"执行当时的步骤","completed":false,"source":"user"},
+        "taskRevision":1,"kind":"focus","status":"finished","revision":2,"plannedSeconds":900,"elapsedSeconds":120,
+        "startedAt":1,"lastResumedAt":null,"endedAt":121,"pauseCount":0,"resumeCue":null,"feedback":{"outcome":"stopped"}});
+    s.sessions
+        .push(serde_json::from_value(historical.clone()).unwrap());
+    let before_tasks = serde_json::to_value(&s.tasks).unwrap();
+    let before_items = serde_json::to_value(&s.planning.day_items).unwrap();
+    let mut archive = project_input("project-one", 1);
+    archive["archived"] = json!(true);
+    let result = project_save(&mut s, archive);
+    assert_eq!(result["project"]["archived"], true);
+    assert_eq!(serde_json::to_value(&s.tasks).unwrap(), before_tasks);
+    assert_eq!(
+        serde_json::to_value(&s.planning.day_items).unwrap(),
+        before_items
+    );
+    assert_eq!(serde_json::to_value(&s.sessions[0]).unwrap(), historical);
+    let v = json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":"project-one","expectedProjectRevision":2});
+    project_failure(&mut s, "set_task_project", v, "CONFLICT:");
+    project_save(&mut s, project_input("project-one", 2));
+    assert_eq!(s.tasks[0].project_id.as_deref(), Some("project-one"));
+}
+
+#[test]
+fn changing_project_during_a_session_preserves_its_snapshot_and_clock() {
+    let mut s = PaperState::default();
+    add_item(&mut s, "task-one", None, None);
+    project_save(&mut s, project_input("project-one", 0));
+    s.sessions.push(serde_json::from_value(json!({"id":"running-session","taskId":"task-one","taskTitle":"当时标题",
+        "action":null,"taskRevision":1,"kind":"focus","status":"running","revision":1,"plannedSeconds":900,
+        "elapsedSeconds":45,"startedAt":1,"lastResumedAt":50,"endedAt":null,"pauseCount":0,"resumeCue":null,"feedback":null})).unwrap());
+    let before = serde_json::to_value(&s.sessions).unwrap();
+    execute(&mut s,"set_task_project",&json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":"project-one","expectedProjectRevision":1}),"user",300).unwrap();
+    assert_eq!(serde_json::to_value(&s.sessions).unwrap(), before);
+    assert_eq!(s.tasks[0].project_id.as_deref(), Some("project-one"));
+}
+
+#[test]
+fn task_project_requires_explicit_null_or_a_real_project_and_user_authority() {
+    let mut s = PaperState::default();
+    add_item(&mut s, "task-one", None, None);
+    for v in [
+        json!({"taskId":"task-one","expectedTaskRevision":1}),
+        json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":false}),
+    ] {
+        project_failure(&mut s, "set_task_project", v, "INVALID_INPUT:");
+    }
+    project_failure(
+        &mut s,
+        "set_task_project",
+        json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":"missing","expectedProjectRevision":1}),
+        "NOT_FOUND:",
+    );
+    let before = snapshot(&s);
+    for source in ["agent", "hermes", "system", ""] {
+        for operation in ["save_project", "set_task_project"] {
+            assert!(execute(&mut s, operation, &json!({}), source, 200)
+                .unwrap_err()
+                .starts_with("FORBIDDEN:"));
+        }
+    }
+    assert_eq!(snapshot(&s), before);
+}
+
+#[test]
+fn project_named_transactions_retry_exact_payloads_without_duplicate_events_or_revisions() {
+    let mut c = crate::paper::open(std::path::Path::new(":memory:")).unwrap();
+    let mut s = PaperState::default();
+    add_item(&mut s, "task-one", None, None);
+    c.execute(
+        "UPDATE paper_state SET data=?1 WHERE id=1",
+        [snapshot(&s).to_string()],
+    )
+    .unwrap();
+    let mut v = project_input("project-one", 0);
+    v["requestId"] = json!(uuid::Uuid::new_v4().to_string());
+    let (first, changed) =
+        crate::paper::execute(&mut c, "save_project", v.clone(), "user").unwrap();
+    assert!(changed);
+    let (retry, changed) =
+        crate::paper::execute(&mut c, "save_project", v.clone(), "user").unwrap();
+    assert!(!changed);
+    assert_eq!(first, retry);
+    let link = json!({"taskId":"task-one","expectedTaskRevision":1,"projectId":"project-one","expectedProjectRevision":1,"requestId":uuid::Uuid::new_v4().to_string()});
+    let (first, changed) =
+        crate::paper::execute(&mut c, "set_task_project", link.clone(), "user").unwrap();
+    assert!(changed);
+    let (retry, changed) = crate::paper::execute(&mut c, "set_task_project", link, "user").unwrap();
+    assert!(!changed);
+    assert_eq!(first, retry);
+    let state = crate::paper::load(&c).unwrap();
+    assert_eq!(state.planning.context.projects.len(), 1);
+    assert_eq!(state.planning.context.projects[0].revision, 1);
+    assert_eq!(state.tasks[0].revision, 2);
+    assert_eq!(c.query_row("SELECT COUNT(*) FROM paper_events WHERE json_extract(data,'$.kind') IN ('save_project','set_task_project')",[],|r|r.get::<_,i64>(0)).unwrap(),2);
+    v["title"] = json!("不能使用同一requestId改参数");
+    assert!(crate::paper::execute(&mut c, "save_project", v, "user")
+        .unwrap_err()
+        .starts_with("REQUEST_ID_REUSED:"));
+    assert_eq!(snapshot(&crate::paper::load(&c).unwrap()), snapshot(&state));
+}

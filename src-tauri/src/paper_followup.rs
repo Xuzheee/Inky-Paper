@@ -270,6 +270,7 @@ fn organize(s: &mut PaperState, v: &Value, source: &str, t: i64) -> Result<Value
             title,
             due: None,
             due_date: None,
+            project_id: None,
             category: "work".into(),
             priority: "medium".into(),
             completed: false,

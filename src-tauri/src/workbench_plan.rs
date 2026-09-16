@@ -199,6 +199,7 @@ pub(crate) fn execute(
             category: category.into(),
             due: None,
             due_date: None,
+            project_id: None,
             priority: "medium".into(),
             completed: false,
             next_action: None,

@@ -322,6 +322,13 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
         }
         _ => {}
     }
+    let mut relevant_tasks: BTreeSet<&str> = versions.tasks.keys().map(String::as_str).collect();
+    for item in &state.planning.day_items { if item.date==date && item.removed_at.is_none() { relevant_tasks.insert(&item.task_id); } }
+    let project_ids: BTreeSet<&str> = state.tasks.iter().filter(|task| relevant_tasks.contains(task.id.as_str())).filter_map(|task|task.project_id.as_deref()).collect();
+    let projects:Vec<_>=state.planning.context.projects.iter().filter(|p|project_ids.contains(p.id.as_str())).collect();
+    counts["projects"]=json!(projects.len()); truncated["projects"]=json!(projects.len()>20);
+    facts["projects"]=json!(projects.into_iter().take(20).collect::<Vec<_>>());
+    facts["referenceLinksRule"]=json!("参考链接仅由用户填写保存，系统尚未读取其网页内容。");
     Ok(json!({
         "schemaVersion":2,"date":date,"viewDate":view_date,
         "today":now.format("%Y-%m-%d").to_string(),"utcOffsetMinutes":offset,

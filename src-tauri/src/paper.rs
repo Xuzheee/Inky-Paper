@@ -28,6 +28,8 @@ pub struct Task {
     pub due: Option<String>,
     #[serde(default)]
     pub due_date: Option<String>,
+    #[serde(default)]
+    pub project_id: Option<String>,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default = "default_priority")]
@@ -480,6 +482,7 @@ fn execute_inner(
                     title: text(&v, "title", 300)?,
                     due: optional(&v, "due", 100)?,
                     due_date: due_date(&v)?,
+                    project_id: None,
                     category: choice(&v, "category", "work", &["work", "study", "life", "idea"])?,
                     priority: choice(&v, "priority", "medium", &["high", "medium", "low"])?,
                     completed: false,
@@ -875,7 +878,7 @@ fn execute_inner(
             changed = true;
             json!({"note":note})
         }
-        "get_day_capacity" | "save_day_constraints" => {
+        "get_day_capacity" | "save_day_constraints" | "save_project" | "set_task_project" => {
             let out = crate::planning_context::execute(&mut s, action, &v, source, t)?;
             if action != "get_day_capacity" { event(&tx, action, source, out.clone())?; changed = true; }
             out

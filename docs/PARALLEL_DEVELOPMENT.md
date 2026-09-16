@@ -56,3 +56,9 @@ corepack pnpm tauri dev --config scripts/desktop/tauri-workbench-dev.json
 2026-09-16 工作台分支先合并纸面分支 `4a1137c`，保留便签小赖字体和番茄钟 90% 缩放，再提交日期、讨论范围与直接返回 Inky 的修正 `0b7045e`。`codex/inky-integration` 快进到相同代码后统一构建和交付，`main` 与工作台分支随后同步到交付结果。纸面 worktree 仍保留自己的分支和正在进行的工作，不跨目录改写。
 
 本轮自动检查与隔离原生验收见 [0.6.3 验收](verification/0.6.3/README.md)。仍未推送远程。
+
+## 第三次集成：0.6.4
+
+2026-09-16 在纸面 worktree 临时切换到 `codex/inky-integration`，将纸面 `2d0d8a3` 与工作台 `1dfeef6` 合并为 `56a4eb6`，统一为 0.6.4。产品代码自动合并，三个文档冲突保留两边记录。完成自动检查和两套隔离原生验证后，更新本机正式可执行文件并发布 GitHub `main` 与 `v0.6.4`。
+
+纸面分支随后快进到集成结果并恢复为本 worktree 的当前分支。另一 worktree 的工作台源码保持原状；开始新工作前，应在干净状态下将最新 `main` 合并进 `codex/inky-workbench`。本次只向另一目录交付经过验证的正式 exe，没有覆盖其源码或数据。详见 [0.6.4 验收](verification/0.6.4/README.md)。

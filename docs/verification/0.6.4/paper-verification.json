@@ -1,0 +1,35 @@
+{
+  "result": "PASS",
+  "checks": [
+    "Real window moves from left/bottom paper edges at top, middle and bottom; no task, plan or session changes",
+    "Scrollbar floats with zero gutter, fades when idle, wakes on hover, and supports thumb drag, wheel and keyboard without moving the window or shifting text",
+    "Handwriting gestures still complete a step or parent separately in place, with no window movement",
+    "Focus has no unnecessary track; notes and settings keep working at any scroll position; navigation retargets the scrollbar and saved feedback remains correct",
+    "Transparent timer keeps its coordinates and has no overlay background; mini pet removes the overlay and returns with timing intact; the home footer remains visible after scrolling"
+  ],
+  "homeGeometry": {
+    "width": 320,
+    "height": 520,
+    "gutter": 0,
+    "scroll": 330,
+    "maximum": 331,
+    "documentWidth": 320,
+    "documentHeight": 520,
+    "mainHeight": 520,
+    "thumbWidth": 3,
+    "trackWidth": 10
+  },
+  "endGeometry": {
+    "width": 320,
+    "height": 528,
+    "gutter": 0,
+    "scroll": 120,
+    "maximum": 191,
+    "documentWidth": 320,
+    "documentHeight": 528,
+    "mainHeight": 528,
+    "thumbWidth": 3,
+    "trackWidth": 10
+  },
+  "errors": []
+}

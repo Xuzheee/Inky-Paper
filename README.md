@@ -4,11 +4,11 @@ Inky Paper 是一个独立的 Windows 专注与工作记录应用。Hermes 在�
 
 当前应用版本 **0.6.4**，Inky Coach 插件版本 **0.1.3**。独立的 [Inky 工作台](docs/工作台使用说明.md) 已接入三日任务、日程、每日完成与执行记录、原始 Markdown 页面和 Hermes ACP 对话。点击任务首页底部「随手记 · 足迹 · 工作台」中的「工作台」、托盘「打开工作台」或 `启动 Inky 工作台.cmd` 打开。当前进度、验证范围和待检查项见 [项目进度](docs/PROJECT_STATUS.md)。
 
-源码已接入私有仓库 [Xuzheee/Inky-Paper](https://github.com/Xuzheee/Inky-Paper)，默认分支 `main`。Git 管理代码与项目文档，个人工作记录继续保存在本机。
+源码已公开在 [Xuzheee/Inky-Paper](https://github.com/Xuzheee/Inky-Paper)，默认分支 `main`。Git 管理代码与项目文档，个人工作记录继续保存在本机。
 
 ## 打开与使用
 
-本机交付版双击 `启动 Inky Paper.cmd`，或打开 `app/Inky Paper.exe`。更新文件后，需要从托盘退出旧进程再打开，才能加载新版本。设置中可确认版本。源码仓库不包含可执行文件，首次克隆后按下方步骤构建。
+本机交付版双击 `启动 Inky Paper.cmd`，或打开 `app/Inky Paper.exe`。更新文件后，需要从托盘退出旧进程再打开，才能加载新版本。设置中可确认版本。可执行文件位于 [GitHub Releases](https://github.com/Xuzheee/Inky-Paper/releases/tag/v0.6.4)，源码目录不包含 exe；首次克隆后也可按下方步骤构建。工作台 Coach 仍需本机安装 Hermes 与 Node.js，详见 [运行环境](docs/工作台使用说明.md)。
 
 1. 在 Paper 添加任务，或在 Hermes 询问 Coach，生成简短计划卡片。用户在聊天中选择、修改、排序，再点击“将所选卡片加入 Inky”。采用卡片不会开始计时。
 2. 在纸面清单展开大任务，点击某一步的 **Do this**，将它放到上方浅绿便签。简单任务可以只有一个动作；相同的任务名和步骤不会重复显示。

@@ -1,0 +1,9 @@
+{
+  "scope": "All reachable objects in all local refs after origin fetch",
+  "commits": 18,
+  "blobs": 587,
+  "textBlobs": 436,
+  "forbiddenNames": [],
+  "credentialPatternHits": [],
+  "limitations": "Pattern-based local audit, not a guarantee against every possible secret format; no credential values are included."
+}

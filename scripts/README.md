@@ -51,6 +51,10 @@ node scripts/desktop/verify-paper-chrome.mjs paper-chrome-check
 
 验证滚动前后的真实窗口位移、拖动 / 滚轮 / 键盘滚动、零占位与自动淡出、任务横划、记录与保存、页面切换、透明态及迷你宠物。结果和截图保存在 `output/paper-chrome-check/`；不会调用 Hermes。
 
+## 工作台记录与纸面回流验收
+
+沿用工作台启动脚本并传入新的空数据目录，运行 `node scripts/desktop/verify-workbench-records.mjs <目录名>`。该脚本不调用模型，核对工作台选择步骤回 Inky、主窗口完成与撤销、结束页保存、每日记录和原始 Markdown 的回流，以及外部笔记修改。报告与截图写入 `output/<目录名>/records-verification/`，不会覆盖历史版本证据。
+
 ## 独立操作提醒验收
 
 ```powershell

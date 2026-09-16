@@ -1,0 +1,33 @@
+{
+  "version": "0.6.4",
+  "sourceCommit": "56a4eb6442396ede4a8a835d7b0fb10ddecf9757",
+  "paperCommit": "2d0d8a3",
+  "workbenchCommit": "1dfeef6",
+  "source": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\src-tauri\\target\\release\\inky-paper.exe",
+  "delivered": "C:/Users/31009/clauddd/Inky-Paper/app/Inky Paper.exe",
+  "localCopy": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\Inky Paper.exe",
+  "bytes": 69445120,
+  "sha256": "757AB110DDC0881F828B75F17C1E686D3BC0B680574B83E449BD92E270ECF605",
+  "hashesMatch": true,
+  "backups": [
+    {
+      "path": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\backups\\Inky Paper-0.6.1-before-0.6.4-20260916-145431.exe",
+      "previousSha256": "DA128B5003890AE6AB5F3105ABD4608AA66E77DEB7783635AC010313500240D4",
+      "delivered": "C:\\Users\\31009\\.codex\\worktrees\\f8f7\\Inky-Paper\\app\\Inky Paper.exe"
+    },
+    {
+      "path": "C:\\Users\\31009\\clauddd\\Inky-Paper\\app\\backups\\Inky Paper-0.6.3-before-0.6.4-20260916-145431.exe",
+      "previousSha256": "C4CF2A90B471989DF3AF59062B2E64972F394D34A66A84AB3F82077AF84C13EB",
+      "delivered": "C:/Users/31009/clauddd/Inky-Paper/app/Inky Paper.exe"
+    }
+  ],
+  "typecheck": "PASS",
+  "frontendTestsPassed": 122,
+  "rustTestsPassed": 70,
+  "rustTestsIgnored": 1,
+  "paperVerification": "paper-verification.json",
+  "workbenchVerification": "workbench-verification.json",
+  "releaseBuild": "PASS",
+  "isolatedTestProcessClosed": true,
+  "deliveredAt": "2026-09-16T14:54:32.4990495+08:00"
+}

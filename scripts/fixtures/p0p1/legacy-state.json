@@ -1,0 +1,562 @@
+{
+  "metadata": {
+    "fixtureVersion": 1,
+    "source": "synthetic-only",
+    "applicationVersion": "0.6.4",
+    "baselineCommit": "d13b19f7ddf518b7c83a5a3627f852ba4cbda0a9",
+    "fixtureToday": "2030-03-04",
+    "timeZone": "Asia/Shanghai",
+    "utcOffsetMinutes": 480,
+    "sampledAt": 1898848800000,
+    "description": "固定日期的合成旧格式数据，不来自正式数据库。state 可作为 PaperState 迁移输入；metadata/events/requests 不属于 PaperState。",
+    "scenarios": {
+      "legacyUnfinishedStep": "20000000-0000-4000-8000-000000000001",
+      "todayStep": "20000000-0000-4000-8000-000000000003",
+      "futureStepExecutedEarly": "20000000-0000-4000-8000-000000000004",
+      "unplannedStep": "20000000-0000-4000-8000-000000000005",
+      "manualCompletedThenUndoneStep": "20000000-0000-4000-8000-000000000006",
+      "completedParentTask": "10000000-0000-4000-8000-000000000006",
+      "convertedNote": "60000000-0000-4000-8000-000000000002"
+    },
+    "expectedCounts": {
+      "tasks": 6,
+      "steps": 7,
+      "dayItems": 7,
+      "sessions": 3,
+      "manualStepChanges": 2,
+      "notes": 2,
+      "events": 3,
+      "requests": 1
+    }
+  },
+  "state": {
+    "tasks": [
+      {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "title": "旧安排待处理",
+        "due": "等资料齐了再处理",
+        "category": "work",
+        "priority": "medium",
+        "completed": false,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000001",
+          "text": "核对原始清单",
+          "completed": false,
+          "source": "user"
+        },
+        "revision": 1,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": null
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000002",
+        "title": "今日写作",
+        "due": null,
+        "category": "work",
+        "priority": "high",
+        "completed": false,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000003",
+          "text": "写今天的简短提纲",
+          "completed": false,
+          "source": "user"
+        },
+        "revision": 1,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": null
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000003",
+        "title": "下周阅读",
+        "due": null,
+        "category": "study",
+        "priority": "medium",
+        "completed": false,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000004",
+          "text": "提前试读下一章",
+          "completed": false,
+          "source": "user"
+        },
+        "revision": 1,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": null
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000004",
+        "title": "临时事项",
+        "due": null,
+        "category": "idea",
+        "priority": "medium",
+        "completed": false,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000005",
+          "text": "记录临时想法",
+          "completed": false,
+          "source": "user"
+        },
+        "revision": 1,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": null
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000005",
+        "title": "手动记录样例",
+        "due": null,
+        "category": "life",
+        "priority": "medium",
+        "completed": false,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000006",
+          "text": "勾选后又撤销的步骤",
+          "completed": false,
+          "source": "user"
+        },
+        "revision": 3,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": null
+      },
+      {
+        "id": "10000000-0000-4000-8000-000000000006",
+        "title": "已完成父任务",
+        "due": null,
+        "category": "work",
+        "priority": "medium",
+        "completed": true,
+        "nextAction": {
+          "id": "20000000-0000-4000-8000-000000000007",
+          "text": "提交已完成的小样",
+          "completed": true,
+          "source": "user"
+        },
+        "revision": 2,
+        "source": "user",
+        "createdAt": 1898553600000,
+        "updatedAt": 1898848800000,
+        "completedAt": 1898838000000
+      }
+    ],
+    "sessions": [
+      {
+        "id": "40000000-0000-4000-8000-000000000001",
+        "taskId": "10000000-0000-4000-8000-000000000001",
+        "taskTitle": "旧安排待处理",
+        "action": {
+          "id": "20000000-0000-4000-8000-000000000001",
+          "text": "核对原始清单",
+          "completed": false,
+          "source": "user"
+        },
+        "taskRevision": 1,
+        "kind": "focus",
+        "status": "finished",
+        "revision": 2,
+        "plannedSeconds": 900,
+        "elapsedSeconds": 600,
+        "startedAt": 1898730000000,
+        "lastResumedAt": null,
+        "endedAt": 1898730600000,
+        "pauseCount": 0,
+        "resumeCue": null,
+        "feedback": {
+          "outcome": "stopped",
+          "output": "已经核对前半页",
+          "blocker": null,
+          "nextCue": "从第七条继续核对"
+        }
+      },
+      {
+        "id": "40000000-0000-4000-8000-000000000002",
+        "taskId": "10000000-0000-4000-8000-000000000003",
+        "taskTitle": "下周阅读",
+        "action": {
+          "id": "20000000-0000-4000-8000-000000000004",
+          "text": "提前试读下一章",
+          "completed": false,
+          "source": "user"
+        },
+        "taskRevision": 1,
+        "kind": "focus",
+        "status": "finished",
+        "revision": 2,
+        "plannedSeconds": 900,
+        "elapsedSeconds": 600,
+        "startedAt": 1898823600000,
+        "lastResumedAt": null,
+        "endedAt": 1898824200000,
+        "pauseCount": 0,
+        "resumeCue": null,
+        "feedback": {
+          "outcome": "stopped",
+          "output": null,
+          "blocker": null,
+          "nextCue": "继续第二段；今天只是提前试读"
+        }
+      },
+      {
+        "id": "40000000-0000-4000-8000-000000000003",
+        "taskId": "10000000-0000-4000-8000-000000000006",
+        "taskTitle": "已完成父任务",
+        "action": {
+          "id": "20000000-0000-4000-8000-000000000007",
+          "text": "提交已完成的小样",
+          "completed": false,
+          "source": "user"
+        },
+        "taskRevision": 1,
+        "kind": "focus",
+        "status": "finished",
+        "revision": 2,
+        "plannedSeconds": 600,
+        "elapsedSeconds": 600,
+        "startedAt": 1898834400000,
+        "lastResumedAt": null,
+        "endedAt": 1898835000000,
+        "pauseCount": 0,
+        "resumeCue": null,
+        "feedback": {
+          "outcome": "step_completed",
+          "output": "小样已经保存",
+          "blocker": null,
+          "nextCue": null
+        }
+      }
+    ],
+    "notes": [
+      {
+        "id": "60000000-0000-4000-8000-000000000001",
+        "text": "测试想法：以后比较两份清单",
+        "createdAt": 1898730300000,
+        "source": "user",
+        "sessionId": "40000000-0000-4000-8000-000000000001",
+        "taskId": "10000000-0000-4000-8000-000000000001",
+        "taskTitle": "旧安排待处理",
+        "action": {
+          "id": "20000000-0000-4000-8000-000000000001",
+          "text": "核对原始清单",
+          "completed": false,
+          "source": "user"
+        }
+      },
+      {
+        "id": "60000000-0000-4000-8000-000000000002",
+        "text": "测试想法：整理一个临时事项",
+        "createdAt": 1898733600000,
+        "source": "user",
+        "sessionId": null,
+        "taskId": null,
+        "taskTitle": null,
+        "action": null,
+        "convertedTaskId": "10000000-0000-4000-8000-000000000004"
+      }
+    ],
+    "coach": {
+      "blocks": [],
+      "activities": [],
+      "episodes": [],
+      "proposals": [],
+      "settings": {
+        "enabled": false,
+        "hermes": false,
+        "revision": 1
+      },
+      "lastSampleAt": null,
+      "lastAnalysisAt": 0,
+      "analysisStatus": ""
+    },
+    "planning": {
+      "steps": [
+        {
+          "id": "20000000-0000-4000-8000-000000000001",
+          "taskId": "10000000-0000-4000-8000-000000000001",
+          "text": "核对原始清单",
+          "expectedResult": null,
+          "plannedSeconds": 900,
+          "completed": false,
+          "revision": 1,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "taskId": "10000000-0000-4000-8000-000000000001",
+          "text": "补齐剩余两条说明",
+          "expectedResult": "两条说明可直接阅读",
+          "plannedSeconds": 1200,
+          "completed": false,
+          "revision": 1,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000003",
+          "taskId": "10000000-0000-4000-8000-000000000002",
+          "text": "写今天的简短提纲",
+          "expectedResult": null,
+          "plannedSeconds": 1500,
+          "completed": false,
+          "revision": 1,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000004",
+          "taskId": "10000000-0000-4000-8000-000000000003",
+          "text": "提前试读下一章",
+          "expectedResult": null,
+          "plannedSeconds": 900,
+          "completed": false,
+          "revision": 1,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000005",
+          "taskId": "10000000-0000-4000-8000-000000000004",
+          "text": "记录临时想法",
+          "expectedResult": null,
+          "plannedSeconds": 600,
+          "completed": false,
+          "revision": 1,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000006",
+          "taskId": "10000000-0000-4000-8000-000000000005",
+          "text": "勾选后又撤销的步骤",
+          "expectedResult": null,
+          "plannedSeconds": 900,
+          "completed": false,
+          "revision": 3,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        },
+        {
+          "id": "20000000-0000-4000-8000-000000000007",
+          "taskId": "10000000-0000-4000-8000-000000000006",
+          "text": "提交已完成的小样",
+          "expectedResult": null,
+          "plannedSeconds": 600,
+          "completed": true,
+          "revision": 2,
+          "source": "user",
+          "createdAt": 1898553600000,
+          "updatedAt": 1898848800000
+        }
+      ],
+      "batches": [],
+      "dayItems": [
+        {
+          "id": "30000000-0000-4000-8000-000000000001",
+          "date": "2030-03-02",
+          "taskId": "10000000-0000-4000-8000-000000000001",
+          "stepId": "20000000-0000-4000-8000-000000000001",
+          "order": 0,
+          "revision": 1,
+          "removedAt": null
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000002",
+          "date": "2030-03-03",
+          "taskId": "10000000-0000-4000-8000-000000000001",
+          "stepId": "20000000-0000-4000-8000-000000000001",
+          "order": 0,
+          "revision": 1,
+          "removedAt": null,
+          "startMinute": 540,
+          "durationMinutes": 30
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000003",
+          "date": "2030-03-04",
+          "taskId": "10000000-0000-4000-8000-000000000002",
+          "stepId": "20000000-0000-4000-8000-000000000003",
+          "order": 0,
+          "revision": 1,
+          "removedAt": null,
+          "startMinute": 600,
+          "durationMinutes": 45
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000004",
+          "date": "2030-03-05",
+          "taskId": "10000000-0000-4000-8000-000000000003",
+          "stepId": "20000000-0000-4000-8000-000000000004",
+          "order": 0,
+          "revision": 1,
+          "removedAt": null,
+          "startMinute": 600,
+          "durationMinutes": 40
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000005",
+          "date": "2030-03-04",
+          "taskId": "10000000-0000-4000-8000-000000000005",
+          "stepId": "20000000-0000-4000-8000-000000000006",
+          "order": 1,
+          "revision": 1,
+          "removedAt": null,
+          "startMinute": null,
+          "durationMinutes": null
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000006",
+          "date": "2030-03-04",
+          "taskId": "10000000-0000-4000-8000-000000000006",
+          "stepId": "20000000-0000-4000-8000-000000000007",
+          "order": 2,
+          "revision": 1,
+          "removedAt": null,
+          "startMinute": 840,
+          "durationMinutes": 20
+        },
+        {
+          "id": "30000000-0000-4000-8000-000000000007",
+          "date": "2030-03-02",
+          "taskId": "10000000-0000-4000-8000-000000000004",
+          "stepId": "20000000-0000-4000-8000-000000000005",
+          "order": 1,
+          "revision": 1,
+          "removedAt": 1898733600000
+        }
+      ],
+      "summaries": [],
+      "intervals": [
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000001",
+          "startedAt": 1898730000000,
+          "endedAt": 1898730600000
+        },
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000002",
+          "startedAt": 1898823600000,
+          "endedAt": 1898824200000
+        },
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000003",
+          "startedAt": 1898834400000,
+          "endedAt": 1898835000000
+        }
+      ],
+      "sessionLinks": [
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000001",
+          "dayItemId": "30000000-0000-4000-8000-000000000002",
+          "planDate": "2030-03-03"
+        },
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000002",
+          "dayItemId": "30000000-0000-4000-8000-000000000004",
+          "planDate": "2030-03-05"
+        },
+        {
+          "sessionId": "40000000-0000-4000-8000-000000000003",
+          "dayItemId": "30000000-0000-4000-8000-000000000006",
+          "planDate": "2030-03-04"
+        }
+      ],
+      "manualStepChanges": [
+        {
+          "id": "50000000-0000-4000-8000-000000000001",
+          "taskId": "10000000-0000-4000-8000-000000000005",
+          "taskTitle": "手动记录样例",
+          "stepId": "20000000-0000-4000-8000-000000000006",
+          "stepText": "勾选后又撤销的步骤",
+          "completed": true,
+          "recordedAt": 1898841600000
+        },
+        {
+          "id": "50000000-0000-4000-8000-000000000002",
+          "taskId": "10000000-0000-4000-8000-000000000005",
+          "taskTitle": "手动记录样例",
+          "stepId": "20000000-0000-4000-8000-000000000006",
+          "stepText": "勾选后又撤销的步骤",
+          "completed": false,
+          "recordedAt": 1898842200000
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "seq": 1,
+      "data": {
+        "id": "70000000-0000-4000-8000-000000000001",
+        "at": 1898841600000,
+        "kind": "set_step_completed",
+        "source": "user",
+        "utcOffsetMinutes": 480,
+        "data": {
+          "manualStepChange": {
+            "id": "50000000-0000-4000-8000-000000000001",
+            "taskId": "10000000-0000-4000-8000-000000000005",
+            "taskTitle": "手动记录样例",
+            "stepId": "20000000-0000-4000-8000-000000000006",
+            "stepText": "勾选后又撤销的步骤",
+            "completed": true,
+            "recordedAt": 1898841600000
+          }
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "data": {
+        "id": "70000000-0000-4000-8000-000000000002",
+        "at": 1898842200000,
+        "kind": "set_step_completed",
+        "source": "user",
+        "utcOffsetMinutes": 480,
+        "data": {
+          "manualStepChange": {
+            "id": "50000000-0000-4000-8000-000000000002",
+            "taskId": "10000000-0000-4000-8000-000000000005",
+            "taskTitle": "手动记录样例",
+            "stepId": "20000000-0000-4000-8000-000000000006",
+            "stepText": "勾选后又撤销的步骤",
+            "completed": false,
+            "recordedAt": 1898842200000
+          }
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "data": {
+        "id": "70000000-0000-4000-8000-000000000003",
+        "at": 1898733660000,
+        "kind": "note_converted",
+        "source": "user",
+        "utcOffsetMinutes": 480,
+        "data": {
+          "noteId": "60000000-0000-4000-8000-000000000002",
+          "taskId": "10000000-0000-4000-8000-000000000004"
+        }
+      }
+    }
+  ],
+  "requests": [
+    {
+      "id": "80000000-0000-4000-8000-000000000001",
+      "fingerprint": "[\"capture_note\",{\"requestId\":\"80000000-0000-4000-8000-000000000001\",\"text\":\"测试想法：整理一个临时事项\"},\"user\"]",
+      "result": "{\"note\":{\"id\":\"60000000-0000-4000-8000-000000000002\",\"text\":\"测试想法：整理一个临时事项\",\"createdAt\":1898733600000,\"source\":\"user\",\"sessionId\":null,\"taskId\":null,\"taskTitle\":null,\"action\":null,\"convertedTaskId\":\"10000000-0000-4000-8000-000000000004\"}}"
+    }
+  ]
+}

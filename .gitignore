@@ -24,6 +24,7 @@ __pycache__/
 # Delivered executables and local rollback copies
 app/*.exe
 app/backups/
+app/*.WebView2/
 *.zip
 *.pdb
 *.msi

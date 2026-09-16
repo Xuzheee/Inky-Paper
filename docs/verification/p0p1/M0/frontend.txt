@@ -1,0 +1,13 @@
+
+> inky-paper@0.6.4 test:frontend C:\Users\31009\clauddd\Inky-Paper
+> vitest run --dir src
+
+
+ RUN  v4.1.10 C:/Users/31009/clauddd/Inky-Paper
+
+
+ Test Files  13 passed (13)
+      Tests  122 passed (122)
+   Start at  16:52:10
+   Duration  22.78s (transform 3.51s, setup 0ms, import 39.01s, tests 5.02s, environment 155.96s)
+

@@ -1,0 +1,4 @@
+
+> inky-paper@0.6.4 typecheck C:\Users\31009\clauddd\Inky-Paper
+> tsc --noEmit
+

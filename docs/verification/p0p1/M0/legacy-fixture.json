@@ -1,0 +1,53 @@
+{
+  "status": "passed",
+  "scope": "Synthetic 0.6.4 legacy database, consistent backup and restore; not product migration or desktop acceptance",
+  "executedAt": "2026-09-16T08:59:39.123Z",
+  "nodeVersion": "v24.13.0",
+  "sqliteVersion": "3.50.4",
+  "fixtureToday": "2030-03-04",
+  "utcOffsetMinutes": 480,
+  "fixtureSha256": "163a12898d2bbcc659811ea31f2873a7a89c785205ee2dc3533f69ecca77f851",
+  "counts": {
+    "tasks": 6,
+    "steps": 7,
+    "dayItems": 7,
+    "sessions": 3,
+    "manualStepChanges": 2,
+    "notes": 2,
+    "events": 3,
+    "requests": 1
+  },
+  "checks": {
+    "fixtureRelations": true,
+    "noActiveClock": true,
+    "pathEscapeRejected": true,
+    "overwriteRefusedByExclusiveDirectory": true,
+    "backupIncludesStateEventsRequests": true,
+    "restoredDataEquivalent": true
+  },
+  "files": [
+    {
+      "file": "output/p0p1-m0/legacy/paper.sqlite",
+      "integrity": "ok",
+      "sha256": "0ab1bee081c85c949da4859f7d6a481a3b8621c4f8fcaa09ecb636e9319716ea",
+      "logicalDataEqualsFixture": true
+    },
+    {
+      "file": "output/p0p1-m0/legacy/paper.pre-migration.sqlite",
+      "integrity": "ok",
+      "sha256": "fdab40dfe7b67787ae2dd5e358cd4900f4497c4172a347a740594bb91b6212df",
+      "logicalDataEqualsFixture": true
+    },
+    {
+      "file": "output/p0p1-m0/legacy/paper.restored.sqlite",
+      "integrity": "ok",
+      "sha256": "fdab40dfe7b67787ae2dd5e358cd4900f4497c4172a347a740594bb91b6212df",
+      "logicalDataEqualsFixture": true
+    }
+  ],
+  "notValidated": [
+    "Application migration",
+    "Native desktop",
+    "Real model"
+  ]
+}

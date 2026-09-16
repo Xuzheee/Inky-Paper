@@ -21,3 +21,5 @@
 重跑：`scripts/desktop/verify-workbench-context.mjs <全新隔离目录名>`，完整退出并以同一隔离数据重启后运行 `verify-workbench-context-restart.mjs <目录名>`。构建、启动方法同 `scripts/desktop/launch-workbench-acceptance.ps1`；不得指定正式数据目录。
 
 本轮未扩展为全部工作台视觉、第三方日历或全部番茄钟页面的验收；字体缩放的完整历史证据见 [原分支报告](../compact-focus-20260915/README.md)。
+
+隔离测试进程已正常退出。自动审批以 `blocked by policy` 拒绝删除本轮测试目录，因此该目录保留在 Git 排除的 `output/`，没有再次尝试删除；报告和截图位于本目录。正式运行进程保持原状，用户正常退出再打开即可加载新版。

@@ -50,3 +50,9 @@ corepack pnpm tauri dev --config scripts/desktop/tauri-workbench-dev.json
 2026-09-15 在原项目目录创建 `codex/inky-integration`，把工作台每日记录提交 `36251ed` 与纸面结束页提交 `982d9f0` 合并为 `61c639d`。共享文件自动合并，保留两边修改。合并版本通过自动检查和隔离桌面验证后统一交付；`main` 和 `codex/inky-workbench` 快进到集成结果，原项目目录回到工作台分支。纸面 worktree 保持自己的分支，开始下一轮时可在干净状态下将 `main` 合并进来。
 
 本机分支没有推送到远程仓库。证据见 [0.6.2 验收](verification/0.6.2/README.md)。
+
+## 第二次集成：0.6.3
+
+2026-09-16 工作台分支先合并纸面分支 `4a1137c`，保留便签小赖字体和番茄钟 90% 缩放，再提交日期、讨论范围与直接返回 Inky 的修正 `0b7045e`。`codex/inky-integration` 快进到相同代码后统一构建和交付，`main` 与工作台分支随后同步到交付结果。纸面 worktree 仍保留自己的分支和正在进行的工作，不跨目录改写。
+
+本轮自动检查与隔离原生验收见 [0.6.3 验收](verification/0.6.3/README.md)。仍未推送远程。

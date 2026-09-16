@@ -27,6 +27,18 @@ corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-exe
 node scripts/desktop/verify-session-pages.mjs end-pages-check
 ```
 
+## 工作台日期与返回入口验收
+
+工作台日期、讨论范围和返回入口使用专用流程：
+
+```powershell
+corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-workbench-dev.json
+./scripts/desktop/launch-workbench-acceptance.ps1 -RunName workbench-context-check
+node scripts/desktop/verify-workbench-context.mjs workbench-context-check
+```
+
+这会调用真实 Hermes，并只在检查过路径的空隔离数据库中生成候选和采用。完整退出测试进程后，使用相同测试数据与 WebView 环境变量重新启动该 debug 可执行文件，再运行 `node scripts/desktop/verify-workbench-context-restart.mjs workbench-context-check` 检查完整重启。9254 端口和正式版数据不可混用，证据写入本轮版本的验证目录。
+
 ## 独立操作提醒验收
 
 ```powershell

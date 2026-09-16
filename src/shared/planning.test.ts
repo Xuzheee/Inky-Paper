@@ -272,7 +272,7 @@ describe("parent completion acknowledgement", () => {
     expect(taskCompletionPrompt(data,"A")).not.toBeNull();
     data.planning!.steps.push(step("new"));
     expect(taskCompletionPrompt(data,"A")).toBeNull();
-    data.planning!.steps.at(-1)!.completed=true;
+    data.planning!.steps[data.planning!.steps.length-1].completed=true;
     expect(taskCompletionPrompt(data,"A")).not.toBeNull();
   });
 });

@@ -23,6 +23,7 @@ pub struct PlanningState {
     pub plan_changes: Vec<PlanChange>,
     pub adjustments: Vec<crate::plan_adjustments::Batch>,
     pub task_completion_acknowledgements: Vec<crate::paper_followup::TaskCompletionAcknowledgement>,
+    pub context: crate::planning_context::ContextState,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -533,6 +534,8 @@ pub(crate) fn daily_record(
         .filter(|change| (start..end).contains(&change.recorded_at))
         .collect();
     let mut facts = json!({"date":date,"utcOffsetMinutes":offset,"plans":plans,"sessions":session_facts,"notes":notes,"workBlocks":work_blocks});
+    let constraints = s.planning.context.days.iter().find(|d| d.date == date);
+    if constraints.is_some() { facts["dayConstraints"] = json!(constraints); }
     let plan_changes: Vec<_> = s
         .planning
         .plan_changes
@@ -578,7 +581,7 @@ pub(crate) fn daily_record(
         })
         .collect();
     Ok(
-        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"planChanges":plan_changes,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,
+        json!({"date":date,"utcOffsetMinutes":offset,"planItems":plans,"planChanges":plan_changes,"sessions":sessions,"manualStepChanges":manual_step_changes,"notes":notes,"workBlocks":work_blocks,"summaries":summaries,"dataVersion":data_version,"sampledAt":t,"dayConstraints":constraints,"capacity":crate::planning_context::day_capacity(s,date)?,
         "basis":"Clock intervals are recorded time, not verified attention. Pauses are excluded. New sessions split at the requested local midnight. Legacy sessions without intervals are assigned to their start date; exact legacy daily allocation is unavailable. Missing output and unrecorded time remain unknown."}),
     )
 }

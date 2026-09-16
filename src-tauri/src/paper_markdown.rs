@@ -278,6 +278,12 @@ fn render_day(day: &Value) -> String {
     let mut out = format!("# {date}\n\n自动同步的计划与工作记录。计时不代表有效专注；未填写的反馈保持未知。\n\n[个人复盘]({date}.个人笔记.md) · [全部任务](../任务.md)\n\n## 今日计划\n\n");
     let empty = vec![];
     let plans = day["planItems"].as_array().unwrap_or(&empty);
+    if day["dayConstraints"].is_object() {
+        let constraints=&day["dayConstraints"];
+        out.push_str(&format!("可投入时间：{}；修改时间：{}；来源：{}。\n\n",constraints["availableMinutes"].as_u64().map(|n|format!("{n} 分钟")).unwrap_or_else(||"未填写".into()),time_at(&constraints["updatedAt"]),cell(&text(constraints,"source"))));
+        for interval in constraints["unavailable"].as_array().unwrap_or(&empty) { out.push_str(&format!("- 不可用：当日第 {}–{} 分钟\n",interval["startMinute"],interval["endMinute"])); }
+        out.push('\n');
+    }
     for item in plans {
         let step = &item["step"];
         out.push_str(&format!(

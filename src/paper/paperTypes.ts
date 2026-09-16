@@ -90,6 +90,7 @@ export type PlanChange = {
   before: DayItem | null; after: DayItem | null;
 };
 export type PlanningState = {
+  context?: PlanningContext;
   steps: PlanStep[];
   dayItems: DayItem[];
   manualStepChanges?: ManualStepChange[];
@@ -98,6 +99,8 @@ export type PlanningState = {
   taskCompletionAcknowledgements?: {taskId: string; completionKey: string; acknowledgedAt: number}[];
   sessionLinks?: { sessionId: string; dayItemId: string; planDate: string }[];
 };
+export type DayConstraint = { date:string; revision:number; availableMinutes:number|null; unavailable:{startMinute:number;endMinute:number}[]; updatedAt:number; source:string };
+export type PlanningContext = { days:DayConstraint[] };
 export type ManualStepChange = {
   id: string;
   taskId: string;

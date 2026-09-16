@@ -135,6 +135,8 @@ pub(crate) fn build(c: &Connection, input: Value, message: &str) -> Result<Value
     let mut versions = Versions::default();
     versions.include(task, step, item);
     let mut facts = json!({"selection":{"task":task,"step":step,"dayItem":item}});
+    facts["dayConstraints"] = json!(state.planning.context.days.iter().find(|d|d.date == date));
+    facts["capacity"] = crate::planning_context::day_capacity(&state,&date)?;
     let latest_session = step_id.as_ref().and_then(|id| state.sessions.iter().filter(|s| s.kind == "focus" && s.status == "finished" && s.task_id.as_ref() == task_id.as_ref() && s.action.as_ref().is_some_and(|a| a.id == *id)).max_by(|a,b| a.ended_at.unwrap_or(a.started_at).cmp(&b.ended_at.unwrap_or(b.started_at)).then_with(|| a.id.cmp(&b.id))));
     facts["selection"]["nextCue"] = latest_session.and_then(|s| {
         let cue = s.feedback.as_ref().and_then(|f|f["nextCue"].as_str()).filter(|c|!c.trim().is_empty()).or(s.resume_cue.as_deref().filter(|c|!c.trim().is_empty()))?;

@@ -11,6 +11,7 @@ mod paper_migration;
 mod paper_planning;
 mod paper_permissions;
 mod plan_adjustments;
+mod planning_context;
 mod workbench;
 mod workbench_context;
 mod workbench_plan;

@@ -263,6 +263,7 @@ fn execute_inner(
             | "get_plan_batch"
             | "get_plan_adjustment"
             | "get_daily_record"
+            | "get_day_capacity"
     );
     let request_id = if read {
         None
@@ -873,6 +874,11 @@ fn execute_inner(
             event(&tx, action, source, note.clone())?;
             changed = true;
             json!({"note":note})
+        }
+        "get_day_capacity" | "save_day_constraints" => {
+            let out = crate::planning_context::execute(&mut s, action, &v, source, t)?;
+            if action != "get_day_capacity" { event(&tx, action, source, out.clone())?; changed = true; }
+            out
         }
         "acknowledge_task_completion" | "organize_note" => {
             let out = crate::paper_followup::execute(&mut s, action, &v, source, t)?;

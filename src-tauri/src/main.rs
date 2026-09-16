@@ -258,6 +258,7 @@ fn main() {
             workbench::open_workbench,
             workbench::workbench_prepare_step,
             workbench::workbench_history,
+            workbench::workbench_storage_scope,
             workbench::workbench_send,
             workbench::workbench_cancel,
             workbench::workbench_permission,

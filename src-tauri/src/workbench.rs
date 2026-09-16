@@ -15,6 +15,15 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 type Reply = Result<Value, String>;
+/// Stable, opaque namespace for drafts belonging to this data directory.
+#[tauri::command]
+pub fn workbench_storage_scope(app: AppHandle) -> Reply {
+    use sha2::{Digest, Sha256};
+    let rt = app.state::<Runtime>();
+    let path = std::fs::canonicalize(&rt.dir).map_err(err)?;
+    let scope = format!("{:x}", Sha256::digest(path.to_string_lossy().to_lowercase().as_bytes()));
+    Ok(json!({"scopeId": scope}))
+}
 struct Turn {
     request: String,
     session: String,

@@ -93,3 +93,12 @@ P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退
 采用前针对初始共同状态一次校验所有所选组（含对象/排序/进行中会话）；之后按保存顺序应用。任一失败整体回滚。不确定响应保留同一 payload 与 requestId 到本地草稿。独立组分次采用时，只更新同批采用自己产生的依赖版本，不接受外部更新的旧候选。采用过的组不得重复新增；新组与原任务/步骤/会话快照有明确关联。
 
 安全收口：model bearer 仅允许读取、提案和用户请求的版本化总结；独立 user bearer 仅供本机插件点击采用，不传给模型。所有非 user 的直接任务写入、采用和时钟操作在共同后端也拒绝。ACP 子进程只加载本次 Paper MCP toolset，不加载文件/终端/浏览器/其他 MCP 工具；不修改用户全局 Hermes 安装或配置。
+
+## M3 公共约定
+
+- `workbench_storage_scope` 是只读 Tauri 命令，返回当前数据目录稳定 SHA-256 `scopeId`，不返回路径。工作台新增对象草稿和未知结果请求按 scopeId 隔离；未读到 scope 前不发送写操作。
+- `planning.taskCompletionAcknowledgements` 默认空，元素 `{taskId,completionKey,acknowledgedAt}`。`acknowledge_task_completion` 仅用户可调用，输入 taskId/expectedTaskRevision/steps:[{id,revision}]/requestId，完整非空步骤集合必须全完成，父任务未完成且无当前会话。只记录“保留后续”；显式完成父任务仍走 update_task。
+- completionKey 是规范 JSON `[taskId, sortedSteps.map(step => [stepId, sortedManualChangeIds, sortedFinishedCompletionSessionIds])]`。新增步骤或撤销再完成允许再提示，仅改标题不重复提示。前端公共查询与后端计算一致，不接受前端提交的 key。
+- 笔记保留原 id/text/source/sessionId/taskId/action。新增 revision 默认 1；organization 为 kept/linked/converted，可空表示待整理；linkedTaskId 独立于来源 taskId。`organize_note` 仅用户调用，输入 noteId/expectedRevision/mode/targetTaskId?/expectedTaskRevision?/requestId；keep 保留、link 校验目标版本、convert 创建或复用 originNoteId 的目标。转换参数 title/taskId/nextAction 可传，title 缺省原文前 300 字，原文不截断。转换已有目标时复用，绝不删除笔记；已转换笔记不允许改掉转换关系。现有 create_task(originNoteId) 同步记录整理状态与版本。
+
+公共模块实现可以委派到独立新文件，主任务接线公共类型与事务。每包完成再领取下一项。

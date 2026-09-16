@@ -24,9 +24,15 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { DayItem, State } from "../paper/paperTypes";
-import { planningViews, type LeftoverPlan } from "../shared/planning";
+import {
+  latestStepCue,
+  planningViews,
+  type LeftoverPlan,
+} from "../shared/planning";
 import CoachChat from "./CoachChat";
 import DayCapacity from "./DayCapacity";
+import BulkReschedule from "./BulkReschedule";
+import NotesInbox from "./NotesInbox";
 import DailyJournal from "./DailyJournal";
 import MarkdownJournal from "./MarkdownJournal";
 import TaskMetadata, { priorityLabels } from "./TaskMetadata";
@@ -651,14 +657,17 @@ export default function Workbench() {
     void loadScope();
   }, [loadScope]);
   const [day, setDay] = useState(dateKey);
-  const [coachPrefill,setCoachPrefill] = useState<{text:string;serial:number}>();
+  const [coachPrefill, setCoachPrefill] = useState<{
+    text: string;
+    serial: number;
+  }>();
   const [month, setMonth] = useState(() => dateKey().slice(0, 7));
   const [view, setView] = useState<
     "tasks" | "calendar" | "record" | "markdown"
   >("tasks");
   const [documentKind, setDocumentKind] = useState("day");
   const [recordsRevision, setRecordsRevision] = useState(0);
-  const [nav, setNav] = useState<"week" | "inbox">("week");
+  const [nav, setNav] = useState<"week" | "inbox" | "notes">("week");
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [editor, setEditor] = useState<{
@@ -925,6 +934,8 @@ export default function Workbench() {
   });
   const rowView = (r: Row, index: number) => {
     const expanded = key(r) === selectedId;
+    const cue =
+      state && r.step ? latestStepCue(state, r.task.id, r.step.id) : null;
     const steps =
       state?.planning?.steps.filter((s) => s.taskId === r.task.id) || [];
     return (
@@ -993,6 +1004,12 @@ export default function Workbench() {
                 </div>
               ))}
             <TaskMetadata task={r.task} step={r.step} />
+            {cue && (
+              <div className="wk-step-cue" data-session-id={cue.sessionId}>
+                <strong>下次从这里继续</strong>
+                <p>{cue.text}</p>
+              </div>
+            )}
             <div className="wk-detail-actions">
               {r.step && !r.step.completed && !r.task.completed && (
                 <button disabled={blocked} onClick={() => void choose(r)}>
@@ -1115,6 +1132,18 @@ export default function Workbench() {
             <Inbox size={22} />
             待安排<span>{loose.length || ""}</span>
           </button>
+          <button
+            className={nav === "notes" ? "active" : ""}
+            onClick={() => {
+              setNav("notes");
+              setView("tasks");
+              setSelectedId("");
+              setFilter("");
+            }}
+          >
+            <Pencil size={22} />
+            随手记整理
+          </button>
         </nav>
         <div className="wk-projects">
           <button
@@ -1130,6 +1159,7 @@ export default function Workbench() {
                 key={k}
                 className={filter === k ? "active" : ""}
                 onClick={() => {
+                  if (nav === "notes") setNav("week");
                   setFilter(filter === k ? "" : k);
                   setSelectedId("");
                   if (singleDay) setView("tasks");
@@ -1172,41 +1202,47 @@ export default function Workbench() {
         <div className="wk-hero">
           <div>
             <h2>
-              {nav === "inbox"
-                ? "先放在这里，慢慢理清。"
-                : singleDay
-                  ? "这一天，留下足迹。"
-                  : "这一周，慢慢推进。"}
+              {nav === "notes"
+                ? "整理随手记"
+                : nav === "inbox"
+                  ? "先放在这里，慢慢理清。"
+                  : singleDay
+                    ? "这一天，留下足迹。"
+                    : "这一周，慢慢推进。"}
             </h2>
-            <div className="wk-date-controls">
-              <button
-                aria-label={singleDay ? "前一天" : "前面三天"}
-                onClick={() => goDay(shiftDay(day, singleDay ? -1 : -3))}
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button onClick={() => goDay(dateKey())}>今天</button>
-              <button
-                aria-label={singleDay ? "后一天" : "后面三天"}
-                onClick={() => goDay(shiftDay(day, singleDay ? 1 : 3))}
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
+            {nav !== "notes" && (
+              <div className="wk-date-controls">
+                <button
+                  aria-label={singleDay ? "前一天" : "前面三天"}
+                  onClick={() => goDay(shiftDay(day, singleDay ? -1 : -3))}
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button onClick={() => goDay(dateKey())}>今天</button>
+                <button
+                  aria-label={singleDay ? "后一天" : "后面三天"}
+                  onClick={() => goDay(shiftDay(day, singleDay ? 1 : 3))}
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
           </div>
           <div>
-            <p>
-              {filter && !singleDay ? `${categories[filter]} · ` : ""}
-              {singleDay ? (
-                day
-              ) : (
-                <>
-                  {Number(monday.slice(5, 7))}月{Number(monday.slice(8))}日 —{" "}
-                  {Number(shiftDay(monday, 6).slice(5, 7))}月
-                  {Number(shiftDay(monday, 6).slice(8))}日
-                </>
-              )}
-            </p>
+            {nav !== "notes" && (
+              <p>
+                {filter && !singleDay ? `${categories[filter]} · ` : ""}
+                {singleDay ? (
+                  day
+                ) : (
+                  <>
+                    {Number(monday.slice(5, 7))}月{Number(monday.slice(8))}日 —{" "}
+                    {Number(shiftDay(monday, 6).slice(5, 7))}月
+                    {Number(shiftDay(monday, 6).slice(8))}日
+                  </>
+                )}
+              </p>
+            )}
             {nav === "week" && (
               <div className="wk-tabs" role="tablist" aria-label="计划视图">
                 <button
@@ -1328,7 +1364,28 @@ export default function Workbench() {
             </button>
           </div>
         )}
-        {state && storageScope && nav === "week" && !singleDay && <DayCapacity key={`${storageScope}-${day}`} state={state} date={day} scope={storageScope} onSaved={()=>void reload()} onDiscuss={text=>{setSelectedId("");setCoachPrefill({text,serial:Date.now()});}}/>}
+        {state && storageScope && nav === "week" && !singleDay && (
+          <DayCapacity
+            key={`${storageScope}-${day}`}
+            state={state}
+            date={day}
+            scope={storageScope}
+            onSaved={() => void reload()}
+            onDiscuss={(text) => {
+              setSelectedId("");
+              setCoachPrefill({ text, serial: Date.now() });
+            }}
+          />
+        )}
+        {state && storageScope && nav === "week" && !singleDay && (
+          <BulkReschedule
+            key={storageScope}
+            rows={visible(rows)}
+            storageScope={storageScope}
+            blocked={blocked}
+            onSaved={() => void reload()}
+          />
+        )}
         {state && nav === "week" && !singleDay && (
           <LeftoverPlans
             groups={plans.leftovers.filter(
@@ -1344,6 +1401,32 @@ export default function Workbench() {
         )}
         {!state ? (
           <p className="wk-loading">正在读取工作记录…</p>
+        ) : nav === "notes" ? (
+          storageScope ? (
+            <NotesInbox
+              state={state}
+              storageScope={storageScope}
+              onSaved={() => void reload()}
+              onSelectTask={(id) => {
+                const row = [...loose, ...rows].find((r) => r.task.id === id);
+                setView("tasks");
+                setFilter("");
+                if (row?.item) {
+                  goDay(row.item.date);
+                  setSelectedId(key(row));
+                } else {
+                  setNav("inbox");
+                  setSelectedId(row ? key(row) : "");
+                  if (!row) {
+                    const task = state.tasks.find((t) => t.id === id);
+                    if (task) setEditor({ row: { task }, date: null });
+                  }
+                }
+              }}
+            />
+          ) : (
+            <p className="wk-loading">正在读取随手记…</p>
+          )
         ) : nav === "inbox" ? (
           <div className="wk-inbox">
             <header>

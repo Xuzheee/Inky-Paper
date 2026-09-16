@@ -117,6 +117,9 @@ function ActionPreview({
   );
 }
 
+export const hasPendingAdjustment = (id: string) =>
+  !!localStorage.getItem(`inky-wb-adjust-${id}-pending`);
+
 export default function AdjustmentCards({
   id,
   streaming,

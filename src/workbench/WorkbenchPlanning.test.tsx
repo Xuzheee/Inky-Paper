@@ -112,7 +112,19 @@ beforeEach(() => {
       input: Record<string, any>;
     };
     if (action === "get_state") return { state: structuredClone(data) };
-    if (action === "get_day_capacity") return {capacity:{availableMinutes:null,reservedMinutes:0,unestimatedCount:0,calendarOccupiedMinutes:0,overlapPairs:[],unavailableConflicts:[],overBudget:null,fullyEstimated:true}};
+    if (action === "get_day_capacity")
+      return {
+        capacity: {
+          availableMinutes: null,
+          reservedMinutes: 0,
+          unestimatedCount: 0,
+          calendarOccupiedMinutes: 0,
+          overlapPairs: [],
+          unavailableConflicts: [],
+          overBudget: null,
+          fullyEstimated: true,
+        },
+      };
     writes.push({ action, input: structuredClone(input) });
     return handleWrite(action, input);
   });
@@ -128,7 +140,7 @@ async function openOld() {
   const outer = screen.getByText("旧安排").closest("details")!;
   expect(outer.open).toBe(false);
   fireEvent.click(outer.querySelector("summary")!);
-  const group = screen.getByText("继续核对数字").closest("details")!;
+  const group = within(outer).getByText("继续核对数字").closest("details")!;
   expect(group.open).toBe(false);
   fireEvent.click(group.querySelector("summary")!);
   return group;
@@ -329,4 +341,84 @@ it("keeps plan mutations disabled until the data-directory storage scope is avai
         .disabled,
     ).toBe(false),
   );
+});
+
+it("shows the latest cue for the selected step in its task details", async () => {
+  data.planning!.dayItems = [makeItem("today-item", today)];
+  const session = (
+    id: string,
+    stepId: string,
+    endedAt: number,
+    resumeCue: string,
+  ) => ({
+    id,
+    taskId: "task",
+    taskTitle: "核对周报",
+    action: {
+      id: stepId,
+      text: "继续核对数字",
+      completed: false,
+      source: "user",
+    },
+    kind: "focus",
+    status: "finished",
+    revision: 1,
+    plannedSeconds: 900,
+    elapsedSeconds: 500,
+    lastResumedAt: null,
+    startedAt: endedAt - 500,
+    endedAt,
+    pauseCount: 0,
+    resumeCue,
+    feedback: null,
+  });
+  data.sessions = [
+    session("session-a1", "step", 1000, "已过时的提示"),
+    session("session-b", "other-step", 2000, "另一步骤的提示"),
+    session("session-a2", "step", 3000, "从第三行的原始数据继续"),
+  ];
+  render(<Workbench />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "继续核对数字" }),
+  );
+  const cue = screen.getByText("从第三行的原始数据继续");
+  expect(cue.closest(".wk-step-cue")?.getAttribute("data-session-id")).toBe(
+    "session-a2",
+  );
+  expect(screen.queryByText("已过时的提示")).toBeNull();
+  expect(screen.queryByText("另一步骤的提示")).toBeNull();
+});
+
+it("opens the notes workspace without day views and returns to a linked task's visible details", async () => {
+  data.planning!.dayItems = [makeItem("future", shiftDay(today, 4))];
+  data.notes = [
+    {
+      id: "note",
+      text: "待核对的数字来源",
+      createdAt: 1000,
+      organization: "linked",
+      linkedTaskId: "task",
+      revision: 2,
+    },
+  ];
+  render(<Workbench />);
+  fireEvent.click(await screen.findByRole("button", { name: "随手记整理" }));
+  await screen.findByRole("region", { name: "随手记整理" });
+  expect(screen.queryByRole("tablist", { name: "计划视图" })).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "今天" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "批量改期" }),
+  ).toBeNull();
+  expect(document.querySelector(".wk-capacity")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "全部" }));
+  fireEvent.click(screen.getByRole("button", { name: "打开任务" }));
+  expect(screen.getByTestId("coach-scope").textContent).toBe(
+    `step / ${shiftDay(today, 4)}`,
+  );
+  expect(
+    screen.getByRole("button", { name: "设为下一步并回到 Inky" }),
+  ).toBeTruthy();
+  expect(writes).toHaveLength(0);
 });

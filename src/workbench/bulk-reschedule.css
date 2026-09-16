@@ -1,0 +1,76 @@
+.wk-bulk-entry {
+  margin: 0 28px 10px;
+  flex-shrink: 0;
+}
+.wk-bulk-entry > button {
+  font-size: 13px;
+  color: #61714f;
+}
+.wk-bulk-dialog {
+  width: 600px;
+}
+.wk-bulk-dialog > p {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: #7f857e;
+}
+.wk-bulk-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 12px 0;
+}
+.wk-bulk-date {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wk-bulk-date input {
+  padding: 5px;
+}
+.wk-bulk-list {
+  max-height: 35vh;
+  overflow: auto;
+  margin-top: 12px;
+}
+.wk-bulk-list label {
+  display: flex;
+  gap: 9px;
+  padding: 9px 0;
+  border-top: 1px dashed #dce1d5;
+}
+.wk-bulk-list input {
+  align-self: flex-start;
+  margin-top: 5px;
+  accent-color: #697e59;
+}
+.wk-bulk-list small {
+  display: block;
+  color: #7f857e;
+  font-size: 12px;
+}
+.wk-bulk-dialog footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+.wk-bulk-dialog .wk-error {
+  white-space: pre-wrap;
+}
+.wk-step-cue {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-left: 2px solid #a0b095;
+  background: #f1f3ec;
+  color: #4e5e48;
+}
+.wk-step-cue strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.wk-step-cue p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

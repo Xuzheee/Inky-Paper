@@ -586,6 +586,13 @@ fn send(
         p.stop();
         return Err("已停止连接，消息草稿保留。".into());
     }
+    // Sample after connection/session loading, immediately before the request is saved.
+    // Only identifiers and intent come from the UI; facts and dates come from Paper.
+    let context = {
+        let db = app.state::<crate::paper::PaperDb>();
+        let c = db.0.lock().map_err(err)?;
+        crate::workbench_context::build(&c, context, &message)?
+    };
     let c = history_db(&rt)?;
     let now = chrono::Utc::now().timestamp_millis();
     c.execute("INSERT INTO conversations VALUES(?1,?2,?3) ON CONFLICT(id) DO UPDATE SET updated=excluded.updated",params![session,message.chars().take(28).collect::<String>(),now]).map_err(err)?;
@@ -613,7 +620,7 @@ fn send(
     });
     let _ = app.emit(
         "workbench:chat",
-        json!({"requestId":request_id,"sessionId":session,"update":{"sessionUpdate":"connected"}}),
+        json!({"requestId":request_id,"sessionId":session,"context":context,"update":{"sessionUpdate":"connected"}}),
     );
     let rules = include_str!("../../integrations/inky-coach-hermes-plugin/skills/coach/SKILL.md");
     let intro = if new {
@@ -622,7 +629,7 @@ fn send(
         String::new()
     };
     let prompt = format!(
-        "{intro}本次讨论范围（每次请求以此为准，不能沿用上一轮任务；事实需通过工具重读）：{context}\n除非用户明确指定另一日期，计划采用日期使用此处 date。生成候选时在 directive 中写明日期，例如 ::inky-plan{{batchId=\"返回的真实 UUID\" date=\"YYYY-MM-DD\"}}；日期使用确切日历日期。不要把今天等同于当前查看日期。\n用户消息：\n{message}"
+        "{intro}本次请求快照（由 Paper 刚读取；不能沿用旧聊天的日期、任务或版本）：{context}\n按 resolvedIntent 回应：plan 帮助取舍和安排，stuck 先找缺信息、外部依赖、范围过大或明确自报状态，review 依据记录回顾，auto 按当前原话理解。信息足够直接建议，只问会改变结果的缺失信息；简单事项不强拆。temporaryConstraints 只对本次请求有效，不能从计时或空白补造精力。若 truncated 标记为真或需要扩大范围，再用工具读取。\n除非用户明确指定另一日期，计划采用日期使用此处 date。生成候选时在 directive 中写明日期，例如 ::inky-plan{{batchId=\"返回的真实 UUID\" date=\"YYYY-MM-DD\"}}；日期使用确切日历日期。不要把今天等同于当前查看日期。\n用户消息：\n{message}"
     );
     let result = p.rpc(
         "session/prompt",

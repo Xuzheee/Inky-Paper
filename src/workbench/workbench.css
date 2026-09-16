@@ -691,18 +691,23 @@
   font-size: 15px;
   color: var(--wk-muted);
 }
-.wk-chat-empty > div:last-child {
+.wk-coach-shortcuts {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 27px;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 20px 0;
 }
-.wk-chat-empty button {
-  font-size: 14px;
+.wk-coach-shortcuts button {
+  font-size: 12px;
   border: 1px solid var(--wk-line);
-  border-radius: 22px;
-  padding: 7px 13px;
+  border-radius: 16px;
+  padding: 6px 10px;
+  color: #626f58;
+}
+.wk-coach-shortcuts button[aria-pressed="true"] {
+  background: #f0f3eb;
+  border-color: #b6c1ae;
 }
 .wk-message {
   margin: 0 0 24px;

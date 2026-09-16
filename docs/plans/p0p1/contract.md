@@ -75,3 +75,21 @@ P-02 与旧测试的差异：原来准备来源被取消后，开始按钮会退
 发送模型前后端从一个最新 Paper 快照生成 `sampledAt/resolvedIntent/latestFacts/versions/truncated` 并替换前端标题；校验选择的任务、步骤与安排对应关系。安排范围只包含所选日/所选对象和必要未安排项；卡住取选中步骤最近反馈；回顾复用该日记录及笔记版本；普通交流取简要选中事实。更广范围按需通过工具读取。历史缺失字段仍可显示。
 
 常驻三入口仅预填且标记意图，手动改写后回到 auto，只有发送才启动模型。生成中的消息、卡片与历史绑定本次快照，不随界面切日期改变。
+
+## C-02 调整协议
+
+复用 PlanningState，在普通新步骤候选旁新增 `adjustments`（旧库默认空），不改现有 Batch 格式。命名操作为 `propose_plan_adjustment`、`get_plan_adjustment`、`adopt_plan_adjustment`。模型只获得前两项。采用为本地用户操作，选中多个组在既有 paper_execute 单笔事务中校验和提交。
+
+提案输入：`batchId/groups:[{id,reason,actions:[]}]`，每批最多 20 组、每组最多 20 动作。每个组是不可拆的依赖单元；没有跨组隐式依赖。动作包含 `kind`：
+
+- `continue`：taskId/stepId、expectedTaskRevision/expectedStepRevision、items:[{id,revision}]、date。复用 M1 继续语义。
+- `reschedule`：相同任务/步骤版本，itemId/expectedItemRevision、date/startMinute/durationMinutes；保留原步骤和来源历史。
+- `reservation`：相同任务/步骤版本，itemId/expectedItemRevision、durationMinutes（可空），保留日期及开始时刻；预留允许无开始时刻，提前落地 M4 的兼容读取规则，不把首轮时长当工时。
+- `reorder`：date、items:[{id,revision}] 为该日全部有效安排的新顺序；校验完整集合与版本。
+- `narrow`：taskId/stepId 和两版本，text/expectedResult/plannedSeconds、date（可空）、newStepId。只新增同一父任务下的小步骤，保留原步骤、原目标及会话，若需延期原步须同组显式附加 reschedule。
+
+返回 `batch:{id,revision,groups:[{id,reason,actions,before,after,adoptedAt}],createdAt}`；before/after 由后端只读预演得到任务、步骤、安排的差异，保留标题用于可读预览，不信任模型提供的差异文案。采用输入 `batchId/expectedRevision/groupIds/requestId`。调整参数通过 `revise_plan_adjustment` 本地用户操作，校验原提案依赖仍有效后重建预览、revision+1，不写正式计划；新参数必须新 requestId。
+
+采用前针对初始共同状态一次校验所有所选组（含对象/排序/进行中会话）；之后按保存顺序应用。任一失败整体回滚。不确定响应保留同一 payload 与 requestId 到本地草稿。独立组分次采用时，只更新同批采用自己产生的依赖版本，不接受外部更新的旧候选。采用过的组不得重复新增；新组与原任务/步骤/会话快照有明确关联。
+
+安全收口：model bearer 仅允许读取、提案和用户请求的版本化总结；独立 user bearer 仅供本机插件点击采用，不传给模型。所有非 user 的直接任务写入、采用和时钟操作在共同后端也拒绝。ACP 子进程只加载本次 Paper MCP toolset，不加载文件/终端/浏览器/其他 MCP 工具；不修改用户全局 Hermes 安装或配置。

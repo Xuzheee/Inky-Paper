@@ -18,6 +18,14 @@ import PlanCards from "./PlanCards";
 const directive = planDirective;
 const scopeLabel = (context: DiscussionContext) =>
   `${context.date} · ${context.stepText || context.taskTitle || "当天计划与记录"}`;
+const applyReply = (messages: Message[], requestId: string, reply: Message) =>
+  messages.map((message) => {
+    if (message.id === reply.id)
+      return { ...reply, context: reply.context || message.context };
+    if (message.id === requestId && reply.context)
+      return { ...message, context: reply.context };
+    return message;
+  });
 function RichText({ text }: { text: string }) {
   return (
     <div className="wk-message-text">
@@ -55,12 +63,18 @@ export default function CoachChat({
   const [text, setText] = useState(
     () => localStorage.getItem("inky-wb-composer") || "",
   );
+  const [intent, setIntent] =
+    useState<NonNullable<DiscussionContext["intent"]>>("auto");
   const [busy, setBusy] = useState(false);
   const [replyContext, setReplyContext] = useState<DiscussionContext>();
   const currentContext: DiscussionContext = {
+    schemaVersion: 2,
     date: selected?.item?.date || date,
+    viewDate: date,
+    intent,
     selectedTaskId: selected?.task.id ?? null,
     selectedStepId: selected?.step?.id ?? null,
+    selectedDayItemId: selected?.item?.id ?? null,
     taskTitle: selected?.task.title ?? null,
     stepText: selected?.step?.text ?? null,
   };
@@ -127,6 +141,7 @@ export default function CoachChat({
     const a = listen<{
       requestId: string;
       sessionId: string;
+      context?: DiscussionContext;
       update: {
         sessionUpdate: string;
         content?: { text?: string };
@@ -138,6 +153,17 @@ export default function CoachChat({
       if (p.requestId !== turn.current) return;
       sessionRef.current = p.sessionId;
       setSession(p.sessionId);
+      if (p.context) {
+        const context = p.context;
+        setReplyContext(context);
+        setMessages((ms) =>
+          ms.map((m) =>
+            m.id === p.requestId || m.id === `${p.requestId}-answer`
+              ? { ...m, context }
+              : m,
+          ),
+        );
+      }
       const u = p.update;
       if (u.sessionUpdate === "connected") setStatus("正在思考…");
       if (u.sessionUpdate === "agent_message_chunk") {
@@ -165,9 +191,11 @@ export default function CoachChat({
     }>("workbench:finished", (e) => {
       const r = e.payload;
       if (r.requestId !== turn.current) return;
-      setMessages((ms) =>
-        ms.map((m) => (m.id === r.message.id ? r.message : m)),
-      );
+      sessionRef.current = r.sessionId;
+      setSession(r.sessionId);
+      setMessages((ms) => applyReply(ms, r.requestId, r.message));
+      if (r.message.context) setReplyContext(r.message.context);
+      turn.current = undefined;
       setBusy(false);
       sending.current = false;
       setStatus("");
@@ -196,7 +224,12 @@ export default function CoachChat({
     const requestId = crypto.randomUUID();
     turn.current = requestId;
     const now = Date.now();
-    const context = { ...currentContext };
+    const context: DiscussionContext = {
+      ...currentContext,
+      today: dateKey(),
+      utcOffsetMinutes: -new Date().getTimezoneOffset(),
+      temporaryConstraints: { text: value, scope: "request" },
+    };
     setReplyContext(context);
     setMessages((ms) => [
       ...ms,
@@ -211,6 +244,7 @@ export default function CoachChat({
       },
     ]);
     setText("");
+    setIntent("auto");
     localStorage.removeItem("inky-wb-composer");
     try {
       const r = await invoke<{
@@ -221,18 +255,15 @@ export default function CoachChat({
         requestId,
         sessionId: sessionRef.current ?? null,
         message: value,
-        context: {
-          ...context,
-          today: dateKey(),
-          utcOffsetMinutes: -new Date().getTimezoneOffset(),
-        },
+        context,
       });
-      sessionRef.current = r.sessionId;
-      setSession(r.sessionId);
-      setMessages((ms) =>
-        ms.map((m) => (m.id === r.message.id ? r.message : m)),
-      );
-      if (r.error) setError(r.error);
+      setMessages((ms) => applyReply(ms, requestId, r.message));
+      if (turn.current === requestId) {
+        sessionRef.current = r.sessionId;
+        setSession(r.sessionId);
+        if (r.message.context) setReplyContext(r.message.context);
+        if (r.error) setError(r.error);
+      }
       const h = await invoke<{ sessions: Conversation[] }>(
         "workbench_history",
         { sessionId: null },
@@ -240,6 +271,7 @@ export default function CoachChat({
       setSessions(h.sessions);
       onSaved();
     } catch (e) {
+      if (turn.current !== requestId) return;
       setError(getError(e));
       setMessages((ms) =>
         ms.map((m) =>
@@ -258,11 +290,13 @@ export default function CoachChat({
         return saved;
       });
     } finally {
-      sending.current = false;
-      setBusy(false);
-      setStatus("");
-      setPermission(undefined);
-      turn.current = undefined;
+      if (turn.current === requestId) {
+        sending.current = false;
+        setBusy(false);
+        setStatus("");
+        setPermission(undefined);
+        turn.current = undefined;
+      }
     }
   };
   const answerPermission = async (optionId: string | null) => {
@@ -357,23 +391,6 @@ export default function CoachChat({
               </div>
               <h3>先说说，你想推进什么？</h3>
               <p>一起拆解目标、调整安排，或者想清楚卡住的那一步。</p>
-              <div>
-                {[
-                  `帮我安排${dayName}`,
-                  selected ? "这一步有点难开始" : "帮我明确下一步",
-                  `回顾${dayName}的工作`,
-                ].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => {
-                      setText(p);
-                      localStorage.setItem("inky-wb-composer", p);
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
           {messages.map((m) => (
@@ -447,6 +464,38 @@ export default function CoachChat({
           </button>
         </div>
       )}
+      <div className="wk-coach-shortcuts" aria-label="Coach 请求入口">
+        {(
+          [
+            { intent: "plan", label: "安排一下", text: `帮我安排${dayName}` },
+            {
+              intent: "stuck",
+              label: "我卡住了",
+              text: selected
+                ? "这一步有点难开始"
+                : "我有点卡住了，帮我明确下一步",
+            },
+            {
+              intent: "review",
+              label: "回顾一下",
+              text: `回顾${dayName}的工作`,
+            },
+          ] as const
+        ).map((shortcut) => (
+          <button
+            key={shortcut.intent}
+            type="button"
+            aria-pressed={intent === shortcut.intent}
+            onClick={() => {
+              setText(shortcut.text);
+              setIntent(shortcut.intent);
+              localStorage.setItem("inky-wb-composer", shortcut.text);
+            }}
+          >
+            {shortcut.label}
+          </button>
+        ))}
+      </div>
       <form
         className="wk-composer"
         onSubmit={(e) => {
@@ -461,6 +510,7 @@ export default function CoachChat({
           value={text}
           onChange={(e) => {
             setText(e.target.value);
+            setIntent("auto");
             localStorage.setItem("inky-wb-composer", e.target.value);
           }}
           onKeyDown={(e) => {

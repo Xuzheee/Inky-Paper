@@ -42,6 +42,18 @@ export type DiscussionContext = {
   selectedStepId: string | null;
   taskTitle: string | null;
   stepText: string | null;
+  schemaVersion?: number;
+  intent?: "auto" | "plan" | "stuck" | "review";
+  viewDate?: string;
+  today?: string;
+  utcOffsetMinutes?: number;
+  selectedDayItemId?: string | null;
+  resolvedIntent?: "auto" | "plan" | "stuck" | "review";
+  sampledAt?: number;
+  latestFacts?: Record<string, unknown>;
+  versions?: Record<string, unknown>;
+  truncated?: Record<string, boolean>;
+  temporaryConstraints?: { text: string; scope: "request" };
 };
 export type Message = {
   id: string;

@@ -14,7 +14,12 @@
     "Full isolated native restart retains exact prepared task/step/day-item source and past session link without starting a clock"
   ],
   "errors": [],
-  "complete": false,
+  "complete": true,
   "modelCalls": 0,
-  "restartPassed": true
+  "restartPassed": true,
+  "scope": "M1 only; full regression and model gates remain M2/M5",
+  "supplementalChecks": [
+    "Native Paper queue reflected named reorder with original IDs",
+    "Unplan preview cancelled one unexecuted arrangement while retaining the executed source and accurately reporting it"
+  ]
 }

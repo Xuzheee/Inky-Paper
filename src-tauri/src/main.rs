@@ -9,6 +9,7 @@ mod paper_markdown;
 mod paper_migration;
 mod paper_planning;
 mod workbench;
+mod workbench_context;
 mod workbench_plan;
 mod workbench_journal;
 

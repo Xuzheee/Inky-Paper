@@ -22,6 +22,7 @@ pub struct PlanningState {
     pub prepared: Option<PreparedStep>,
     pub plan_changes: Vec<PlanChange>,
     pub adjustments: Vec<crate::plan_adjustments::Batch>,
+    pub task_completion_acknowledgements: Vec<crate::paper_followup::TaskCompletionAcknowledgement>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

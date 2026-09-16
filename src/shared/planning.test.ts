@@ -6,7 +6,7 @@ import type {
   State,
   Task,
 } from "../paper/paperTypes";
-import { latestStepCue, planningViews } from "./planning";
+import { latestStepCue, planningViews, taskCompletionPrompt } from "./planning";
 
 const TODAY = "2030-03-04";
 const task = (id: string): Task => ({
@@ -256,5 +256,23 @@ describe("shared step continuation cue", () => {
     });
     data.sessions[1].resumeCue = null;
     expect(latestStepCue(data, "A", "a1")).toBeNull();
+  });
+});
+
+describe("parent completion acknowledgement", () => {
+  it("survives text edits but reappears after new completion facts or new steps", () => {
+    const data=state();
+    data.planning!.steps.forEach(s=>{if(s.taskId==="A")s.completed=true;});
+    const prompt=taskCompletionPrompt(data,"A")!;
+    expect(prompt.completionKey).toBe('["A",[["a1",[],[]],["a2",[],[]]]]');
+    data.planning!.taskCompletionAcknowledgements=[{taskId:"A",completionKey:prompt.completionKey,acknowledgedAt:1}];
+    data.tasks[0].title="新标题"; data.tasks[0].revision++;
+    expect(taskCompletionPrompt(data,"A")).toBeNull();
+    data.planning!.manualStepChanges=[{id:"redo",taskId:"A",stepId:"a1",taskTitle:"旧标题",stepText:"原步骤",completed:true,recordedAt:2}];
+    expect(taskCompletionPrompt(data,"A")).not.toBeNull();
+    data.planning!.steps.push(step("new"));
+    expect(taskCompletionPrompt(data,"A")).toBeNull();
+    data.planning!.steps.at(-1)!.completed=true;
+    expect(taskCompletionPrompt(data,"A")).not.toBeNull();
   });
 });

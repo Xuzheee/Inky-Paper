@@ -50,6 +50,8 @@ pub struct Runtime {
     bridge: PathBuf,
     helper: PathBuf,
     host: PathBuf,
+    model_status: AtomicU64,
+    tool_status: AtomicU64,
 }
 
 fn err(e: impl std::fmt::Display) -> String {
@@ -94,6 +96,8 @@ pub fn setup(app: &AppHandle, dir: &Path) -> Result<(), String> {
         bridge: dir.join("paper-agent-bridge.json"),
         helper,
         host,
+        model_status: AtomicU64::new(0),
+        tool_status: AtomicU64::new(0),
     };
     let c = history_db(&rt)?;
     c.execute(
@@ -302,9 +306,9 @@ pub fn shutdown(app: &AppHandle) {
         }
     }
 }
-fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
+fn hermes_python() -> PathBuf {
     let home = PathBuf::from(std::env::var_os("USERPROFILE").unwrap_or_default());
-    let hermes = std::env::var_os("INKY_PAPER_HERMES_PYTHON")
+    std::env::var_os("INKY_PAPER_HERMES_PYTHON")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             [
@@ -314,7 +318,31 @@ fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
             .into_iter()
             .find(|p| p.is_file())
             .unwrap_or_else(|| home.join("Documents/hermes/venv/Scripts/python.exe"))
-        });
+        })
+}
+fn node_binary() -> PathBuf {
+    std::env::var_os("INKY_WORKBENCH_NODE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(std::env::var_os("ProgramFiles").unwrap_or_else(|| "C:/Program Files".into())).join("nodejs/node.exe"))
+}
+
+#[tauri::command]
+pub fn workbench_diagnostics(app: AppHandle) -> Reply {
+    let rt = app.state::<Runtime>();
+    let dependencies = hermes_python().is_file() && node_binary().is_file();
+    let acp = rt.process.lock().map_err(err)?.as_ref().is_some_and(|p| p.live.load(Ordering::SeqCst));
+    let paper = app.try_state::<crate::paper_bridge::BridgeStatus>().is_some_and(|s| s.available) && rt.helper.is_file() && rt.bridge.is_file();
+    Ok(json!({"checks": diagnostic_checks(dependencies, acp, paper, rt.tool_status.load(Ordering::SeqCst), rt.model_status.load(Ordering::SeqCst)), "sampledAt":chrono::Utc::now().timestamp_millis()}))
+}
+fn diagnostic_checks(dependencies: bool, acp: bool, paper: bool, tools: u64, model: u64) -> Value {
+    json!([
+        {"stage":"dependency","code":if dependencies{"ready"}else{"missing"},"summary":if dependencies{"本机 Hermes 与 Node.js 已找到"}else{"未找到 Hermes 或 Node.js；安装后重新检查"},"retry":"重新检查本机依赖"},
+        {"stage":"acp","code":if acp{"ready"}else{"unknown"},"summary":if acp{"Hermes 连接进程在线"}else{"Hermes 当前未连接；发送消息时连接"},"retry":"重新发送原问题以连接"},
+        {"stage":"paper","code":if !paper || tools==2{"unavailable"}else if tools==1 && acp{"ready"}else{"unknown"},"summary":if !paper{"Paper 本机工具服务不可用；重启 Inky 后重试"}else if tools==2{"Paper 工具调用未成功，请刷新计划后重试"}else if tools==1 && acp{"本次连接已成功调用 Paper 工具"}else{"Paper 本机服务就绪，尚未验证当前连接的工具调用"},"retry":"刷新计划并重试原问题"},
+        {"stage":"model","code":match model{1=>"ready",2=>"failed",_=>"unknown"},"summary":match model{1=>"本次启动中最近一次模型请求成功",2=>"最近一次模型调用失败，请在 Hermes 检查账户和模型后重试",_=>"本次启动尚未验证模型；检查不会自动发送消息"},"retry":"手动重试原问题"}
+    ])
+}
+fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
+    let hermes = hermes_python();
+    rt.tool_status.store(0, Ordering::SeqCst);
     if !hermes.is_file() {
         return Err("未找到 Hermes。请先安装 Hermes 并配置模型，再发送消息。".into());
     }
@@ -377,6 +405,10 @@ fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
                     if let Some(turn) = active.as_mut() {
                         if v["params"]["sessionId"] == turn.session {
                             let update = &v["params"]["update"];
+                            if update["sessionUpdate"] == "tool_call_update" {
+                                if update["status"] == "completed" { handle.state::<Runtime>().tool_status.store(1, Ordering::SeqCst); }
+                                if update["status"] == "failed" { handle.state::<Runtime>().tool_status.store(2, Ordering::SeqCst); }
+                            }
                             if update["sessionUpdate"] == "agent_message_chunk" {
                                 if let Some(text) = update["content"]["text"].as_str() {
                                     turn.text.push_str(text);
@@ -421,10 +453,8 @@ fn spawn(app: &AppHandle, rt: &Runtime) -> Result<Arc<Acp>, String> {
             } else if let Some(id) = v["id"].as_u64() {
                 if let Some(tx) = reader.pending.lock().unwrap().remove(&id) {
                     let reply = if v.get("error").is_some() {
-                        Err(format!(
-                            "Hermes: {}",
-                            v["error"]["message"].as_str().unwrap_or("请求失败")
-                        ))
+                        // Never surface an uncontrolled provider error (which may contain credentials).
+                        Err("Hermes 请求失败。请打开连接检查，按提示重试。".into())
                     } else {
                         Ok(v["result"].clone())
                     };
@@ -548,14 +578,7 @@ fn send(
         p.stop();
         return Err("已停止连接，消息草稿保留。".into());
     }
-    let node = std::env::var_os("INKY_WORKBENCH_NODE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(
-                std::env::var_os("ProgramFiles").unwrap_or_else(|| "C:/Program Files".into()),
-            )
-            .join("nodejs/node.exe")
-        });
+    let node = node_binary();
     if !node.is_file() {
         return Err("未找到 Node.js，Paper 工具暂时无法连接。安装 Node.js 后重试。".into());
     }
@@ -646,6 +669,9 @@ fn send(
         json!({"sessionId":session,"prompt":[{"type":"text","text":prompt}]}),
         600,
     );
+    if !rt.cancelled.load(Ordering::SeqCst) {
+        rt.model_status.store(if result.is_ok() { 1 } else { 2 }, Ordering::SeqCst);
+    }
     if result.is_err() {
         p.stop();
     }
@@ -712,6 +738,19 @@ pub async fn workbench_send(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn diagnostic_reports_unknown_without_invoking_a_provider() {
+        let checks = diagnostic_checks(true, false, true, 0, 0);
+        assert_eq!(checks[2]["code"], "unknown");
+        assert_eq!(checks[3]["code"], "unknown");
+        let failed = diagnostic_checks(false, true, false, 2, 2);
+        assert_eq!(failed[0]["code"], "missing");
+        assert_eq!(failed[2]["code"], "unavailable");
+        assert_eq!(failed[3]["code"], "failed");
+        let text = failed.to_string();
+        for secret in ["token", "Bearer", "C:/", "api_key"] { assert!(!text.contains(secret)); }
+    }
 
     #[test]
     fn history_keeps_request_scope_after_reopen_without_guessing_legacy_dates() {

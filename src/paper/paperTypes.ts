@@ -52,6 +52,13 @@ export type State = {
     createdAt: number;
     taskTitle?: string;
     convertedTaskId?: string;
+    revision?: number;
+    organization?: "kept" | "linked" | "converted" | null;
+    linkedTaskId?: string | null;
+    sessionId?: string | null;
+    taskId?: string | null;
+    source?: string;
+    action?: Action | null;
   }[];
 };
 export type PlanStep = {
@@ -88,6 +95,7 @@ export type PlanningState = {
   manualStepChanges?: ManualStepChange[];
   prepared?: PreparedStep | null;
   planChanges?: PlanChange[];
+  taskCompletionAcknowledgements?: {taskId: string; completionKey: string; acknowledgedAt: number}[];
   sessionLinks?: { sessionId: string; dayItemId: string; planDate: string }[];
 };
 export type ManualStepChange = {

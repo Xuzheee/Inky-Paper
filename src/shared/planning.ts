@@ -117,3 +117,16 @@ export function latestStepCue(
   const text = latest.feedback?.nextCue?.trim() || latest.resumeCue?.trim();
   return text ? { text, sessionId: latest.id } : null;
 }
+
+/** Completion acknowledgement follows completion facts, not unrelated text edits. */
+export function taskCompletionPrompt(state: State, taskId: string) {
+  const task = state.tasks.find(t => t.id === taskId);
+  const steps = (state.planning?.steps || []).filter(s => s.taskId === taskId).sort((a,b) => compareText(a.id,b.id));
+  if (!task || task.completed || !steps.length || steps.some(s => !s.completed) || state.sessions.some(s => s.taskId === taskId && s.status !== "finished")) return null;
+  const completionKey = JSON.stringify([taskId, steps.map(step => [step.id,
+    (state.planning?.manualStepChanges || []).filter(c => c.taskId === taskId && c.stepId === step.id).map(c => c.id).sort(),
+    state.sessions.filter(s => s.taskId === taskId && s.action?.id === step.id && s.kind === "focus" && s.status === "finished" && s.feedback?.outcome === "step_completed").map(s => s.id).sort(),
+  ])]);
+  if (state.planning?.taskCompletionAcknowledgements?.some(a => a.taskId === taskId && a.completionKey === completionKey)) return null;
+  return {task, steps, completionKey};
+}

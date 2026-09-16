@@ -497,6 +497,9 @@ fn execute_inner(
                 s.tasks.insert(0, task.clone());
                 if let Some(i) = note_index {
                     s.notes[i]["convertedTaskId"] = json!(task.id);
+                    s.notes[i]["organization"] = json!("converted");
+                    s.notes[i]["revision"] = json!(s.notes[i]["revision"].as_u64().unwrap_or(1) + 1);
+                    s.notes[i]["organizedAt"] = json!(t);
                     event(
                         &tx,
                         "note_converted",
@@ -863,13 +866,19 @@ fn execute_inner(
             } else {
                 None
             };
-            let note = json!({"id":id(),"text":text(&v,"text",2000)?,"createdAt":t,"source":source,
+            let note = json!({"id":id(),"text":text(&v,"text",2000)?,"createdAt":t,"source":source,"revision":1,
                     "sessionId":context.map(|x| &x.id),"taskId":context.and_then(|x| x.task_id.as_ref()),
                     "taskTitle":context.map(|x| &x.task_title),"action":context.and_then(|x| x.action.as_ref())});
             s.notes.push(note.clone());
             event(&tx, action, source, note.clone())?;
             changed = true;
             json!({"note":note})
+        }
+        "acknowledge_task_completion" | "organize_note" => {
+            let out = crate::paper_followup::execute(&mut s, action, &v, source, t)?;
+            event(&tx, action, source, out.clone())?;
+            changed = true;
+            out
         }
         "workbench_save_step"
         | "workbench_move_item"

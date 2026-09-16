@@ -437,6 +437,10 @@ fn render_day(day: &Value) -> String {
     );
     for note in day["notes"].as_array().unwrap_or(&empty) {
         out.push_str(&format!("- {}\n", cell(&text(note, "text"))));
+        if let Some(mode) = note["organization"].as_str() {
+            let label = match mode { "kept" => "保留为笔记", "linked" => "已关联任务", "converted" => "已转为任务", _ => "待整理" };
+            out.push_str(&format!("  - 整理：{label}；笔记 ID：{}；来源会话：{}；关联任务：{}\n", cell(&text(note,"id")),cell(&text(note,"sessionId")),cell(&if mode=="converted" {text(note,"convertedTaskId")} else {text(note,"linkedTaskId")})));
+        }
     }
     out.push_str("\n## 每日工作总结\n\n");
     let summaries = day["summaries"].as_array().unwrap_or(&empty);

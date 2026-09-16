@@ -19,6 +19,7 @@ import { SessionEnd } from "./SessionEnd";
 import { usePaperNotice } from "./PaperNotice";
 import { usePaperNavigation } from "./usePaperNavigation";
 import { useWindowDrag } from "./useWindowDrag";
+import { PaperChrome } from "./PaperChrome";
 import { persistDraft, taskDraft } from "./taskDraft";
 import { SessionHistory, SessionHistoryList } from "./SessionHistory";
 import { clock, elapsedSeconds } from "./sessionTime";
@@ -804,7 +805,8 @@ export default function PaperApp() {
   return (
     <main
       ref={paperRef}
-      className={`paper ${layout} ${view}${focusQuiet ? " focus-quiet" : ""}${view === "focus" ? (session?.kind === "rest" ? " rest-view" : " focus-strip") : ""}`}
+      id="paper-page-scroll"
+      className={`paper paper-scroll-surface ${layout} ${view}${focusQuiet ? " focus-quiet" : ""}${view === "focus" ? (session?.kind === "rest" ? " rest-view" : " focus-strip") : ""}`}
       {...(paperDragEnabled ? paperDragProps : {})}
     >
       {view !== "home" &&
@@ -902,7 +904,7 @@ export default function PaperApp() {
         />
       ) : view === "home" ? (
         <>
-          <div className="home-body" ref={homeScrollRef}>
+          <div className="home-body paper-scroll-surface" id="paper-home-scroll" ref={homeScrollRef}>
             {header()}
             <section className="intro">
               <h1>就从这一步开始</h1>
@@ -1793,14 +1795,14 @@ export default function PaperApp() {
             <p>
               Alt + Shift + F 显示 / 隐藏
               <br />
-              拖动页眉移动纸页；点击迷你宠物返回。
+              拖动页眉、纸张左边缘或底部空白移动窗口；点击迷你宠物返回。
             </p>
             <button className="outline" onClick={() => setMini(true)}>
               切换迷你宠物
             </button>
           </section>
           <p className="caption">
-            Inky Paper 0.6.3 · 独立数据空间
+            Inky Paper 0.6.4 · 独立数据空间
             <br />
             计时不等于有效专注；空白时段不推断为休息。
           </p>
@@ -1812,6 +1814,14 @@ export default function PaperApp() {
           </button>
         </>
       ) : null}
+      <PaperChrome
+        paperRef={paperRef}
+        scrollRef={view === "home" ? homeScrollRef : paperRef}
+        pageKey={`${view}:${loaded}`}
+        canDrag={native}
+        moveBy={(deltaX, deltaY) => invoke("move_window_by", { deltaX, deltaY })}
+        onError={(error) => setError(String(error))}
+      />
     </main>
   );
 }

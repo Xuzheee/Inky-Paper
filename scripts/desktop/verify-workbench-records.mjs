@@ -7,7 +7,8 @@ import { chromium } from "playwright";
 const run = process.argv[2] || "workbench-records-062";
 if (!/^[a-zA-Z0-9_-]+$/.test(run)) throw Error("Invalid run name");
 const root = path.resolve("output", run, "paper-test");
-const out = path.resolve("docs/verification/0.6.2");
+const out = path.resolve("output", run, "records-verification");
+const version = JSON.parse(await readFile("package.json", "utf8")).version;
 await mkdir(out, { recursive: true });
 const browser = await chromium.connectOverCDP("http://127.0.0.1:9254");
 const pages = browser.contexts().flatMap((context) => context.pages());
@@ -75,6 +76,16 @@ await dialog.waitFor({ state: "hidden" });
 let s = await state();
 const plannedTask = s.tasks[0].id,
   plannedStep = s.planning.steps[0].id;
+await page.getByRole("button", { name: yesterday, exact: true }).click();
+await page.getByRole("tab", { name: "任务", exact: true }).click();
+await page.getByRole("button", { name: "核对每日记录", exact: true }).click();
+await page.locator(".wk-detail-actions").getByRole("button", { name: "设为下一步并回到 Inky", exact: true }).click();
+await main.locator(".next-card h2").filter({ hasText: "核对每日记录" }).waitFor();
+await main.locator(".paper-drag-left").waitFor();
+assert.equal((await state()).sessions.length, 0);
+assert.equal(await page.locator(".paper-chrome").count(), 0);
+assert.equal(await page.locator("html.paper-window").count(), 0);
+pass("Workbench selection returns the correct step to Paper with its drag edges, starts no timer, and leaves the workbench free of Paper overlays");
 const changeStep = async (completed) => {
   s = await state();
   await api("set_step_completed", {
@@ -328,7 +339,7 @@ await writeFile(
   path.join(out, "desktop-verification.json"),
   JSON.stringify(
     {
-      version: "0.6.2",
+      version,
       testData: root,
       checks,
       narrow: size,

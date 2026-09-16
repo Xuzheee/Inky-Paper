@@ -39,6 +39,18 @@ node scripts/desktop/verify-workbench-context.mjs workbench-context-check
 
 这会调用真实 Hermes，并只在检查过路径的空隔离数据库中生成候选和采用。完整退出测试进程后，使用相同测试数据与 WebView 环境变量重新启动该 debug 可执行文件，再运行 `node scripts/desktop/verify-workbench-context-restart.mjs workbench-context-check` 检查完整重启。9254 端口和正式版数据不可混用，证据写入本轮版本的验证目录。
 
+## 固定拖动边缘与浮动滚动条验收
+
+纸张边缘拖动与浮动滚动条专项使用纸面分支独立配置和新的空测试目录：
+
+```powershell
+corepack pnpm tauri build --debug --no-bundle --config scripts/desktop/tauri-execution-dev.json
+./scripts/desktop/launch-focus-acceptance.ps1 -RunName paper-chrome-check
+node scripts/desktop/verify-paper-chrome.mjs paper-chrome-check
+```
+
+验证滚动前后的真实窗口位移、拖动 / 滚轮 / 键盘滚动、零占位与自动淡出、任务横划、记录与保存、页面切换、透明态及迷你宠物。结果和截图保存在 `output/paper-chrome-check/`；不会调用 Hermes。
+
 ## 独立操作提醒验收
 
 ```powershell

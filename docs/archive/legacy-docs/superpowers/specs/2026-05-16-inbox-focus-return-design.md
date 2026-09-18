@@ -1,3 +1,5 @@
+> 历史归档：仅供追溯，不作为当前使用说明或实现要求。见 [当前文档导航](../../../../README.md)。
+
 # Inbox and Focus Return Design
 
 ## Goal

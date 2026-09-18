@@ -1,3 +1,5 @@
+> 历史归档：仅供追溯，不作为当前使用说明或实现要求。见 [当前文档导航](../../README.md)。
+
 # Inky Paper 0.3
 
 这次修复集中在捕获 → 专注 → 记录结果 → 继续的连接处，保持当前 Paper 方向和页面结构。
@@ -14,11 +16,11 @@
 
 ## 对照证据
 
-![独立专注页：左 Figma，右桌面](../output/refinement-20260908/compare-focus.png)
+独立专注页：左 Figma，右桌面（历史附件已不在仓库：`../../../output/refinement-20260908/compare-focus.png`）
 
-![休息页：左 Figma，右桌面](../output/refinement-20260908/compare-rest.png)
+休息页：左 Figma，右桌面（历史附件已不在仓库：`../../../output/refinement-20260908/compare-rest.png`）
 
-![反馈展开后的桌面实测](../output/refinement-20260908/11-after-expanded-feedback.png)
+反馈展开后的桌面实测（历史附件已不在仓库：`../../../output/refinement-20260908/11-after-expanded-feedback.png`）
 
 完整问题、修复过程、真实数据回读和验收边界见项目根目录 `design-qa.md`。
 

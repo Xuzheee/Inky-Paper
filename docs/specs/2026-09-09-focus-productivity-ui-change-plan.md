@@ -22,7 +22,7 @@
 
 ### 1）任务入口：基础清晰，需要增加工作时段上下文
 
-![当前任务页](../../output/product-design-20260909/screenshots/01-home.png)
+当前任务页（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/01-home.png`）
 
 已有优势：突出一个具体下一步，主任务作为上级信息，其他任务降为列表；主要操作清楚。现在的“进行任务”旁边是 15/25/45 分钟选择，它实际开始一轮计时，没有工作时段、预计结束时间或状态选择。
 
@@ -32,9 +32,9 @@
 
 ### 2）专注执行：布局可复用，新增控制需要按需展开
 
-![当前专注窗](../../output/product-design-20260909/screenshots/02-focus.png)
+当前专注窗（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/02-focus.png`）
 
-![当前安静态](../../output/product-design-20260909/screenshots/02-focus-quiet.png)
+当前安静态（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/02-focus-quiet.png`）
 
 已有优势：320×164 的窗口中，任务标题、倒计时、铅笔进度对齐；底部只有暂停、宠物和随手记。安静态保留计时与进度，减少视觉干扰。
 
@@ -44,7 +44,7 @@
 
 ### 3）暂停与恢复：已有线索入口，可扩展为暂停、等待、解卡
 
-![当前暂停页](../../output/product-design-20260909/screenshots/03-paused.png)
+当前暂停页（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/03-paused.png`）
 
 已有优势：暂停后出现“回来先做什么？”及可选输入，用户可以继续或结束本轮。当前没有“等待 AI”和“卡住了”的独立语义。
 
@@ -54,9 +54,9 @@
 
 ### 4）结束与反馈：完成语义清楚，文字反馈需要进一步减负
 
-![当前一轮结束页](../../output/product-design-20260909/screenshots/04-round-end.png)
+当前一轮结束页（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/04-round-end.png`）
 
-![当前展开后的反馈](../../output/product-design-20260909/screenshots/04b-feedback-expanded.png)
+当前展开后的反馈（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/04b-feedback-expanded.png`）
 
 已有优势：“这一步完成了”“这一轮先到这里”“再专注一段”“先休息”分开；补充反馈可折叠。展开后有产出、卡点、下次起点三个文本框，窗口扩展到完整高度。
 
@@ -66,13 +66,13 @@
 
 ### 5）回顾与辅助入口：可沿用足迹和设置，宠物保持简洁
 
-![当前足迹](../../output/product-design-20260909/screenshots/05-history.png)
+当前足迹（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/05-history.png`）
 
 已有优势：足迹已显示步骤、计时、暂停次数与结束状态，可显示已填写的成果和线索。当前以会话为单位，尚不能回答“这一小时想做什么、实际推进了什么”。
 
 修改方向：在足迹内按工作时段分组，目标和进展在前，逐轮计时折叠在后。设置增加工作辅助的少量选项。迷你宠物不增加分数、徽章或持续通知气泡。
 
-设置首屏与透明宠物的附加证据：[设置](../../output/product-design-20260909/screenshots/06-settings-top.png)、[宠物](../../output/product-design-20260909/screenshots/07-mini.png)。透明区域可透出桌面背景，这不是新增界面内容；设置截图只覆盖首屏，不能视作整页视觉检查。
+设置首屏与透明宠物的附加证据：设置（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/06-settings-top.png`）、宠物（历史附件已不在仓库：`../../output/product-design-20260909/screenshots/07-mini.png`）。透明区域可透出桌面背景，这不是新增界面内容；设置截图只覆盖首屏，不能视作整页视觉检查。
 
 ### 检查边界
 

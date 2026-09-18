@@ -1,0 +1,229 @@
+{
+  "date": "2026-09-18",
+  "moves": [
+    {
+      "from": "docs/2026-08-20-release-validation.md",
+      "to": "docs/archive/legacy-docs/2026-08-20-release-validation.md"
+    },
+    {
+      "from": "docs/Agent协作使用说明.md",
+      "to": "docs/archive/legacy-docs/Agent协作使用说明.md"
+    },
+    {
+      "from": "docs/Agent协作验证记录.md",
+      "to": "docs/archive/legacy-docs/Agent协作验证记录.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3-补齐说明.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3-补齐说明.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3.1-专注透明模式.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3.1-专注透明模式.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3.2-完成庆祝.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3.2-完成庆祝.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3.3-铅笔笔触.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3.3-铅笔笔触.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3.4-简洁专注.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3.4-简洁专注.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.3.5-纸页对齐.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.3.5-纸页对齐.md"
+    },
+    {
+      "from": "docs/Inky-Paper-0.4-专注与生产力教练.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-0.4-专注与生产力教练.md"
+    },
+    {
+      "from": "docs/Inky-Paper-验证与数据约定.md",
+      "to": "docs/archive/legacy-docs/Inky-Paper-验证与数据约定.md"
+    },
+    {
+      "from": "docs/人工验收清单-0.5.0.md",
+      "to": "docs/archive/legacy-docs/人工验收清单-0.5.0.md"
+    },
+    {
+      "from": "docs/人工验收清单-0.5.1.md",
+      "to": "docs/archive/legacy-docs/人工验收清单-0.5.1.md"
+    },
+    {
+      "from": "docs/人工验收清单-0.5.2.md",
+      "to": "docs/archive/legacy-docs/人工验收清单-0.5.2.md"
+    },
+    {
+      "from": "docs/人工验收清单-0.5.3.md",
+      "to": "docs/archive/legacy-docs/人工验收清单-0.5.3.md"
+    },
+    {
+      "from": "docs/人工验收清单-0.5.4.md",
+      "to": "docs/archive/legacy-docs/人工验收清单-0.5.4.md"
+    },
+    {
+      "from": "docs/superpowers/plans/2026-05-16-inbox-focus-return.md",
+      "to": "docs/archive/legacy-docs/superpowers/plans/2026-05-16-inbox-focus-return.md"
+    },
+    {
+      "from": "docs/superpowers/plans/2026-05-20-pet-naming-onboarding.md",
+      "to": "docs/archive/legacy-docs/superpowers/plans/2026-05-20-pet-naming-onboarding.md"
+    },
+    {
+      "from": "docs/superpowers/plans/2026-05-24-retro-popup-style.md",
+      "to": "docs/archive/legacy-docs/superpowers/plans/2026-05-24-retro-popup-style.md"
+    },
+    {
+      "from": "docs/superpowers/specs/2026-05-16-inbox-focus-return-design.md",
+      "to": "docs/archive/legacy-docs/superpowers/specs/2026-05-16-inbox-focus-return-design.md"
+    },
+    {
+      "from": "docs/superpowers/specs/2026-05-20-pet-naming-onboarding-design.md",
+      "to": "docs/archive/legacy-docs/superpowers/specs/2026-05-20-pet-naming-onboarding-design.md"
+    },
+    {
+      "from": "docs/superpowers/specs/2026-05-24-retro-popup-style-design.md",
+      "to": "docs/archive/legacy-docs/superpowers/specs/2026-05-24-retro-popup-style-design.md"
+    },
+    {
+      "from": "design-qa.md",
+      "to": "docs/archive/design-qa-0.5.11.md"
+    }
+  ],
+  "preExistingMissingLinks": [
+    [
+      "docs/Agent协作使用说明.md",
+      "../integrations/inky-mcp-server/README.md"
+    ],
+    [
+      "docs/Inky-Paper-0.3-补齐说明.md",
+      "../output/refinement-20260908/compare-focus.png"
+    ],
+    [
+      "docs/Inky-Paper-0.3-补齐说明.md",
+      "../output/refinement-20260908/compare-rest.png"
+    ],
+    [
+      "docs/Inky-Paper-0.3-补齐说明.md",
+      "../output/refinement-20260908/11-after-expanded-feedback.png"
+    ],
+    [
+      "docs/Inky-Paper-0.4-专注与生产力教练.md",
+      "../output/coach-implementation-20260909/screenshots/01-work-start.jpg"
+    ],
+    [
+      "docs/Inky-Paper-0.4-专注与生产力教练.md",
+      "../output/coach-implementation-20260909/screenshots/06-return-prompt.jpg"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/01-home.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/02-focus.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/02-focus-quiet.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/03-paused.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/04-round-end.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/04b-feedback-expanded.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/05-history.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/06-settings-top.png"
+    ],
+    [
+      "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "../../output/product-design-20260909/screenshots/07-mini.png"
+    ]
+  ],
+  "validation": {
+    "markdownFilesChecked": 115,
+    "missingRelativeLinks": [],
+    "applicationCodeChanged": false,
+    "executableRebuilt": false,
+    "archiveMoves": 23,
+    "historicalBrokenLinksConvertedToText": 15
+  },
+  "historicalBrokenLinksConvertedToText": [
+    {
+      "file": "docs/archive/legacy-docs/Inky-Paper-0.4-专注与生产力教练.md",
+      "target": "../../../output/coach-implementation-20260909/screenshots/01-work-start.jpg"
+    },
+    {
+      "file": "docs/archive/legacy-docs/Inky-Paper-0.4-专注与生产力教练.md",
+      "target": "../../../output/coach-implementation-20260909/screenshots/06-return-prompt.jpg"
+    },
+    {
+      "file": "docs/archive/legacy-docs/Agent协作使用说明.md",
+      "target": "../../../integrations/inky-mcp-server/README.md"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/01-home.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/02-focus.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/02-focus-quiet.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/03-paused.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/04-round-end.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/04b-feedback-expanded.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/05-history.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/06-settings-top.png"
+    },
+    {
+      "file": "docs/specs/2026-09-09-focus-productivity-ui-change-plan.md",
+      "target": "../../output/product-design-20260909/screenshots/07-mini.png"
+    },
+    {
+      "file": "docs/archive/legacy-docs/Inky-Paper-0.3-补齐说明.md",
+      "target": "../../../output/refinement-20260908/compare-focus.png"
+    },
+    {
+      "file": "docs/archive/legacy-docs/Inky-Paper-0.3-补齐说明.md",
+      "target": "../../../output/refinement-20260908/compare-rest.png"
+    },
+    {
+      "file": "docs/archive/legacy-docs/Inky-Paper-0.3-补齐说明.md",
+      "target": "../../../output/refinement-20260908/11-after-expanded-feedback.png"
+    }
+  ]
+}

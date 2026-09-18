@@ -1,3 +1,5 @@
+> 历史归档：仅供追溯，不作为当前使用说明或实现要求。见 [当前文档导航](../../../../README.md)。
+
 # Retro Popup Style Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
